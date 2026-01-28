@@ -1,9 +1,9 @@
 "use client";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { auth } from "../lib/firebase";
 import { signOut } from "firebase/auth";
-import { useRouter } from "next/navigation";
+import { auth } from "../lib/firebase";
 
 interface SidebarProps {
   user: any;
@@ -11,101 +11,161 @@ interface SidebarProps {
 
 export default function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
+  const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
 
   const handleLogout = async () => {
-    await signOut(auth);
-    router.push("/login");
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Çıkış hatası:", error);
+    }
   };
 
-  const menuItems = [
-    { href: "/", label: "Genel Bakış", icon: "⭐", color: "text-yellow-500" },
-    { href: "/gelinler", label: "Gelinler", icon: "👰", color: "text-pink-500" },
-    { href: "/takvim", label: "Takvim", icon: "📅", color: "text-blue-500" },
-    { href: "/personel", label: "Personel", icon: "👥", color: "text-purple-500" },
-    { href: "/gorevler", label: "Görevler", icon: "📋", color: "text-teal-500" },
-    { href: "/izinler", label: "İzinler", icon: "🏖️", color: "text-green-500" },
-    { href: "/duyurular", label: "Duyurular", icon: "📢", color: "text-orange-500" },
-    { href: "/raporlar", label: "Raporlar", icon: "📊", color: "text-indigo-500" },
-    { href: "/gelin-raporlari", label: "Gelin Raporları", icon: "📈", color: "text-rose-500" },
-  ];
+  const toggleMenu = (menu: string) => {
+    setExpandedMenu(expandedMenu === menu ? null : menu);
+  };
 
-  const bottomItems = [
-    { href: "/ayarlar", label: "Ayarlar", icon: "⚙️" },
+  const isActive = (path: string) => pathname === path;
+  const isParentActive = (paths: string[]) => paths.some(path => pathname === path);
+
+  const menuItems = [
+    {
+      id: "genel-bakis",
+      label: "Genel Bakış",
+      icon: "📊",
+      path: "/",
+    },
+    {
+      id: "takvim",
+      label: "Takvim",
+      icon: "📅",
+      path: "/takvim",
+    },
+    {
+      id: "gelinler",
+      label: "Gelinler",
+      icon: "👰",
+      path: "/gelinler",
+    },
+    {
+      id: "personel",
+      label: "Personel",
+      icon: "👤",
+      submenu: [
+        { label: "Tüm Personel", path: "/personel" },
+        { label: "Yöneticiler", path: "/personel?tur=Yönetici" },
+        { label: "Yetkililer", path: "/personel?tur=Yetkili" },
+        { label: "Ayrılanlar", path: "/personel?ayrilanlar=true" },
+        { label: "İzinler", path: "/izinler" },
+        { label: "Giriş-Çıkış", path: "/giris-cikis" },
+        { label: "Vardiya Planları", path: "/vardiya" },
+        { label: "Çalışma Saatleri", path: "/calisma-saatleri" },
+      ],
+    },
+    {
+      id: "raporlar",
+      label: "Raporlar",
+      icon: "📈",
+      submenu: [
+        { label: "Aylık Rapor", path: "/raporlar/aylik" },
+        { label: "Gelir Raporu", path: "/raporlar/gelir" },
+        { label: "Personel Raporu", path: "/raporlar/personel" },
+      ],
+    },
+    {
+      id: "ayarlar",
+      label: "Ayarlar",
+      icon: "⚙️",
+      path: "/ayarlar",
+    },
   ];
 
   return (
-    <div className="fixed left-0 top-0 h-full w-64 bg-white shadow-lg flex flex-col z-40">
-      {/* Logo */}
-      <div className="p-6 border-b">
-        <Link href="/" className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-pink-200 to-purple-200 rounded-xl flex items-center justify-center">
-            <span className="text-xl">💄</span>
+    <div className="sidebar scrollbar-thin">
+      {/* Logo & User */}
+      <div className="p-4 border-b border-gray-200">
+        <div className="gradient-primary text-white p-3 rounded-lg mb-3">
+          <h1 className="text-lg font-bold">GYS Studio</h1>
+          <p className="text-xs opacity-90">Gizem Yolcu</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
+            <span className="text-primary-600 font-bold text-sm">
+              {user?.email?.[0]?.toUpperCase() || "A"}
+            </span>
           </div>
-          <div>
-            <h1 className="font-bold text-gray-800">GMT App</h1>
-            <p className="text-xs text-gray-400">Gizem Yolcu Studio</p>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-800 truncate">
+              {user?.email?.split("@")[0] || "Admin"}
+            </p>
+            <p className="text-xs text-gray-500">Yönetici</p>
           </div>
-        </Link>
+        </div>
       </div>
 
-      {/* Menu */}
-      <nav className="flex-1 p-4 overflow-y-auto">
-        <div className="space-y-1">
-          {menuItems.map((item) => {
-            const isActive = pathname === item.href;
-            return (
+      {/* Menu Items */}
+      <nav className="p-2 space-y-1">
+        {menuItems.map((item) => (
+          <div key={item.id}>
+            {item.submenu ? (
+              <>
+                <button
+                  onClick={() => toggleMenu(item.id)}
+                  className={`sidebar-item w-full ${
+                    isParentActive(item.submenu.map(sub => sub.path))
+                      ? "sidebar-item-active"
+                      : ""
+                  }`}
+                >
+                  <span>{item.icon}</span>
+                  <span className="flex-1 text-left">{item.label}</span>
+                  <span className="text-xs transition-transform" style={{
+                    transform: expandedMenu === item.id ? "rotate(90deg)" : "rotate(0deg)"
+                  }}>
+                    ▶
+                  </span>
+                </button>
+                {expandedMenu === item.id && (
+                  <div className="sidebar-submenu animate-slide-in">
+                    {item.submenu.map((subItem) => (
+                      <Link
+                        key={subItem.path}
+                        href={subItem.path}
+                        className={`sidebar-item ${
+                          isActive(subItem.path) ? "sidebar-item-active" : ""
+                        }`}
+                      >
+                        <span className="text-xs">→</span>
+                        <span>{subItem.label}</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
               <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                  isActive
-                    ? "bg-pink-50 text-pink-600 font-medium"
-                    : "text-gray-600 hover:bg-gray-50"
+                href={item.path!}
+                className={`sidebar-item ${
+                  isActive(item.path!) ? "sidebar-item-active" : ""
                 }`}
               >
-                <span className={`text-lg ${isActive ? item.color : ""}`}>{item.icon}</span>
+                <span>{item.icon}</span>
                 <span>{item.label}</span>
-                {isActive && (
-                  <div className="ml-auto w-1.5 h-1.5 bg-pink-500 rounded-full"></div>
-                )}
               </Link>
-            );
-          })}
-        </div>
+            )}
+          </div>
+        ))}
       </nav>
 
-      {/* Bottom */}
-      <div className="p-4 border-t">
-        {bottomItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 transition-all"
-          >
-            <span className="text-lg">{item.icon}</span>
-            <span>{item.label}</span>
-          </Link>
-        ))}
-        
-        {/* User */}
-        <div className="mt-4 p-4 bg-gray-50 rounded-xl">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-pink-200 to-purple-200 rounded-full flex items-center justify-center text-sm font-medium text-gray-600">
-              {user?.email?.charAt(0).toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-800 truncate">{user?.email}</p>
-              <p className="text-xs text-gray-400">Admin</p>
-            </div>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="mt-3 w-full bg-red-50 hover:bg-red-100 text-red-600 py-2 rounded-lg text-sm font-medium transition-all"
-          >
-            Çıkış Yap
-          </button>
-        </div>
+      {/* Logout Button */}
+      <div className="p-4 border-t border-gray-200 mt-auto">
+        <button
+          onClick={handleLogout}
+          className="btn btn-ghost w-full"
+        >
+          <span>🚪</span>
+          <span>Çıkış Yap</span>
+        </button>
       </div>
     </div>
   );
