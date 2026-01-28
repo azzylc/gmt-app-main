@@ -1,0 +1,832 @@
+"use client";
+import { useEffect, useState } from "react";
+import { auth } from "./lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import { useRouter } from "next/navigation";
+import Sidebar from "./components/Sidebar";
+import { personelListesi, getPersonelByIsim, getYaklasanDogumGunleri, getIzinliler, getIzinlerAralik, duyurular, getYaklasanTatiller } from "./lib/data";
+
+interface Gelin {
+  id: string;
+  isim: string;
+  tarih: string;
+  saat: string;
+  ucret: number;
+  kapora: number;
+  kalan: number;
+  makyaj: string;
+  turban: string;
+  // Ek detaylar
+  kinaGunu?: string;
+  telefon?: string;
+  esiTelefon?: string;
+  instagram?: string;
+  fotografci?: string;
+  modaevi?: string;
+  anlasildigiTarih?: string;
+  bilgilendirmeGonderildi?: boolean;
+  ucretYazildi?: boolean;
+  malzemeListesiGonderildi?: boolean;
+  paylasimIzni?: boolean;
+  yorumIstesinMi?: boolean;
+  yorumIstendiMi?: boolean;
+  gelinNotu?: string;
+  dekontGorseli?: string;
+}
+
+const API_URL = "https://script.google.com/macros/s/AKfycbyr_9fBVzkVXf-Fx4s-DUjFTPhHlxm54oBGrrG3UGfNengHOp8rQbXKdX8pOk4reH8/exec";
+const CACHE_KEY = "gmt_gelinler_cache";
+const CACHE_TIME_KEY = "gmt_gelinler_cache_time";
+const CACHE_DURATION = 30 * 60 * 1000;
+
+export default function HomePage() {
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [gelinler, setGelinler] = useState<Gelin[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [lastUpdate, setLastUpdate] = useState<string>("");
+  const [selectedGelin, setSelectedGelin] = useState<Gelin | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const router = useRouter();
+
+  const loadFromCache = () => {
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      const cacheTime = localStorage.getItem(CACHE_TIME_KEY);
+      if (cached && cacheTime) {
+        setGelinler(JSON.parse(cached));
+        setLastUpdate(new Date(parseInt(cacheTime)).toLocaleTimeString('tr-TR'));
+        setDataLoading(false);
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  };
+
+  const saveToCache = (data: Gelin[]) => {
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+      localStorage.setItem(CACHE_TIME_KEY, Date.now().toString());
+      setLastUpdate(new Date().toLocaleTimeString('tr-TR'));
+    } catch (e) {}
+  };
+
+  const isCacheStale = () => {
+    try {
+      const cacheTime = localStorage.getItem(CACHE_TIME_KEY);
+      if (!cacheTime) return true;
+      return Date.now() - parseInt(cacheTime) > CACHE_DURATION;
+    } catch (e) { return true; }
+  };
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUser(user);
+        const hasCache = loadFromCache();
+        if (!hasCache || isCacheStale()) fetchGelinler();
+      } else {
+        router.push("/login");
+      }
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, [router]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (user) fetchGelinler();
+    }, CACHE_DURATION);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  const fetchGelinler = async () => {
+    try {
+      const response = await fetch(`${API_URL}?action=gelinler`);
+      const data = await response.json();
+      setGelinler(data);
+      saveToCache(data);
+    } catch (error) {
+      console.error("Veri çekme hatası:", error);
+    }
+    setDataLoading(false);
+  };
+
+  // Tarih hesaplamaları
+  const bugun = new Date().toISOString().split('T')[0];
+  const bugunDate = new Date();
+  
+  const haftaBasi = new Date(bugunDate);
+  const gun = haftaBasi.getDay();
+  const fark = gun === 0 ? -6 : 1 - gun;
+  haftaBasi.setDate(haftaBasi.getDate() + fark);
+  const haftaSonu = new Date(haftaBasi);
+  haftaSonu.setDate(haftaBasi.getDate() + 6);
+  const haftaBasiStr = haftaBasi.toISOString().split('T')[0];
+  const haftaSonuStr = haftaSonu.toISOString().split('T')[0];
+  const buAyStr = bugun.slice(0, 7);
+
+  // Veriler
+  const bugunGelinler = gelinler.filter(g => g.tarih === bugun);
+  const buHaftaGelinler = gelinler.filter(g => g.tarih >= haftaBasiStr && g.tarih <= haftaSonuStr);
+  const buAyGelinler = gelinler.filter(g => g.tarih.startsWith(buAyStr));
+  const yaklasakGelinler = gelinler.filter(g => g.tarih >= bugun).slice(0, 10);
+  
+  const toplamKalan = gelinler.filter(g => g.tarih >= bugun).reduce((sum, g) => sum + (g.kalan > 0 ? g.kalan : 0), 0);
+
+  // Bugün izinli olanlar
+  const bugunIzinliler = getIzinliler(bugun);
+  const haftaIzinliler = getIzinlerAralik(haftaBasiStr, haftaSonuStr);
+  
+  // Bugün çalışanlar (izinli olmayanlar)
+  const izinliIdler = bugunIzinliler.map(i => i.personelId);
+  const calisanlar = personelListesi.filter(p => !izinliIdler.includes(p.id));
+
+  // Boş günler (ilk 10 müsait günü bul)
+  const bosGunler = [];
+  let dayOffset = 0;
+  while (bosGunler.length < 10 && dayOffset < 60) { // Max 60 gün kontrol et
+    const tarih = new Date(bugunDate);
+    tarih.setDate(bugunDate.getDate() + dayOffset);
+    const tarihStr = tarih.toISOString().split('T')[0];
+    if (gelinler.filter(g => g.tarih === tarihStr).length === 0) {
+      bosGunler.push(tarihStr);
+    }
+    dayOffset++;
+  }
+
+  // Yaklaşan doğum günleri ve tatiller
+  const yaklasanDogumGunleri = getYaklasanDogumGunleri();
+  const yaklasanTatiller = getYaklasanTatiller();
+  const onemliDuyurular = duyurular.filter(d => d.onemli && !d.okundu);
+
+  // DİKKAT EDİLECEKLER - İletişim Hattı için kritik durumlar
+  const islenmemisUcretler = gelinler.filter(g => g.tarih >= bugun && g.ucret === -1);
+  const bugunOdemebekleyenler = bugunGelinler.filter(g => g.kalan > 0);
+  
+  const toplamDikkat = islenmemisUcretler.length + bugunOdemebekleyenler.length;
+
+  const ayIsimleri = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+  const gunIsimleri = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+
+  const formatTarih = (tarih: string) => new Date(tarih).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+  const formatTarihUzun = (tarih: string) => new Date(tarih).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const formatGun = (tarih: string) => gunIsimleri[new Date(tarih).getDay()];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Yükleniyor...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Sidebar */}
+      <Sidebar user={user} />
+
+      {/* Main Content */}
+      <div className="ml-64">
+        {/* Header */}
+        <header className="bg-white border-b px-6 py-4 sticky top-0 z-30">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-bold text-gray-800">Merhaba, {user?.email?.split('@')[0]}!</h1>
+              <p className="text-sm text-gray-500">{formatTarihUzun(bugun)} • {formatGun(bugun)}</p>
+            </div>
+            <div className="flex items-center gap-4">
+              {lastUpdate && (
+                <div className="bg-green-50 px-3 py-1.5 rounded-lg border border-green-200">
+                  <span className="text-green-700 text-sm font-medium">✓ Son güncelleme: {lastUpdate}</span>
+                </div>
+              )}
+              <button
+                onClick={() => { setDataLoading(true); fetchGelinler(); }}
+                disabled={dataLoading}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2"
+              >
+                {dataLoading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div> : "🔄"}
+                Yenile
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* Content */}
+        <main className="p-6">
+          {/* Önemli Duyuru Banner */}
+          {onemliDuyurular.length > 0 && (
+            <div className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4">
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">📢</span>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-amber-800">{onemliDuyurular[0].baslik}</h3>
+                  <p className="text-amber-700 text-sm mt-1">{onemliDuyurular[0].icerik}</p>
+                  <p className="text-amber-500 text-xs mt-2">— {onemliDuyurular[0].yazar}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* DİKKAT EDİLECEKLER PANEL */}
+          {toplamDikkat > 0 && (
+            <div className="mb-6">
+              <Panel icon="⚠️" title="Dikkat Edilecekler" badge={toplamDikkat}>
+                <div className="space-y-3">
+                  {/* İşlenmemiş Ücretler */}
+                  {islenmemisUcretler.length > 0 && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-yellow-600 text-xl">💰</span>
+                          <h4 className="font-semibold text-yellow-900">İşlenmemiş Ücretler</h4>
+                        </div>
+                        <span className="bg-yellow-600 text-white text-xs px-2 py-1 rounded-full font-bold">
+                          {islenmemisUcretler.length}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {islenmemisUcretler.slice(0, 3).map(g => (
+                          <div 
+                            key={g.id}
+                            onClick={() => setSelectedGelin(g)}
+                            className="flex items-center justify-between p-2 bg-white rounded-lg hover:bg-gray-50 transition cursor-pointer"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-gray-800">{g.isim}</span>
+                              <span className="text-xs text-gray-500">{formatTarih(g.tarih)}</span>
+                            </div>
+                            <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">X₺</span>
+                          </div>
+                        ))}
+                        {islenmemisUcretler.length > 3 && (
+                          <button 
+                            onClick={() => router.push('/gelinler?filtre=islenmemis')}
+                            className="text-yellow-600 text-xs font-medium hover:text-yellow-700 w-full text-center pt-2"
+                          >
+                            +{islenmemisUcretler.length - 3} daha gör →
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Bugün Ödeme Bekleyen */}
+                  {bugunOdemebekleyenler.length > 0 && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-blue-600 text-xl">📆</span>
+                          <h4 className="font-semibold text-blue-900">Bugün Ödeme Bekleyen</h4>
+                        </div>
+                        <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full font-bold">
+                          {bugunOdemebekleyenler.length}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {bugunOdemebekleyenler.map(g => (
+                          <div 
+                            key={g.id}
+                            onClick={() => setSelectedGelin(g)}
+                            className="flex items-center justify-between p-2 bg-white rounded-lg hover:bg-gray-50 transition cursor-pointer"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-gray-800">{g.isim}</span>
+                              <span className="text-xs text-gray-500">{g.saat}</span>
+                            </div>
+                            <span className="text-sm font-bold text-blue-600">{g.kalan.toLocaleString('tr-TR')} ₺</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </Panel>
+            </div>
+          )}
+
+          {/* Üst Kartlar */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <Card icon="💄" title="Bugün" value={bugunGelinler.length} subtitle="gelin" color="pink" />
+            <Card icon="📅" title="Bu Hafta" value={buHaftaGelinler.length} subtitle="gelin" color="purple" />
+            <Card icon="👰" title={ayIsimleri[bugunDate.getMonth()]} value={buAyGelinler.length} subtitle="gelin" color="blue" />
+            <Card icon="💰" title="Kalan Bakiye" value={`${(toplamKalan/1000).toFixed(0)}K`} subtitle="₺" color="red" />
+          </div>
+
+          {/* 3 Kolon Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            {/* Sol Kolon */}
+            <div className="lg:col-span-2 space-y-6">
+              
+              {/* Bugünün İşleri */}
+              <Panel 
+                icon="💄" 
+                title="Bugünün İşleri" 
+                badge={bugunGelinler.length}
+                onRefresh={() => fetchGelinler()}
+              >
+                {dataLoading ? (
+                  <div className="text-center py-8 text-gray-500">Yükleniyor...</div>
+                ) : bugunGelinler.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <span className="text-4xl">🎉</span>
+                    <p className="mt-2">Bugün iş yok!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                    {bugunGelinler.map((gelin) => (
+                      <GelinRow key={gelin.id} gelin={gelin} onClick={() => setSelectedGelin(gelin)} />
+                    ))}
+                  </div>
+                )}
+              </Panel>
+
+              {/* Bu Haftanın Programı */}
+              <Panel 
+                icon="🗓️" 
+                title="Bu Haftanın Programı"
+                action={haftaIzinliler.length > 0 ? `${haftaIzinliler.length} izinli` : undefined}
+              >
+                <div className="overflow-x-auto">
+                  <div className="grid grid-cols-7 gap-2 min-w-[600px]">
+                    {['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'].map((gunAdi, index) => {
+                      const tarih = new Date(haftaBasi);
+                      tarih.setDate(haftaBasi.getDate() + index);
+                      const tarihStr = tarih.toISOString().split('T')[0];
+                      const gunGelinler = gelinler.filter(g => g.tarih === tarihStr);
+                      const gunIzinliler = getIzinliler(tarihStr);
+                      const isToday = tarihStr === bugun;
+
+                      return (
+                        <div key={gunAdi} className={`p-2 rounded-xl ${isToday ? 'bg-pink-50 ring-2 ring-pink-300' : 'bg-gray-50'}`}>
+                          <div className={`text-center text-xs font-medium ${isToday ? 'text-pink-600' : 'text-gray-500'}`}>
+                            {gunAdi}
+                            <div className={`text-lg font-bold ${isToday ? 'text-pink-600' : 'text-gray-700'}`}>
+                              {tarih.getDate()}
+                            </div>
+                          </div>
+                          <div className="space-y-1 mt-2 max-h-[250px] overflow-y-auto">
+                            {gunIzinliler.map((izin, idx) => (
+                              <div key={idx} className="bg-orange-100 text-orange-700 p-1 rounded text-xs text-center">
+                                {izin.personel?.isim} 🏖️
+                              </div>
+                            ))}
+                            {gunGelinler.map((g) => (
+                              <div 
+                                key={g.id} 
+                                onClick={() => setSelectedGelin(g)}
+                                className="bg-white p-1.5 rounded shadow-sm text-xs cursor-pointer hover:bg-gray-100"
+                              >
+                                <p className="font-medium truncate">{g.isim}</p>
+                                <p className="text-gray-500">{g.saat}</p>
+                              </div>
+                            ))}
+                            {gunGelinler.length === 0 && gunIzinliler.length === 0 && (
+                              <div className="text-center text-gray-400 text-xs py-2">-</div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </Panel>
+
+              {/* Yaklaşan Gelinler */}
+              <Panel icon="📅" title="Yaklaşan Gelinler" link="/gelinler">
+                {yaklasakGelinler.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">Yaklaşan gelin yok</div>
+                ) : (
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                    {yaklasakGelinler.map((gelin) => (
+                      <GelinRow key={gelin.id} gelin={gelin} showDate onClick={() => setSelectedGelin(gelin)} />
+                    ))}
+                  </div>
+                )}
+              </Panel>
+            </div>
+
+            {/* Sağ Kolon */}
+            <div className="space-y-6">
+              
+              {/* Aktif Personel */}
+              <Panel icon="👥" title={`Bugün ${calisanlar.length} Kişi Aktif`}>
+                <div className="space-y-2">
+                  {calisanlar.map((p) => (
+                    <div key={p.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <span>{p.emoji}</span>
+                        <span className="text-sm font-medium text-gray-700">{p.isim}</span>
+                      </div>
+                      <span className="text-xs text-gray-400">{p.calismaSaatleri}</span>
+                    </div>
+                  ))}
+                </div>
+                {bugunIzinliler.length > 0 && (
+                  <div className="mt-3 pt-3 border-t">
+                    <p className="text-xs text-gray-500 mb-2">İzinli ({bugunIzinliler.length})</p>
+                    {bugunIzinliler.map((izin) => (
+                      <div key={izin.id} className="flex items-center gap-2 p-2 bg-orange-50 rounded-lg mb-1">
+                        <span>{izin.personel?.emoji}</span>
+                        <span className="text-sm text-orange-700">{izin.personel?.isim}</span>
+                        <span className="text-xs text-orange-500 ml-auto">🏖️</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Panel>
+
+              {/* Müsait Günler */}
+              {bosGunler.length > 0 && (
+                <Panel icon="📭" title="Önümüzdeki 10 Müsait Gün" badge={bosGunler.length}>
+                  <div className="space-y-1 max-h-[240px] overflow-y-auto">
+                    {bosGunler.map((tarih) => (
+                      <div key={tarih} className="flex items-center justify-between p-2 bg-green-50 rounded-lg">
+                        <span className="text-sm text-gray-700">{formatTarih(tarih)}</span>
+                        <span className="text-xs text-gray-500">{formatGun(tarih)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </Panel>
+              )}
+
+              {/* Doğum Günleri */}
+              {yaklasanDogumGunleri.length > 0 && (
+                <Panel icon="🎂" title="Yaklaşan Doğum Günleri">
+                  <div className="space-y-2">
+                    {yaklasanDogumGunleri.map((p) => (
+                      <div key={p.id} className="flex items-center gap-3 p-2 bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg">
+                        <span className="text-xl">{p.emoji}</span>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-800">{p.isim}</p>
+                          <p className="text-xs text-gray-500">{formatTarih(p.yaklasanTarih)}</p>
+                        </div>
+                        {p.kalanGun === 0 ? (
+                          <span className="text-pink-600 text-xs font-bold">Bugün! 🎉</span>
+                        ) : (
+                          <span className="text-gray-400 text-xs">{p.kalanGun} gün</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </Panel>
+              )}
+
+              {/* Resmi Tatiller */}
+              <Panel icon="🏛️" title="Resmi Tatiller">
+                <div className="space-y-2">
+                  {yaklasanTatiller.map((t) => (
+                    <div key={t.tarih} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                      <span className="text-sm text-gray-700">{t.isim}</span>
+                      <span className="text-xs text-gray-500">{formatTarih(t.tarih)}</span>
+                    </div>
+                  ))}
+                </div>
+              </Panel>
+
+              {/* Duyurular */}
+              <Panel icon="📢" title="Duyurular" link="/duyurular">
+                <div className="space-y-2">
+                  {duyurular.slice(0, 3).map((d) => (
+                    <div key={d.id} className={`p-3 rounded-lg ${d.onemli ? 'bg-amber-50' : 'bg-gray-50'}`}>
+                      <p className="text-sm font-medium text-gray-800">{d.baslik}</p>
+                      <p className="text-xs text-gray-500 mt-1 line-clamp-2">{d.icerik}</p>
+                    </div>
+                  ))}
+                </div>
+              </Panel>
+            </div>
+          </div>
+        </main>
+      </div>
+
+      {/* Gelin Detay Modal */}
+      {selectedGelin && (
+        <GelinModal gelin={selectedGelin} onClose={() => setSelectedGelin(null)} />
+      )}
+    </div>
+  );
+}
+
+// Yardımcı Componentler
+function Card({ icon, title, value, subtitle, color }: { icon: string; title: string; value: string | number; subtitle: string; color: string }) {
+  const colors: Record<string, string> = {
+    pink: 'bg-pink-100 text-pink-600',
+    purple: 'bg-purple-100 text-purple-600',
+    blue: 'bg-blue-100 text-blue-600',
+    red: 'bg-red-100 text-red-600',
+  };
+  return (
+    <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-gray-500 text-xs">{title}</p>
+          <p className={`text-2xl font-bold mt-1 ${colors[color]?.split(' ')[1] || 'text-gray-800'}`}>{value}</p>
+          <p className="text-gray-400 text-xs">{subtitle}</p>
+        </div>
+        <div className={`w-10 h-10 ${colors[color]?.split(' ')[0] || 'bg-gray-100'} rounded-xl flex items-center justify-center`}>
+          <span className="text-xl">{icon}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Panel({ icon, title, badge, action, link, children, onRefresh }: { 
+  icon: string; title: string; badge?: number; action?: string; link?: string; children: React.ReactNode; onRefresh?: () => void;
+}) {
+  const router = useRouter();
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+        <h2 className="font-semibold text-gray-800 flex items-center gap-2 text-sm">
+          <span>{icon}</span> {title}
+          {badge !== undefined && (
+            <span className="bg-pink-100 text-pink-600 text-xs px-2 py-0.5 rounded-full">{badge}</span>
+          )}
+        </h2>
+        <div className="flex items-center gap-2">
+          {action && <span className="text-xs text-orange-500 bg-orange-50 px-2 py-1 rounded-full">{action}</span>}
+          {onRefresh && (
+            <button onClick={onRefresh} className="text-gray-400 hover:text-gray-600 text-xs">🔄</button>
+          )}
+          {link && (
+            <button onClick={() => router.push(link)} className="text-pink-600 hover:text-pink-700 text-xs">
+              Tümünü gör →
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="p-4">{children}</div>
+    </div>
+  );
+}
+
+function GelinRow({ gelin, showDate, onClick }: { gelin: any; showDate?: boolean; onClick: () => void }) {
+  const formatTarih = (tarih: string) => new Date(tarih).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+  return (
+    <div 
+      onClick={onClick}
+      className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition cursor-pointer"
+    >
+      <div className="flex items-center gap-3">
+        <div className="bg-pink-100 text-pink-600 w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs">
+          {showDate ? formatTarih(gelin.tarih) : gelin.saat}
+        </div>
+        <div>
+          <p className="font-medium text-gray-800 text-sm">{gelin.isim}</p>
+          <div className="flex gap-1 mt-0.5">
+            {showDate && <span className="text-xs text-gray-500">{gelin.saat} •</span>}
+            <span className={`text-xs px-1.5 py-0.5 rounded ${gelin.makyaj ? 'bg-pink-100 text-pink-600' : 'bg-gray-200 text-gray-500'}`}>
+              {gelin.makyaj || 'Atanmamış'}
+            </span>
+          </div>
+        </div>
+      </div>
+      <div className="text-right">
+        {gelin.ucret === -1 ? (
+          <p className="text-gray-400 text-xs">İşlenmemiş</p>
+        ) : (
+          <p className="text-red-500 font-semibold text-sm">{gelin.kalan.toLocaleString('tr-TR')} ₺</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function GelinModal({ gelin, onClose }: { gelin: any; onClose: () => void }) {
+  const makyajPersonel = getPersonelByIsim(gelin.makyaj);
+  const turbanPersonel = gelin.turban && gelin.turban !== gelin.makyaj ? getPersonelByIsim(gelin.turban) : null;
+  const formatTarih = (tarih: string) => new Date(tarih).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const formatDateTime = (tarih: string) => new Date(tarih).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="p-6">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <span>👰</span> Gelin Detayı
+            </h3>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+          </div>
+          
+          {/* Gelin Bilgisi */}
+          <div className="flex items-center gap-4 mb-6 p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl">
+            <div className="w-16 h-16 bg-gradient-to-br from-pink-200 to-purple-200 rounded-2xl flex items-center justify-center text-gray-600 text-2xl font-bold">
+              {gelin.isim.charAt(0)}
+            </div>
+            <div>
+              <p className="text-xl font-semibold text-gray-800">{gelin.isim}</p>
+              <p className="text-gray-600">{formatTarih(gelin.tarih)} • {gelin.saat}</p>
+              {gelin.kinaGunu && <p className="text-sm text-gray-500 mt-1">Kına Günü: {gelin.kinaGunu}</p>}
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {/* İletişim Bilgileri */}
+            <div className="bg-blue-50 p-4 rounded-xl">
+              <h4 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
+                <span>📞</span> İletişim Bilgileri
+              </h4>
+              <div className="space-y-2 text-sm">
+                {gelin.telefon && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-blue-600 font-medium">Tel:</span>
+                    <a href={`tel:${gelin.telefon}`} className="text-blue-700 hover:underline">{gelin.telefon}</a>
+                  </div>
+                )}
+                {gelin.esiTelefon && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-blue-600 font-medium">Eşi Tel:</span>
+                    <a href={`tel:${gelin.esiTelefon}`} className="text-blue-700 hover:underline">{gelin.esiTelefon}</a>
+                  </div>
+                )}
+                {gelin.instagram && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-blue-600 font-medium">Instagram:</span>
+                    <a href={`https://instagram.com/${gelin.instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:underline">{gelin.instagram}</a>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Personel Bilgileri */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 bg-pink-50 rounded-xl">
+                <p className="text-pink-600 text-sm font-medium mb-2">💄 Makyaj</p>
+                {makyajPersonel ? (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{makyajPersonel.emoji}</span>
+                      <span className="font-semibold text-gray-800">{makyajPersonel.isim}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">{makyajPersonel.instagram}</p>
+                    <p className="text-xs text-gray-500">{makyajPersonel.telefon}</p>
+                  </>
+                ) : (
+                  <p className="text-gray-500">Atanmamış</p>
+                )}
+              </div>
+              <div className="p-4 bg-purple-50 rounded-xl">
+                <p className="text-purple-600 text-sm font-medium mb-2">🧕 Türban</p>
+                {turbanPersonel ? (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{turbanPersonel.emoji}</span>
+                      <span className="font-semibold text-gray-800">{turbanPersonel.isim}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">{turbanPersonel.instagram}</p>
+                    <p className="text-xs text-gray-500">{turbanPersonel.telefon}</p>
+                  </>
+                ) : makyajPersonel && gelin.turban === gelin.makyaj ? (
+                  <p className="text-gray-600 text-sm">Makyaj ile aynı kişi</p>
+                ) : (
+                  <p className="text-gray-500">Atanmamış</p>
+                )}
+              </div>
+            </div>
+
+            {/* Diğer Bilgiler */}
+            {(gelin.fotografci || gelin.modaevi) && (
+              <div className="bg-purple-50 p-4 rounded-xl">
+                <h4 className="font-semibold text-purple-900 mb-3">📸 Diğer Bilgiler</h4>
+                <div className="space-y-2 text-sm">
+                  {gelin.fotografci && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-purple-600 font-medium">Fotoğrafçı:</span>
+                      <span className="text-gray-700">{gelin.fotografci}</span>
+                    </div>
+                  )}
+                  {gelin.modaevi && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-purple-600 font-medium">Modaevi:</span>
+                      <span className="text-gray-700">{gelin.modaevi}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Finansal */}
+            <div className="bg-gray-50 p-4 rounded-xl">
+              <h4 className="font-medium text-gray-700 mb-3">💰 Ödeme Bilgileri</h4>
+              <div className="grid grid-cols-3 gap-4 mb-3">
+                <div>
+                  <p className="text-gray-500 text-xs">Anlaşılan Ücret</p>
+                  <p className="font-bold text-gray-800">
+                    {gelin.ucret === -1 ? <span className="text-gray-400">İşlenmemiş</span> : `${gelin.ucret.toLocaleString('tr-TR')} ₺`}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs">Kapora</p>
+                  <p className="font-bold text-green-600">{gelin.kapora.toLocaleString('tr-TR')} ₺</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs">Kalan</p>
+                  <p className="font-bold text-red-600">
+                    {gelin.ucret === -1 ? '-' : `${gelin.kalan.toLocaleString('tr-TR')} ₺`}
+                  </p>
+                </div>
+              </div>
+              {gelin.anlasildigiTarih && (
+                <p className="text-xs text-gray-500">Anlaştığı Tarih: {formatDateTime(gelin.anlasildigiTarih)}</p>
+              )}
+            </div>
+
+            {/* Durum Checkboxları */}
+            <div className="bg-green-50 p-4 rounded-xl">
+              <h4 className="font-semibold text-green-900 mb-3">✓ İşlem Durumu</h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center gap-2">
+                  <span className={gelin.bilgilendirmeGonderildi ? 'text-green-600' : 'text-gray-400'}>
+                    {gelin.bilgilendirmeGonderildi ? '✓' : '○'}
+                  </span>
+                  <span className={gelin.bilgilendirmeGonderildi ? 'text-gray-700' : 'text-gray-500'}>
+                    Bilgilendirme metni gönderildi mi
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={gelin.ucretYazildi ? 'text-green-600' : 'text-gray-400'}>
+                    {gelin.ucretYazildi ? '✓' : '○'}
+                  </span>
+                  <span className={gelin.ucretYazildi ? 'text-gray-700' : 'text-gray-500'}>
+                    Anlaşılan ve kalan ücret yazıldı mı
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={gelin.malzemeListesiGonderildi ? 'text-green-600' : 'text-gray-400'}>
+                    {gelin.malzemeListesiGonderildi ? '✓' : '○'}
+                  </span>
+                  <span className={gelin.malzemeListesiGonderildi ? 'text-gray-700' : 'text-gray-500'}>
+                    Malzeme listesi gönderildi mi
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={gelin.paylasimIzni !== false ? 'text-green-600' : 'text-gray-400'}>
+                    {gelin.paylasimIzni !== false ? '✓' : '○'}
+                  </span>
+                  <span className={gelin.paylasimIzni !== false ? 'text-gray-700' : 'text-gray-500'}>
+                    Paylaşım izni var mı
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Yorum Durumu */}
+            {(gelin.yorumIstesinMi !== undefined || gelin.yorumIstendiMi !== undefined) && (
+              <div className="bg-amber-50 p-4 rounded-xl">
+                <h4 className="font-semibold text-amber-900 mb-3">💬 Yorum Durumu</h4>
+                <div className="space-y-2 text-sm">
+                  {gelin.yorumIstesinMi !== undefined && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-amber-600 font-medium">Yorum istesin mi:</span>
+                      <span className="text-gray-700">{gelin.yorumIstesinMi ? 'Evet' : 'Hayır'}</span>
+                    </div>
+                  )}
+                  {gelin.yorumIstendiMi !== undefined && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-amber-600 font-medium">Yorum istendi mi:</span>
+                      <span className="text-gray-700">{gelin.yorumIstendiMi ? 'Evet' : 'Hayır'}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Dekont Görseli */}
+            {gelin.dekontGorseli && (
+              <div className="bg-indigo-50 p-4 rounded-xl">
+                <h4 className="font-semibold text-indigo-900 mb-3">🖼️ Dekont Görseli</h4>
+                <a 
+                  href={gelin.dekontGorseli} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-indigo-600 hover:text-indigo-700 text-sm underline break-all"
+                >
+                  {gelin.dekontGorseli.substring(0, 80)}...
+                </a>
+              </div>
+            )}
+
+            {/* Gelin Notu */}
+            <div className="bg-gray-50 p-4 rounded-xl">
+              <h4 className="font-medium text-gray-700 mb-2">📝 Gelin Notu</h4>
+              {gelin.gelinNotu ? (
+                <p className="text-gray-700 text-sm whitespace-pre-wrap">{gelin.gelinNotu}</p>
+              ) : (
+                <p className="text-gray-400 text-sm italic">Henüz not eklenmemiş</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
