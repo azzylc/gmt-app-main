@@ -2,10 +2,10 @@
 import { useEffect, useState } from "react";
 import { auth, db } from "./lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, query, onSnapshot, addDoc, doc, updateDoc, increment } from "firebase/firestore";
+import { collection, query, onSnapshot, addDoc, doc, updateDoc, increment, orderBy, limit } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import Sidebar from "./components/Sidebar";
-import { personelListesi, getPersonelByIsim, getYaklasanDogumGunleri, getIzinliler, getIzinlerAralik, duyurular, getYaklasanTatiller } from "./lib/data";
+import { personelListesi, getPersonelByIsim, getYaklasanDogumGunleri, getIzinliler, getIzinlerAralik, getYaklasanTatiller } from "./lib/data";
 
 interface Gelin {
   id: string;
@@ -52,6 +52,16 @@ interface EksikIzin {
   eksik: number;
 }
 
+interface Duyuru {
+  id: string;
+  title: string;
+  content: string;
+  important: boolean;
+  group: string;
+  author: string;
+  createdAt: any;
+}
+
 const API_URL = "https://script.google.com/macros/s/AKfycbyr_9fBVzkVXf-Fx4s-DUjFTPhHlxm54oBGrrG3UGfNengHOp8rQbXKdX8pOk4reH8/exec";
 const CACHE_KEY = "gmt_gelinler_cache";
 const CACHE_TIME_KEY = "gmt_gelinler_cache_time";
@@ -71,6 +81,12 @@ export default function HomePage() {
   const [firebasePersoneller, setFirebasePersoneller] = useState<Personel[]>([]);
   const [eksikIzinler, setEksikIzinler] = useState<EksikIzin[]>([]);
   const [izinEkleniyor, setIzinEkleniyor] = useState<string | null>(null);
+
+  // Duyurular state
+  const [duyurular, setDuyurular] = useState<Duyuru[]>([]);
+
+  // Aylık hedef state
+  const [aylikHedef, setAylikHedef] = useState<number>(0);
 
   const loadFromCache = () => {
     try {
@@ -204,6 +220,36 @@ export default function HomePage() {
     setEksikIzinler(eksikler);
   }, [firebasePersoneller]);
 
+  // Firebase'den son 3 duyuruyu çek
+  useEffect(() => {
+    if (!user) return;
+    const q = query(
+      collection(db, "announcements"), 
+      orderBy("createdAt", "desc"),
+      limit(3)
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Duyuru));
+      setDuyurular(data);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  // Firebase'den bu ayın hedefini çek
+  useEffect(() => {
+    if (!user) return;
+    const buAy = new Date().toISOString().slice(0, 7);
+    const unsubscribe = onSnapshot(doc(db, "monthlyTargets", buAy), (docSnap) => {
+      if (docSnap.exists()) {
+        setAylikHedef(docSnap.data().hedef || 0);
+      }
+    });
+    return () => unsubscribe();
+  }, [user]);
+
   // Eksik izin ekle
   const handleIzinEkle = async (eksik: EksikIzin) => {
     setIzinEkleniyor(eksik.personel.id);
@@ -258,8 +304,6 @@ export default function HomePage() {
   const buHaftaGelinler = gelinler.filter(g => g.tarih >= haftaBasiStr && g.tarih <= haftaSonuStr);
   const buAyGelinler = gelinler.filter(g => g.tarih.startsWith(buAyStr));
   const yaklasakGelinler = gelinler.filter(g => g.tarih >= bugun).slice(0, 10);
-  
-  const toplamKalan = gelinler.filter(g => g.tarih >= bugun).reduce((sum, g) => sum + (g.kalan > 0 ? g.kalan : 0), 0);
 
   // Bugün izinli olanlar
   const bugunIzinliler = getIzinliler(bugun);
@@ -285,13 +329,11 @@ export default function HomePage() {
   // Yaklaşan doğum günleri ve tatiller
   const yaklasanDogumGunleri = getYaklasanDogumGunleri();
   const yaklasanTatiller = getYaklasanTatiller();
-  const onemliDuyurular = duyurular.filter(d => d.onemli && !d.okundu);
 
   // DİKKAT EDİLECEKLER
   const islenmemisUcretler = gelinler.filter(g => g.tarih >= bugun && g.ucret === -1);
-  const bugunOdemebekleyenler = bugunGelinler.filter(g => g.kalan > 0);
   
-  const toplamDikkat = islenmemisUcretler.length + bugunOdemebekleyenler.length + eksikIzinler.length;
+  const toplamDikkat = islenmemisUcretler.length + eksikIzinler.length;
 
   const ayIsimleri = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
   const gunIsimleri = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
@@ -315,23 +357,23 @@ export default function HomePage() {
     <div className="min-h-screen bg-gray-50">
       <Sidebar user={user} />
 
-      <div className="ml-64">
-        <header className="bg-white border-b px-6 py-4 sticky top-0 z-30">
+      <div className="md:md:ml-64 pt-14 md:pt-0 pb-20 md:pb-0 pt-14 md:pt-0 pb-20 md:pb-0">
+        <header className="bg-white border-b px-4 md:px-6 py-3 md:py-4 sticky top-14 md:top-0 z-30">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-bold text-gray-800">Merhaba, {user?.email?.split('@')[0]}!</h1>
-              <p className="text-sm text-gray-500">{formatTarihUzun(bugun)} • {formatGun(bugun)}</p>
+              <h1 className="text-lg md:text-xl font-bold text-gray-800">Merhaba, {user?.email?.split('@')[0]}!</h1>
+              <p className="text-xs md:text-sm text-gray-500">{formatTarihUzun(bugun)} • {formatGun(bugun)}</p>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 md:gap-4">
               {lastUpdate && (
-                <div className="bg-green-50 px-3 py-1.5 rounded-lg border border-green-200">
+                <div className="hidden md:block bg-green-50 px-3 py-1.5 rounded-lg border border-green-200">
                   <span className="text-green-700 text-sm font-medium">✓ Son güncelleme: {lastUpdate}</span>
                 </div>
               )}
               <button
                 onClick={() => { setDataLoading(true); fetchGelinler(); }}
                 disabled={dataLoading}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2"
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 md:px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2"
               >
                 {dataLoading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div> : "🔄"}
                 Yenile
@@ -340,24 +382,38 @@ export default function HomePage() {
           </div>
         </header>
 
-        <main className="p-6">
-          {/* Önemli Duyuru Banner */}
-          {onemliDuyurular.length > 0 && (
-            <div className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4">
-              <div className="flex items-start gap-3">
-                <span className="text-2xl">📢</span>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-amber-800">{onemliDuyurular[0].baslik}</h3>
-                  <p className="text-amber-700 text-sm mt-1">{onemliDuyurular[0].icerik}</p>
-                  <p className="text-amber-500 text-xs mt-2">— {onemliDuyurular[0].yazar}</p>
+        <main className="p-4 md:p-6">
+          {/* Duyurular Banner */}
+          {duyurular.length > 0 && (
+            <div className="mb-4 md:mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-3 md:p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">📢</span>
+                  <h3 className="font-semibold text-amber-800">Duyurular</h3>
                 </div>
+                <a href="/duyurular" className="text-amber-600 hover:text-amber-700 text-xs font-medium">
+                  Tümünü gör →
+                </a>
+              </div>
+              <div className="space-y-2">
+                {duyurular.slice(0, 3).map((d) => (
+                  <div key={d.id} className={`p-2.5 rounded-lg ${d.important ? 'bg-white/80 border border-amber-300' : 'bg-white/50'}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-amber-900 truncate">{d.title}</p>
+                        <p className="text-xs text-amber-700 mt-0.5 line-clamp-1">{d.content}</p>
+                      </div>
+                      {d.important && <span className="text-xs">🔥</span>}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
           {/* DİKKAT EDİLECEKLER PANEL */}
           {toplamDikkat > 0 && (
-            <div className="mb-6">
+            <div className="mb-4 md:mb-6">
               <Panel icon="⚠️" title="Dikkat Edilecekler" badge={toplamDikkat}>
                 <div className="space-y-3">
                   {/* İşlenmemiş Ücretler */}
@@ -394,36 +450,6 @@ export default function HomePage() {
                             +{islenmemisUcretler.length - 3} daha gör →
                           </button>
                         )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Bugün Ödeme Bekleyen */}
-                  {bugunOdemebekleyenler.length > 0 && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-blue-600 text-xl">📆</span>
-                          <h4 className="font-semibold text-blue-900">Bugün Ödeme Bekleyen</h4>
-                        </div>
-                        <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full font-bold">
-                          {bugunOdemebekleyenler.length}
-                        </span>
-                      </div>
-                      <div className="space-y-2">
-                        {bugunOdemebekleyenler.map(g => (
-                          <div 
-                            key={g.id}
-                            onClick={() => setSelectedGelin(g)}
-                            className="flex items-center justify-between p-2 bg-white rounded-lg hover:bg-gray-50 transition cursor-pointer"
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium text-gray-800">{g.isim}</span>
-                              <span className="text-xs text-gray-500">{g.saat}</span>
-                            </div>
-                            <span className="text-sm font-bold text-blue-600">{g.kalan.toLocaleString('tr-TR')} ₺</span>
-                          </div>
-                        ))}
                       </div>
                     </div>
                   )}
@@ -496,18 +522,42 @@ export default function HomePage() {
           )}
 
           {/* Üst Kartlar */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mb-6">
             <Card icon="💄" title="Bugün" value={bugunGelinler.length} subtitle="gelin" color="pink" />
             <Card icon="📅" title="Bu Hafta" value={buHaftaGelinler.length} subtitle="gelin" color="purple" />
-            <Card icon="👰" title={ayIsimleri[bugunDate.getMonth()]} value={buAyGelinler.length} subtitle="gelin" color="blue" />
-            <Card icon="💰" title="Kalan Bakiye" value={`${(toplamKalan/1000).toFixed(0)}K`} subtitle="₺" color="red" />
+            {/* Ay kartı - hedefli */}
+            <div className="bg-white p-3 md:p-4 rounded-2xl shadow-sm border border-gray-100 col-span-2 md:col-span-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-500 text-xs">{ayIsimleri[bugunDate.getMonth()]}</p>
+                  <p className="text-xl md:text-2xl font-bold mt-1 text-blue-600">
+                    {buAyGelinler.length}
+                    {aylikHedef > 0 && <span className="text-sm text-gray-400 font-normal">/{aylikHedef}</span>}
+                  </p>
+                  <p className="text-gray-400 text-xs">gelin</p>
+                </div>
+                <div className="w-9 h-9 md:w-10 md:h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                  <span className="text-lg md:text-xl">👰</span>
+                </div>
+              </div>
+              {aylikHedef > 0 && (
+                <div className="mt-2">
+                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-blue-500 rounded-full transition-all"
+                      style={{ width: `${Math.min((buAyGelinler.length / aylikHedef) * 100, 100)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* 3 Kolon Layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
             
             {/* Sol Kolon */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-2 space-y-4 md:space-y-6">
               
               {/* Bugünün İşleri */}
               <Panel 
@@ -598,7 +648,7 @@ export default function HomePage() {
             </div>
 
             {/* Sağ Kolon */}
-            <div className="space-y-6">
+            <div className="space-y-4 md:space-y-6">
               
               {/* Aktif Personel */}
               <Panel icon="👥" title={`Bugün ${calisanlar.length} Kişi Aktif`}>
@@ -674,18 +724,6 @@ export default function HomePage() {
                   ))}
                 </div>
               </Panel>
-
-              {/* Duyurular */}
-              <Panel icon="📢" title="Duyurular" link="/duyurular">
-                <div className="space-y-2">
-                  {duyurular.slice(0, 3).map((d) => (
-                    <div key={d.id} className={`p-3 rounded-lg ${d.onemli ? 'bg-amber-50' : 'bg-gray-50'}`}>
-                      <p className="text-sm font-medium text-gray-800">{d.baslik}</p>
-                      <p className="text-xs text-gray-500 mt-1 line-clamp-2">{d.icerik}</p>
-                    </div>
-                  ))}
-                </div>
-              </Panel>
             </div>
           </div>
         </main>
@@ -708,15 +746,15 @@ function Card({ icon, title, value, subtitle, color }: { icon: string; title: st
     red: 'bg-red-100 text-red-600',
   };
   return (
-    <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+    <div className="bg-white p-3 md:p-4 rounded-2xl shadow-sm border border-gray-100">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-gray-500 text-xs">{title}</p>
-          <p className={`text-2xl font-bold mt-1 ${colors[color]?.split(' ')[1] || 'text-gray-800'}`}>{value}</p>
+          <p className={`text-xl md:text-2xl font-bold mt-1 ${colors[color]?.split(' ')[1] || 'text-gray-800'}`}>{value}</p>
           <p className="text-gray-400 text-xs">{subtitle}</p>
         </div>
-        <div className={`w-10 h-10 ${colors[color]?.split(' ')[0] || 'bg-gray-100'} rounded-xl flex items-center justify-center`}>
-          <span className="text-xl">{icon}</span>
+        <div className={`w-9 h-9 md:w-10 md:h-10 ${colors[color]?.split(' ')[0] || 'bg-gray-100'} rounded-xl flex items-center justify-center`}>
+          <span className="text-lg md:text-xl">{icon}</span>
         </div>
       </div>
     </div>
@@ -729,7 +767,7 @@ function Panel({ icon, title, badge, action, link, children, onRefresh }: {
   const router = useRouter();
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-      <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+      <div className="px-3 md:px-4 py-3 border-b border-gray-100 flex items-center justify-between">
         <h2 className="font-semibold text-gray-800 flex items-center gap-2 text-sm">
           <span>{icon}</span> {title}
           {badge !== undefined && (
@@ -737,18 +775,18 @@ function Panel({ icon, title, badge, action, link, children, onRefresh }: {
           )}
         </h2>
         <div className="flex items-center gap-2">
-          {action && <span className="text-xs text-orange-500 bg-orange-50 px-2 py-1 rounded-full">{action}</span>}
+          {action && <span className="text-xs text-orange-500 bg-orange-50 px-2 py-1 rounded-full hidden md:inline">{action}</span>}
           {onRefresh && (
             <button onClick={onRefresh} className="text-gray-400 hover:text-gray-600 text-xs">🔄</button>
           )}
           {link && (
             <button onClick={() => router.push(link)} className="text-pink-600 hover:text-pink-700 text-xs">
-              Tümünü gör →
+              Tümü →
             </button>
           )}
         </div>
       </div>
-      <div className="p-4">{children}</div>
+      <div className="p-3 md:p-4">{children}</div>
     </div>
   );
 }
@@ -769,7 +807,11 @@ function GelinRow({ gelin, showDate, onClick }: { gelin: any; showDate?: boolean
           <div className="flex gap-1 mt-0.5">
             {showDate && <span className="text-xs text-gray-500">{gelin.saat} •</span>}
             <span className={`text-xs px-1.5 py-0.5 rounded ${gelin.makyaj ? 'bg-pink-100 text-pink-600' : 'bg-gray-200 text-gray-500'}`}>
-              {gelin.makyaj || 'Atanmamış'}
+              {gelin.makyaj 
+                ? (gelin.turban && gelin.turban !== gelin.makyaj 
+                    ? `${gelin.makyaj} & ${gelin.turban}` 
+                    : gelin.makyaj)
+                : 'Atanmamış'}
             </span>
           </div>
         </div>
@@ -792,31 +834,33 @@ function GelinModal({ gelin, onClose }: { gelin: any; onClose: () => void }) {
   const formatDateTime = (tarih: string) => new Date(tarih).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+    <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 md:p-4" onClick={onClose}>
+      <div className="bg-white rounded-t-3xl md:rounded-2xl shadow-xl max-w-2xl w-full max-h-[95vh] md:max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="p-4 md:p-6">
+          {/* Mobilde üstte çizgi handle */}
+          <div className="md:hidden w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-4"></div>
+          <div className="flex items-center justify-between mb-4 md:mb-6">
+            <h3 className="text-lg md:text-xl font-bold text-gray-800 flex items-center gap-2">
               <span>👰</span> Gelin Detayı
             </h3>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
           </div>
           
-          <div className="flex items-center gap-4 mb-6 p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl">
-            <div className="w-16 h-16 bg-gradient-to-br from-pink-200 to-purple-200 rounded-2xl flex items-center justify-center text-gray-600 text-2xl font-bold">
+          <div className="flex items-center gap-3 md:gap-4 mb-4 md:mb-6 p-3 md:p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl">
+            <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-pink-200 to-purple-200 rounded-2xl flex items-center justify-center text-gray-600 text-xl md:text-2xl font-bold">
               {gelin.isim.charAt(0)}
             </div>
             <div>
-              <p className="text-xl font-semibold text-gray-800">{gelin.isim}</p>
-              <p className="text-gray-600">{formatTarih(gelin.tarih)} • {gelin.saat}</p>
-              {gelin.kinaGunu && <p className="text-sm text-gray-500 mt-1">Kına Günü: {gelin.kinaGunu}</p>}
+              <p className="text-lg md:text-xl font-semibold text-gray-800">{gelin.isim}</p>
+              <p className="text-sm md:text-base text-gray-600">{formatTarih(gelin.tarih)} • {gelin.saat}</p>
+              {gelin.kinaGunu && <p className="text-xs md:text-sm text-gray-500 mt-1">Kına Günü: {gelin.kinaGunu}</p>}
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3 md:space-y-4">
             {gelin.telefon && (
-              <div className="bg-blue-50 p-4 rounded-xl">
-                <h4 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
+              <div className="bg-blue-50 p-3 md:p-4 rounded-xl">
+                <h4 className="font-semibold text-blue-900 mb-2 md:mb-3 flex items-center gap-2 text-sm md:text-base">
                   <span>📞</span> İletişim Bilgileri
                 </h4>
                 <div className="space-y-2 text-sm">
@@ -842,9 +886,9 @@ function GelinModal({ gelin, onClose }: { gelin: any; onClose: () => void }) {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 bg-pink-50 rounded-xl">
-                <p className="text-pink-600 text-sm font-medium mb-2">💄 Makyaj</p>
+            <div className="grid grid-cols-2 gap-3 md:gap-4">
+              <div className="p-3 md:p-4 bg-pink-50 rounded-xl">
+                <p className="text-pink-600 text-xs md:text-sm font-medium mb-2">💄 Makyaj</p>
                 {makyajPersonel ? (
                   <>
                     <div className="flex items-center gap-2">
@@ -858,41 +902,41 @@ function GelinModal({ gelin, onClose }: { gelin: any; onClose: () => void }) {
                   <p className="text-gray-500">Atanmamış</p>
                 )}
               </div>
-              <div className="p-4 bg-purple-50 rounded-xl">
-                <p className="text-purple-600 text-sm font-medium mb-2">🧕 Türban</p>
+              <div className="p-3 md:p-4 bg-purple-50 rounded-xl">
+                <p className="text-purple-600 text-xs md:text-sm font-medium mb-2">🧕 Türban</p>
                 {turbanPersonel ? (
                   <>
                     <div className="flex items-center gap-2">
-                      <span className="text-xl">{turbanPersonel.emoji}</span>
-                      <span className="font-semibold text-gray-800">{turbanPersonel.isim}</span>
+                      <span className="text-lg md:text-xl">{turbanPersonel.emoji}</span>
+                      <span className="font-semibold text-gray-800 text-sm md:text-base">{turbanPersonel.isim}</span>
                     </div>
                     <p className="text-xs text-gray-500 mt-1">{turbanPersonel.instagram}</p>
                     <p className="text-xs text-gray-500">{turbanPersonel.telefon}</p>
                   </>
                 ) : makyajPersonel && gelin.turban === gelin.makyaj ? (
-                  <p className="text-gray-600 text-sm">Makyaj ile aynı kişi</p>
+                  <p className="text-gray-600 text-xs md:text-sm">Makyaj ile aynı kişi</p>
                 ) : (
-                  <p className="text-gray-500">Atanmamış</p>
+                  <p className="text-gray-500 text-sm">Atanmamış</p>
                 )}
               </div>
             </div>
 
-            <div className="bg-gray-50 p-4 rounded-xl">
-              <h4 className="font-medium text-gray-700 mb-3">💰 Ödeme Bilgileri</h4>
-              <div className="grid grid-cols-3 gap-4 mb-3">
+            <div className="bg-gray-50 p-3 md:p-4 rounded-xl">
+              <h4 className="font-medium text-gray-700 mb-2 md:mb-3 text-sm md:text-base">💰 Ödeme Bilgileri</h4>
+              <div className="grid grid-cols-3 gap-2 md:gap-4 mb-3">
                 <div>
-                  <p className="text-gray-500 text-xs">Anlaşılan Ücret</p>
-                  <p className="font-bold text-gray-800">
-                    {gelin.ucret === -1 ? <span className="text-gray-400">İşlenmemiş</span> : `${gelin.ucret.toLocaleString('tr-TR')} ₺`}
+                  <p className="text-gray-500 text-xs">Ücret</p>
+                  <p className="font-bold text-gray-800 text-sm md:text-base">
+                    {gelin.ucret === -1 ? <span className="text-gray-400">-</span> : `${gelin.ucret.toLocaleString('tr-TR')} ₺`}
                   </p>
                 </div>
                 <div>
                   <p className="text-gray-500 text-xs">Kapora</p>
-                  <p className="font-bold text-green-600">{gelin.kapora.toLocaleString('tr-TR')} ₺</p>
+                  <p className="font-bold text-green-600 text-sm md:text-base">{gelin.kapora.toLocaleString('tr-TR')} ₺</p>
                 </div>
                 <div>
                   <p className="text-gray-500 text-xs">Kalan</p>
-                  <p className="font-bold text-red-600">
+                  <p className="font-bold text-red-600 text-sm md:text-base">
                     {gelin.ucret === -1 ? '-' : `${gelin.kalan.toLocaleString('tr-TR')} ₺`}
                   </p>
                 </div>
@@ -902,8 +946,8 @@ function GelinModal({ gelin, onClose }: { gelin: any; onClose: () => void }) {
               )}
             </div>
 
-            <div className="bg-gray-50 p-4 rounded-xl">
-              <h4 className="font-medium text-gray-700 mb-2">📝 Gelin Notu</h4>
+            <div className="bg-gray-50 p-3 md:p-4 rounded-xl">
+              <h4 className="font-medium text-gray-700 mb-2 text-sm md:text-base">📝 Gelin Notu</h4>
               {gelin.gelinNotu ? (
                 <p className="text-gray-700 text-sm whitespace-pre-wrap">{gelin.gelinNotu}</p>
               ) : (

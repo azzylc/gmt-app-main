@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { auth, db } from "../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -16,7 +16,8 @@ import {
   onSnapshot, 
   query, 
   orderBy,
-  serverTimestamp
+  serverTimestamp,
+  where
 } from "firebase/firestore";
 
 interface Personel {
@@ -32,6 +33,7 @@ interface Personel {
   iseBaslama: string;
   istenAyrilma: string;
   kullaniciTuru: string;
+  grup: string; // Grup etiketi (kurucu, yönetici, vb.)
   grupEtiketleri: string[];
   yetkiliGruplar: string[];
   aktif: boolean;
@@ -47,9 +49,22 @@ interface Personel {
 }
 
 export default function PersonelPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500"></div>
+      </div>
+    }>
+      <PersonelPageContent />
+    </Suspense>
+  );
+}
+
+function PersonelPageContent() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [personeller, setPersoneller] = useState<Personel[]>([]);
+  const [isKurucu, setIsKurucu] = useState(false); // Giriş yapan kullanıcı kurucu mu?
   const [showModal, setShowModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showCropModal, setShowCropModal] = useState(false);
@@ -63,14 +78,14 @@ export default function PersonelPage() {
   const [fotoPreview, setFotoPreview] = useState("");
   const router = useRouter();
   const searchParams = useSearchParams();
-  const turFilter = searchParams.get("tur") || "";
+  const grupFilter = searchParams.get("grup") || "";
   const ayrilanlarFilter = searchParams.get("ayrilanlar") === "true";
 
   // Grup etiketlerini Firebase'den çek
   const { grupEtiketleri, loading: grupLoading } = useGrupEtiketleri();
   
   const calismaSaatleri = ["serbest", "her gün 9:00-18:00", "hafta içi 9:00-18:00", "hafta sonu 10:00-17:00"];
-  const kullaniciTurleri = ["Yönetici", "Personel", "Yetkili"];
+  const kullaniciTurleri = ["Kurucu", "Yönetici", "Personel"];
   const ayarlarLabels = {
     otoCikis: "Oto. Çıkış",
     qrKamerali: "QR Kameralı İşlem İzni",
@@ -101,6 +116,7 @@ export default function PersonelPage() {
     iseBaslama: "",
     istenAyrilma: "",
     kullaniciTuru: "Personel",
+    grup: "", // Grup etiketi
     grupEtiketleri: [],
     yetkiliGruplar: [],
     aktif: true,
@@ -119,6 +135,19 @@ export default function PersonelPage() {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setUser(user);
+        
+        // Kullanıcının kurucu olup olmadığını kontrol et
+        const q = query(
+          collection(db, "personnel"),
+          where("email", "==", user.email)
+        );
+        onSnapshot(q, (snapshot) => {
+          if (!snapshot.empty) {
+            const data = snapshot.docs[0].data();
+            const gruplar = data.grupEtiketleri || [];
+            setIsKurucu(gruplar.some((g: string) => g.toLowerCase() === "kurucu"));
+          }
+        });
       } else {
         router.push("/login");
       }
@@ -252,6 +281,7 @@ export default function PersonelPage() {
       iseBaslama: "",
       istenAyrilma: "",
       kullaniciTuru: "Personel",
+      grup: "", // Grup etiketi
       grupEtiketleri: [],
       yetkiliGruplar: [],
       aktif: true,
@@ -362,15 +392,15 @@ export default function PersonelPage() {
     setFormData({ ...formData, foto: "" });
   };
 
-  // ✅ PASİF FİLTRESİ DÜZELTİLDİ!
+  // ✅ GRUP FİLTRESİ - grupEtiketleri dizisinde arama
   const filteredPersoneller = personeller.filter(p => {
-    const turMatch = !turFilter || p.kullaniciTuru === turFilter;
+    const grupMatch = !grupFilter || (p.grupEtiketleri || []).some(g => g.toLowerCase() === grupFilter.toLowerCase());
     
     // Ayrılanlar sayfasında: sadece pasifler (aktif=false)
     // Diğer sayfalarda: sadece aktifler (aktif=true)
     const aktifMatch = ayrilanlarFilter ? !p.aktif : p.aktif;
     
-    return turMatch && aktifMatch;
+    return grupMatch && aktifMatch;
   }).sort((a, b) => {
     if (ayrilanlarFilter) {
       if (!a.istenAyrilma) return 1;
@@ -408,7 +438,7 @@ export default function PersonelPage() {
     <div className="min-h-screen bg-gray-50">
       <Sidebar user={user} />
       
-      <div className="ml-64">
+      <div className="md:ml-64 pt-14 md:pt-0 pb-20 md:pb-0">
         <header className="bg-white border-b px-6 py-4 sticky top-0 z-30">
           <div className="flex items-center justify-between">
             <div>
@@ -419,17 +449,17 @@ export default function PersonelPage() {
                     → Ayrılanlar
                   </span>
                 )}
-                {!ayrilanlarFilter && turFilter && (
+                {!ayrilanlarFilter && grupFilter && (
                   <span className="ml-3 text-base font-normal text-pink-600">
-                    → {turFilter === "Personel" ? "Personel" : turFilter === "Yetkili" ? "Yetkililer" : "Yöneticiler"}
+                    → {grupFilter === "kurucu" ? "Kurucular" : grupFilter === "yönetici" ? "Yöneticiler" : grupFilter}
                   </span>
                 )}
               </h1>
               <p className="text-sm text-gray-500">
                 {ayrilanlarFilter 
                   ? "İşten ayrılan personel listesi (Pasif)" 
-                  : turFilter 
-                    ? `${turFilter} listesi görüntüleniyor` 
+                  : grupFilter 
+                    ? `${grupFilter === "kurucu" ? "Kurucular" : grupFilter === "yönetici" ? "Yöneticiler" : grupFilter} listesi görüntüleniyor` 
                     : "Tüm personel bilgilerini yönetin"
                 }
               </p>
@@ -675,8 +705,17 @@ export default function PersonelPage() {
                       <p className="text-xs text-gray-500 mt-1">Örnek: Sa, Kübra, Rümeysa</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Email (Zorunlu Değil)</label>
-                      <input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="email@example.com" />
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Email {!isKurucu && "(Sadece Kurucular Değiştirebilir)"}
+                      </label>
+                      <input 
+                        type="email" 
+                        value={formData.email} 
+                        onChange={(e) => isKurucu && setFormData({ ...formData, email: e.target.value })} 
+                        disabled={!isKurucu}
+                        className={`w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 ${!isKurucu ? 'bg-gray-100 cursor-not-allowed' : ''}`} 
+                        placeholder="email@example.com" 
+                      />
                     </div>
                   </div>
 
@@ -765,6 +804,21 @@ export default function PersonelPage() {
               {activeTab === 3 && (
                 <div className="space-y-6">
                   <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Grup Etiketi *</label>
+                    <select 
+                      value={formData.grup} 
+                      onChange={(e) => setFormData({ ...formData, grup: e.target.value })} 
+                      className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 bg-white"
+                    >
+                      <option value="">Seçiniz</option>
+                      {grupEtiketleri.map(g => (
+                        <option key={g.id} value={g.grupAdi}>{g.grupAdi}</option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">Personelin ait olduğu grup (kurucu, yönetici, vb.)</p>
+                  </div>
+
+                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Kullanıcı Türü *</label>
                     <select 
                       value={formData.kullaniciTuru} 
@@ -775,9 +829,9 @@ export default function PersonelPage() {
                     </select>
                   </div>
 
-                  {formData.kullaniciTuru === "Yetkili" && (
+                  {formData.kullaniciTuru === "Yönetici" && (
                     <div>
-                      <p className="text-sm text-gray-600 mb-4">Yetkili Türündeki Kullanıcıların Sorumlu Olduğu Grup Etiketleri:</p>
+                      <p className="text-sm text-gray-600 mb-4">Yönetici Türündeki Kullanıcıların Sorumlu Olduğu Grup Etiketleri:</p>
                       <div className="flex flex-wrap gap-3">
                         {grupEtiketleri.map(grup => {
                           const stiller = getRenkStilleri(grup.renk);

@@ -1,4 +1,5 @@
 "use client";
+import { Suspense } from "react";
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { auth, db } from "../../lib/firebase";
@@ -14,7 +15,7 @@ interface Personel {
   aktif: boolean;
 }
 
-export default function IzinHakkiEkle() {
+function IzinHakkiEkleContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const preSelectedPersonel = searchParams.get("personel") || "";
@@ -24,12 +25,10 @@ export default function IzinHakkiEkle() {
   const [saving, setSaving] = useState(false);
   const [personeller, setPersoneller] = useState<Personel[]>([]);
 
-  // Form state
   const [selectedPersonel, setSelectedPersonel] = useState(preSelectedPersonel || "");
   const [hakGunu, setHakGunu] = useState("");
   const [aciklama, setAciklama] = useState("");
 
-  // Enter ile kaydet (textarea hariç)
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
       e.preventDefault();
@@ -37,10 +36,8 @@ export default function IzinHakkiEkle() {
     }
   };
 
-  // Seçili personel bilgisi
   const seciliPersonel = personeller.find(p => p.id === selectedPersonel);
 
-  // Çalışma yılı hesapla
   const hesaplaCalismaYili = (iseBaslama: string) => {
     if (!iseBaslama) return 0;
     const baslangic = new Date(iseBaslama);
@@ -53,7 +50,6 @@ export default function IzinHakkiEkle() {
     return yil;
   };
 
-  // Yıllık izin hakkı hesapla - KÜMÜLATİF TOPLAM
   const hesaplaIzinHakki = (calismaYili: number) => {
     let toplam = 0;
     for (let yil = 1; yil <= calismaYili; yil++) {
@@ -64,14 +60,12 @@ export default function IzinHakkiEkle() {
     return toplam;
   };
 
-  // Tarih formatla
   const formatDate = (dateStr: string) => {
     if (!dateStr) return "-";
     const date = new Date(dateStr);
     return date.toLocaleDateString("tr-TR");
   };
 
-  // Otomatik doldur
   const otomatikDoldur = () => {
     if (!seciliPersonel?.iseBaslama) {
       alert("Bu personelin işe giriş tarihi tanımlı değil.");
@@ -99,7 +93,6 @@ export default function IzinHakkiEkle() {
     return () => unsubscribe();
   }, [router]);
 
-  // Personelleri çek
   useEffect(() => {
     if (!user) return;
 
@@ -144,7 +137,6 @@ export default function IzinHakkiEkle() {
     try {
       const personel = personeller.find(p => p.id === selectedPersonel);
 
-      // İzin hakkı log kaydı oluştur
       await addDoc(collection(db, "izinHakDegisiklikleri"), {
         personelId: selectedPersonel,
         personelAd: personel?.ad || "",
@@ -155,7 +147,6 @@ export default function IzinHakkiEkle() {
         islemYapan: user?.email || "",
       });
 
-      // Personelin izin hakkını güncelle
       const personelRef = doc(db, "personnel", selectedPersonel);
       await updateDoc(personelRef, {
         yillikIzinHakki: increment(parseInt(hakGunu)),
@@ -189,8 +180,7 @@ export default function IzinHakkiEkle() {
     <div className="flex min-h-screen bg-neutral-warm">
       <Sidebar user={user} />
 
-      <main className="flex-1 p-4 lg:p-6 ml-64">
-        {/* Header */}
+      <main className="flex-1 p-4 lg:p-6 md:ml-64 pt-14 md:pt-0 pb-20 md:pb-0">
         <div className="mb-6 flex items-start justify-between">
           <div>
             <h1 className="text-xl font-bold text-gray-800">İzin Hakkı Ekle</h1>
@@ -199,7 +189,6 @@ export default function IzinHakkiEkle() {
             </p>
           </div>
 
-          {/* Top Action Buttons */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => handleSave("back")}
@@ -227,9 +216,7 @@ export default function IzinHakkiEkle() {
           </div>
         </div>
 
-        {/* Form Card */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-100" onKeyDown={handleKeyDown}>
-          {/* Tab Header */}
           <div className="border-b border-gray-100 px-6 pt-4">
             <div className="inline-block">
               <span className="text-primary-500 font-medium text-sm pb-3 block border-b-2 border-primary-500">
@@ -238,9 +225,7 @@ export default function IzinHakkiEkle() {
             </div>
           </div>
 
-          {/* Form Content */}
           <div className="p-6 space-y-6">
-            {/* Kullanıcı */}
             <div className="grid grid-cols-[200px_1fr] items-center gap-4">
               <label className="text-sm font-medium text-gray-700">
                 Kullanıcı <span className="text-red-500">(*)</span>
@@ -259,7 +244,6 @@ export default function IzinHakkiEkle() {
               </select>
             </div>
 
-            {/* Seçili Personel Bilgisi */}
             {seciliPersonel && (
               <div className="grid grid-cols-[200px_1fr] items-start gap-4">
                 <label className="text-sm font-medium text-gray-700">Personel Bilgisi</label>
@@ -300,7 +284,6 @@ export default function IzinHakkiEkle() {
               </div>
             )}
 
-            {/* Hak kazandığı gün */}
             <div className="grid grid-cols-[200px_1fr] items-center gap-4">
               <label className="text-sm font-medium text-gray-700">
                 Hak kazandığı gün <span className="text-red-500">(*)</span>
@@ -315,7 +298,6 @@ export default function IzinHakkiEkle() {
               />
             </div>
 
-            {/* Kısa Açıklama */}
             <div className="grid grid-cols-[200px_1fr] items-start gap-4">
               <label className="text-sm font-medium text-gray-700 pt-2">
                 Kısa Açıklama <span className="text-red-500">(*)</span>
@@ -331,7 +313,6 @@ export default function IzinHakkiEkle() {
           </div>
         </div>
 
-        {/* Bottom Action Buttons */}
         <div className="mt-6 flex items-center justify-end gap-2">
           <button
             onClick={() => handleSave("back")}
@@ -359,5 +340,17 @@ export default function IzinHakkiEkle() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function IzinHakkiEkle() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-neutral-warm">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
+      </div>
+    }>
+      <IzinHakkiEkleContent />
+    </Suspense>
   );
 }

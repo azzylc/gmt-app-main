@@ -9,7 +9,9 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@yudiel/react-qr-scanner": "^2.5.1",
     "firebase": "^11.1.0",
+    "html5-qrcode": "^2.3.8",
     "next": "^16.1.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

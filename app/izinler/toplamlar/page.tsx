@@ -127,7 +127,7 @@ export default function IzinToplamlari() {
     <div className="flex min-h-screen bg-neutral-warm">
       <Sidebar user={user} />
 
-      <main className="flex-1 p-4 lg:p-6 ml-64">
+      <main className="flex-1 p-4 lg:p-6 md:ml-64 pt-14 md:pt-0 pb-20 md:pb-0">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-xl font-bold text-gray-800">İzin Toplamları</h1>

@@ -86,7 +86,7 @@ export default function DuyurularPage() {
       setFilteredAnnouncements(announcements);
     } else {
       setFilteredAnnouncements(announcements.filter(a => 
-        a.group.toLowerCase() === activeFilter.toLowerCase()
+        (a.group || '').toLowerCase() === activeFilter.toLowerCase()
       ));
     }
   }, [activeFilter, announcements]);
@@ -138,10 +138,11 @@ export default function DuyurularPage() {
 
   // Grup adına göre stil bilgisi getir
   const getGroupInfo = (groupName: string) => {
-    const grup = grupEtiketleri.find(g => g.grupAdi.toLowerCase() === groupName.toLowerCase());
+    const safeGroupName = groupName || '';
+    const grup = grupEtiketleri.find(g => g.grupAdi.toLowerCase() === safeGroupName.toLowerCase());
     if (!grup) {
       return { 
-        grupAdi: groupName, 
+        grupAdi: safeGroupName || 'Genel', 
         stiller: getRenkStilleri('gray')
       };
     }
@@ -156,7 +157,7 @@ export default function DuyurularPage() {
     const counts: Record<string, number> = { tumu: announcements.length };
     grupEtiketleri.forEach(g => {
       counts[g.grupAdi] = announcements.filter(a => 
-        a.group.toLowerCase() === g.grupAdi.toLowerCase()
+        (a.group || '').toLowerCase() === g.grupAdi.toLowerCase()
       ).length;
     });
     return counts;
@@ -176,7 +177,7 @@ export default function DuyurularPage() {
     <div className="min-h-screen bg-gray-50">
       <Sidebar user={user} />
       
-      <div className="ml-64">
+      <div className="md:ml-64 pt-14 md:pt-0 pb-20 md:pb-0">
         <header className="bg-white border-b px-6 py-4 sticky top-0 z-30">
           <div className="flex items-center justify-between mb-4">
             <div>

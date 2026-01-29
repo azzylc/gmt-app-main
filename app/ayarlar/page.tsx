@@ -1,10 +1,9 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { auth, db } from "../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Sidebar from "../components/Sidebar";
-import { RENK_PALETI, getRenkStilleri } from "../lib/grupEtiketleri";
 import { 
   collection, 
   addDoc, 
@@ -15,7 +14,9 @@ import {
   query, 
   orderBy,
   serverTimestamp,
+  where,
   getDocs,
+  arrayRemove,
   writeBatch
 } from "firebase/firestore";
 
@@ -23,6 +24,8 @@ interface Konum {
   id: string;
   karekod: string;
   konumAdi: string;
+  lat: number;
+  lng: number;
   maksimumOkutmaUzakligi: number;
   girisSaatLimiti: string;
   konumDisiOkutabilme: boolean;
@@ -52,7 +55,9 @@ export default function AyarlarPage() {
     id: "",
     karekod: "",
     konumAdi: "",
-    maksimumOkutmaUzakligi: 7,
+    lat: 0,
+    lng: 0,
+    maksimumOkutmaUzakligi: 50,
     girisSaatLimiti: "",
     konumDisiOkutabilme: false,
     aktif: true
@@ -62,10 +67,13 @@ export default function AyarlarPage() {
   const [grupEtiketleri, setGrupEtiketleri] = useState<GrupEtiketi[]>([]);
   const [showGrupModal, setShowGrupModal] = useState(false);
   const [editingGrup, setEditingGrup] = useState<GrupEtiketi | null>(null);
-  const [grupFormData, setGrupFormData] = useState({
+  const [grupFormData, setGrupFormData] = useState<GrupEtiketi>({
+    id: "",
     grupAdi: "",
-    renk: "blue",
-    sira: 0
+    renk: "gray",
+    sira: 0,
+    olusturulmaTarihi: null,
+    sonDuzenleme: null
   });
 
   const tabs = [
@@ -101,20 +109,79 @@ export default function AyarlarPage() {
     return () => unsubscribe();
   }, [user]);
 
-  // Grup Etiketlerini çek (sıraya göre)
+  // Grup Etiketlerini çek ve eksik field'ları otomatik düzelt
+  const cleanupDoneRef = useRef(false);
+  
   useEffect(() => {
     if (!user) return;
-    const q = query(collection(db, "groupTags"), orderBy("sira", "asc"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        grupAdi: doc.data().grupAdi || "",
-        renk: doc.data().renk || "gray",
-        sira: doc.data().sira ?? 999,
-        olusturulmaTarihi: doc.data().olusturulmaTarihi,
-        sonDuzenleme: doc.data().sonDuzenleme
+    const q = query(collection(db, "groupTags"), orderBy("grupAdi", "asc"));
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      const data = snapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        grupAdi: docSnap.data().grupAdi || "",
+        renk: docSnap.data().renk || "gray",
+        sira: docSnap.data().sira ?? 999,
+        olusturulmaTarihi: docSnap.data().olusturulmaTarihi,
+        sonDuzenleme: docSnap.data().sonDuzenleme
       } as GrupEtiketi));
       setGrupEtiketleri(data);
+      
+      // İlk yüklemede eksik field'ları düzelt + artık etiketleri temizle (sadece 1 kez)
+      if (!cleanupDoneRef.current && data.length > 0) {
+        cleanupDoneRef.current = true;
+        
+        try {
+          const batch = writeBatch(db);
+          let tagUpdateCount = 0;
+          
+          // 1. Eksik sira/renk field'larını düzelt
+          snapshot.docs.forEach((docSnap, index) => {
+            const docData = docSnap.data();
+            const updates: any = {};
+            
+            if (docData.sira === undefined || docData.sira === null) {
+              updates.sira = index;
+            }
+            if (!docData.renk) {
+              updates.renk = "gray";
+            }
+            
+            if (Object.keys(updates).length > 0) {
+              batch.update(doc(db, "groupTags", docSnap.id), updates);
+              tagUpdateCount++;
+            }
+          });
+          
+          // 2. Personellerden artık etiketleri temizle
+          const mevcutEtiketler = data.map(g => g.grupAdi);
+          const personnelQuery = query(collection(db, "personnel"));
+          const personnelSnapshot = await getDocs(personnelQuery);
+          let personnelUpdateCount = 0;
+          
+          personnelSnapshot.forEach((docSnap) => {
+            const personelData = docSnap.data();
+            const personelEtiketleri = personelData.grupEtiketleri || [];
+            const artikEtiketler = personelEtiketleri.filter((e: string) => !mevcutEtiketler.includes(e));
+            
+            if (artikEtiketler.length > 0) {
+              const temizEtiketler = personelEtiketleri.filter((e: string) => mevcutEtiketler.includes(e));
+              batch.update(doc(db, "personnel", docSnap.id), {
+                grupEtiketleri: temizEtiketler
+              });
+              personnelUpdateCount++;
+            }
+          });
+          
+          // Batch commit
+          if (tagUpdateCount > 0 || personnelUpdateCount > 0) {
+            await batch.commit();
+            if (tagUpdateCount > 0) console.log(`${tagUpdateCount} grup etiketine eksik field eklendi.`);
+            if (personnelUpdateCount > 0) console.log(`${personnelUpdateCount} personelden artık etiketler temizlendi.`);
+          }
+        } catch (error) {
+          console.error("Otomatik düzeltme hatası:", error);
+        }
+      }
     });
     return () => unsubscribe();
   }, [user]);
@@ -168,7 +235,9 @@ export default function AyarlarPage() {
       id: "",
       karekod: "",
       konumAdi: "",
-      maksimumOkutmaUzakligi: 7,
+      lat: 0,
+      lng: 0,
+      maksimumOkutmaUzakligi: 50,
       girisSaatLimiti: "",
       konumDisiOkutabilme: false,
       aktif: true
@@ -184,21 +253,51 @@ export default function AyarlarPage() {
 
     try {
       if (editingGrup) {
+        const eskiGrupAdi = editingGrup.grupAdi;
+        const yeniGrupAdi = grupFormData.grupAdi;
+        
+        // Grup adı değiştiyse, tüm personellerde güncelle
+        if (eskiGrupAdi !== yeniGrupAdi) {
+          const personnelQuery = query(collection(db, "personnel"));
+          const personnelSnapshot = await getDocs(personnelQuery);
+          
+          const batch = writeBatch(db);
+          let updateCount = 0;
+          
+          personnelSnapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const grupEtiketleri = data.grupEtiketleri || [];
+            
+            if (grupEtiketleri.includes(eskiGrupAdi)) {
+              const yeniEtiketler = grupEtiketleri.map((g: string) => 
+                g === eskiGrupAdi ? yeniGrupAdi : g
+              );
+              batch.update(doc(db, "personnel", docSnap.id), {
+                grupEtiketleri: yeniEtiketler
+              });
+              updateCount++;
+            }
+          });
+          
+          if (updateCount > 0) {
+            await batch.commit();
+          }
+        }
+        
+        const { id, ...dataToUpdate } = grupFormData;
         await updateDoc(doc(db, "groupTags", editingGrup.id), {
-          grupAdi: grupFormData.grupAdi,
-          renk: grupFormData.renk,
-          sira: grupFormData.sira,
+          ...dataToUpdate,
           sonDuzenleme: serverTimestamp()
         });
       } else {
-        // Yeni sıra numarası hesapla
+        // Yeni sira hesapla (mevcut en yüksek + 1)
         const yeniSira = grupEtiketleri.length > 0 
-          ? Math.max(...grupEtiketleri.map(g => g.sira)) + 1 
+          ? Math.max(...grupEtiketleri.map(g => g.sira || 0)) + 1 
           : 0;
-          
+        
+        const { id, ...dataToAdd } = grupFormData;
         await addDoc(collection(db, "groupTags"), {
-          grupAdi: grupFormData.grupAdi,
-          renk: grupFormData.renk,
+          ...dataToAdd,
           sira: yeniSira,
           olusturulmaTarihi: serverTimestamp(),
           sonDuzenleme: serverTimestamp()
@@ -214,71 +313,59 @@ export default function AyarlarPage() {
     }
   };
 
-  const handleGrupDelete = async (id: string) => {
-    if (confirm("Bu grup etiketini silmek istediğinize emin misiniz?\n\nDikkat: Bu etiketi kullanan personel ve duyurular etkilenebilir.")) {
+  const handleGrupDelete = async (id: string, grupAdi: string) => {
+    if (confirm(`"${grupAdi}" etiketini silmek istediğinize emin misiniz?\n\nBu işlem tüm personellerden bu etiketi kaldıracak!`)) {
       try {
+        // 1. Tüm personellerde bu etiketi bul ve kaldır
+        const personnelQuery = query(collection(db, "personnel"));
+        const personnelSnapshot = await getDocs(personnelQuery);
+        
+        const batch = writeBatch(db);
+        let updateCount = 0;
+        
+        personnelSnapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          const grupEtiketleri = data.grupEtiketleri || [];
+          
+          if (grupEtiketleri.includes(grupAdi)) {
+            batch.update(doc(db, "personnel", docSnap.id), {
+              grupEtiketleri: arrayRemove(grupAdi)
+            });
+            updateCount++;
+          }
+        });
+        
+        // Batch commit
+        if (updateCount > 0) {
+          await batch.commit();
+        }
+        
+        // 2. Grup etiketini sil
         await deleteDoc(doc(db, "groupTags", id));
+        
+        alert(`"${grupAdi}" etiketi silindi ve ${updateCount} personelden kaldırıldı.`);
       } catch (error) {
         console.error("Hata:", error);
+        alert("İşlem başarısız!");
       }
     }
   };
 
   const openGrupEditModal = (grup: GrupEtiketi) => {
     setEditingGrup(grup);
-    setGrupFormData({
-      grupAdi: grup.grupAdi,
-      renk: grup.renk || "blue",
-      sira: grup.sira
-    });
+    setGrupFormData(grup);
     setShowGrupModal(true);
   };
 
   const resetGrupForm = () => {
     setGrupFormData({
+      id: "",
       grupAdi: "",
-      renk: "blue",
-      sira: 0
+      renk: "gray",
+      sira: 0,
+      olusturulmaTarihi: null,
+      sonDuzenleme: null
     });
-  };
-
-  // Mevcut etiketlere renk ekle (migration)
-  const handleRenkMigration = async () => {
-    const defaultRenkler: Record<string, string> = {
-      "genel": "blue",
-      "mg": "purple", 
-      "gys": "pink",
-      "tcb": "orange",
-      "ekip": "green",
-      "serbest": "gray"
-    };
-
-    try {
-      const batch = writeBatch(db);
-      let updated = 0;
-
-      grupEtiketleri.forEach((grup, index) => {
-        if (!grup.renk || grup.renk === "gray") {
-          const grupAdiLower = grup.grupAdi.toLowerCase();
-          const renk = defaultRenkler[grupAdiLower] || "gray";
-          batch.update(doc(db, "groupTags", grup.id), { 
-            renk,
-            sira: index
-          });
-          updated++;
-        }
-      });
-
-      if (updated > 0) {
-        await batch.commit();
-        alert(`${updated} etiket güncellendi!`);
-      } else {
-        alert("Tüm etiketlerin rengi zaten mevcut.");
-      }
-    } catch (error) {
-      console.error("Migration hatası:", error);
-      alert("Bir hata oluştu!");
-    }
   };
 
   if (loading) {
@@ -293,7 +380,7 @@ export default function AyarlarPage() {
     <div className="min-h-screen bg-gray-50">
       <Sidebar user={user} />
       
-      <div className="ml-64">
+      <div className="md:ml-64 pt-14 md:pt-0 pb-20 md:pb-0">
         <header className="bg-white border-b px-6 py-4 sticky top-0 z-30">
           <div>
             <h1 className="text-xl font-bold text-gray-800">⚙️ Ayarlar</h1>
@@ -368,6 +455,13 @@ export default function AyarlarPage() {
                       <p className="text-xs text-gray-500">Personel mobil uygulamadan izin talebinde bulunabilsin mi?</p>
                     </div>
                   </div>
+                  <div className="flex items-start gap-3">
+                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">İzin onaylarında yönetici ön onayı zorunlu</p>
+                      <p className="text-xs text-gray-500">İzin talebi önce yönetici onayından geçsin mi?</p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -400,7 +494,103 @@ export default function AyarlarPage() {
                       <p className="text-xs text-gray-500">Konum kontrolü yapılsın mı?</p>
                     </div>
                   </div>
+                  <div className="flex items-start gap-3">
+                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">Kişisel QR kod ile işlem</p>
+                      <p className="text-xs text-gray-500">Her personel kendi QR kodu ile işlem yapabilsin mi?</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">Vardiya planları görüntüleme</p>
+                      <p className="text-xs text-gray-500">Personel vardiyalarını görebilsin mi?</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">İşlem geçmişi</p>
+                      <p className="text-xs text-gray-500">Personel kendi giriş-çıkış geçmişini görebilsin mi?</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">Profil fotoğrafı yükleme</p>
+                      <p className="text-xs text-gray-500">Personel profil fotoğrafı ekleyebilsin mi?</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">Mazeret bildirme</p>
+                      <p className="text-xs text-gray-500">Personel mazeret bildirimi yapabilsin mi?</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <input type="checkbox" className="w-5 h-5 text-pink-600 rounded mt-1" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">QR kameralı mola işlemi</p>
+                      <p className="text-xs text-gray-500">Mola için QR okutma zorunlu olsun mu?</p>
+                    </div>
+                  </div>
                 </div>
+              </div>
+
+              {/* Bildirim Ayarları */}
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                  <span>🔔</span> Bildirim Ayarları
+                </h2>
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">İşe giriş-çıkış hatırlatıcıları</p>
+                      <p className="text-xs text-gray-500">Personele giriş ve çıkış saatinde bildirim gönderilsin mi?</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Yetkili Ayarları */}
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                  <span>🔑</span> Yetkili Ayarları
+                </h2>
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-600 mb-3">Yetkili grupları için menü erişim izinleri:</p>
+                  <div className="flex items-start gap-3">
+                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">"Raporlar" menüsü erişimi</p>
+                      <p className="text-xs text-gray-500">Yetkililer raporları görebilsin mi?</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">"İzinler" menüsü erişimi</p>
+                      <p className="text-xs text-gray-500">Yetkililer izin yönetimini görebilsin mi?</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">"Giriş-Çıkış Ekle" erişimi</p>
+                      <p className="text-xs text-gray-500">Yetkililer manuel giriş-çıkış ekleyebilsin mi?</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Kaydet Butonu */}
+              <div className="flex justify-end">
+                <button className="px-6 py-3 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition font-medium">
+                  💾 Ayarları Kaydet
+                </button>
               </div>
             </div>
           )}
@@ -428,33 +618,51 @@ export default function AyarlarPage() {
                   <table className="w-full">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Karekod</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Konum Adı</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Uzaklık</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Saat Limiti</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">K.Dışı</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Durum</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">İşlemler</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">QR Kod</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Karekod</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Konum Adı</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Max Uzaklık</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">GPS</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Durum</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">İşlemler</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                       {konumlar.map(konum => (
                         <tr key={konum.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 text-sm text-gray-900">{konum.karekod}</td>
-                          <td className="px-6 py-4 text-sm font-medium text-gray-900">{konum.konumAdi}</td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{konum.maksimumOkutmaUzakligi} m</td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{konum.girisSaatLimiti || 'Limit yok'}</td>
-                          <td className="px-6 py-4">
-                            <span className={`px-2 py-1 text-xs rounded-full ${konum.konumDisiOkutabilme ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                              {konum.konumDisiOkutabilme ? 'Evet' : 'Hayır'}
-                            </span>
+                          <td className="px-4 py-4">
+                            <div className="flex flex-col items-center gap-2">
+                              <img 
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(konum.karekod)}`} 
+                                alt="QR" 
+                                className="w-16 h-16 border rounded"
+                              />
+                              <a
+                                href={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(konum.karekod)}`}
+                                download={`QR-${konum.karekod}.png`}
+                                target="_blank"
+                                className="text-xs text-pink-600 hover:text-pink-700 font-medium"
+                              >
+                                📥 İndir
+                              </a>
+                            </div>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-4 py-4 text-sm font-mono text-gray-900">{konum.karekod}</td>
+                          <td className="px-4 py-4 text-sm font-medium text-gray-900">{konum.konumAdi}</td>
+                          <td className="px-4 py-4 text-sm text-gray-600">{konum.maksimumOkutmaUzakligi} m</td>
+                          <td className="px-4 py-4">
+                            {konum.lat && konum.lng ? (
+                              <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">✓ Ayarlı</span>
+                            ) : (
+                              <span className="text-xs text-red-600 bg-red-50 px-2 py-1 rounded">✗ Ayarlanmadı</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-4">
                             <span className={`px-2 py-1 text-xs rounded-full ${konum.aktif ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
                               {konum.aktif ? 'Aktif' : 'Pasif'}
                             </span>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-4 py-4">
                             <div className="flex gap-2">
                               <button onClick={() => openKonumEditModal(konum)} className="w-8 h-8 hover:bg-yellow-50 text-yellow-600 rounded" title="Düzenle">✏️</button>
                               <button onClick={() => handleKonumDelete(konum.id)} className="w-8 h-8 hover:bg-red-50 text-red-600 rounded" title="Sil">🗑️</button>
@@ -473,46 +681,25 @@ export default function AyarlarPage() {
           {activeTab === 2 && (
             <div>
               <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h2 className="text-lg font-bold text-gray-800">🏷️ Grup Etiketleri</h2>
-                  <p className="text-sm text-gray-500 mt-1">Bu etiketler Duyurular ve Personel sayfalarında kullanılır</p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleRenkMigration}
-                    className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium transition"
-                    title="Renksiz etiketlere otomatik renk ata"
-                  >
-                    🎨 Renkleri Güncelle
-                  </button>
-                  <button
-                    onClick={() => { setShowGrupModal(true); setEditingGrup(null); resetGrupForm(); }}
-                    className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition"
-                  >
-                    ➕ Yeni Grup
-                  </button>
-                </div>
-              </div>
-
-              {/* Bilgi Notu */}
-              <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                <p className="text-sm text-blue-700">
-                  <strong>💡 İpucu:</strong> Burada yaptığınız değişiklikler Duyurular sayfası, Personel Düzenle ve Görevler sayfalarına otomatik yansır.
-                </p>
+                <h2 className="text-lg font-bold text-gray-800">🏷️ Grup Etiketleri</h2>
+                <button
+                  onClick={() => { setShowGrupModal(true); setEditingGrup(null); resetGrupForm(); }}
+                  className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition"
+                >
+                  ➕ Yeni Grup
+                </button>
               </div>
 
               {grupEtiketleri.length === 0 ? (
                 <div className="bg-white rounded-2xl p-12 text-center text-gray-500 border border-gray-100">
                   <span className="text-5xl mb-4 block">🏷️</span>
                   <p className="text-lg font-medium">Grup etiketi bulunamadı</p>
-                  <p className="text-sm text-gray-400 mt-2">Yeni grup eklemek için yukarıdaki butona tıklayın</p>
                 </div>
               ) : (
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                   <table className="w-full">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sıra</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Grup Adı</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Renk</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Önizleme</th>
@@ -521,36 +708,31 @@ export default function AyarlarPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {grupEtiketleri.map((grup, index) => {
-                        const stiller = getRenkStilleri(grup.renk);
-                        return (
-                          <tr key={grup.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 text-sm text-gray-500">{index + 1}</td>
-                            <td className="px-6 py-4 text-sm font-medium text-gray-900">{grup.grupAdi}</td>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-2">
-                                <span className={`w-4 h-4 rounded-full ${stiller.bg}`}></span>
-                                <span className="text-sm text-gray-600 capitalize">{grup.renk}</span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className={`${stiller.bg} text-white text-xs font-bold px-3 py-1 rounded-full`}>
-                                {grup.grupAdi}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-sm text-gray-600">
-                              {grup.olusturulmaTarihi?.toDate ? 
-                                grup.olusturulmaTarihi.toDate().toLocaleDateString('tr-TR') : '-'}
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex gap-2">
-                                <button onClick={() => openGrupEditModal(grup)} className="w-8 h-8 hover:bg-yellow-50 text-yellow-600 rounded" title="Düzenle">✏️</button>
-                                <button onClick={() => handleGrupDelete(grup.id)} className="w-8 h-8 hover:bg-red-50 text-red-600 rounded" title="Sil">🗑️</button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
+                      {grupEtiketleri.map(grup => (
+                        <tr key={grup.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 font-medium text-gray-900">{grup.grupAdi}</td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <span className={`w-4 h-4 rounded-full bg-${grup.renk}-500`}></span>
+                              <span className="text-sm text-gray-600 capitalize">{grup.renk}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`px-3 py-1 text-sm font-medium text-white rounded-full bg-${grup.renk}-500`}>
+                              {grup.grupAdi}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-600">
+                            {grup.olusturulmaTarihi ? new Date(grup.olusturulmaTarihi.seconds * 1000).toLocaleDateString('tr-TR') : '-'}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex gap-2">
+                              <button onClick={() => openGrupEditModal(grup)} className="w-8 h-8 hover:bg-yellow-50 text-yellow-600 rounded" title="Düzenle">✏️</button>
+                              <button onClick={() => handleGrupDelete(grup.id, grup.grupAdi)} className="w-8 h-8 hover:bg-red-50 text-red-600 rounded" title="Sil">🗑️</button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -579,6 +761,51 @@ export default function AyarlarPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Konum Adı *</label>
                   <input type="text" value={konumFormData.konumAdi} onChange={(e) => setKonumFormData({ ...konumFormData, konumAdi: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="Ofis Girişi" />
                 </div>
+              </div>
+
+              {/* GPS Koordinatları */}
+              <div className="p-4 bg-blue-50 rounded-xl">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-sm font-medium text-gray-700">📍 GPS Koordinatları</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(
+                          (position) => {
+                            setKonumFormData({
+                              ...konumFormData,
+                              lat: position.coords.latitude,
+                              lng: position.coords.longitude
+                            });
+                          },
+                          (error) => {
+                            alert("Konum alınamadı: " + error.message);
+                          },
+                          { enableHighAccuracy: true }
+                        );
+                      } else {
+                        alert("Tarayıcınız konum özelliğini desteklemiyor");
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition"
+                  >
+                    📍 Mevcut Konumu Al
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Enlem (Lat)</label>
+                    <input type="number" step="any" value={konumFormData.lat || ""} onChange={(e) => setKonumFormData({ ...konumFormData, lat: Number(e.target.value) })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" placeholder="41.0082" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Boylam (Lng)</label>
+                    <input type="number" step="any" value={konumFormData.lng || ""} onChange={(e) => setKonumFormData({ ...konumFormData, lng: Number(e.target.value) })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" placeholder="28.9784" />
+                  </div>
+                </div>
+                {konumFormData.lat && konumFormData.lng && (
+                  <p className="text-xs text-green-600 mt-2">✓ Koordinatlar alındı</p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -612,7 +839,7 @@ export default function AyarlarPage() {
         </div>
       )}
 
-      {/* Grup Modal - RENK SEÇİCİ İLE */}
+      {/* Grup Modal */}
       {showGrupModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
@@ -621,54 +848,43 @@ export default function AyarlarPage() {
               <button onClick={() => { setShowGrupModal(false); resetGrupForm(); }} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
             </div>
 
-            <div className="space-y-5">
-              {/* Grup Adı */}
+            <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Grup Adı *</label>
-                <input 
-                  type="text" 
-                  value={grupFormData.grupAdi} 
-                  onChange={(e) => setGrupFormData({ ...grupFormData, grupAdi: e.target.value })} 
-                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500" 
-                  placeholder="örn: ekip, GYS, MG..." 
-                />
+                <input type="text" value={grupFormData.grupAdi} onChange={(e) => setGrupFormData({ ...grupFormData, grupAdi: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="ekip, GYS, MG..." />
               </div>
-
-              {/* Renk Seçimi */}
+              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">Renk</label>
-                <div className="grid grid-cols-6 gap-2">
-                  {RENK_PALETI.map(renk => (
+                <label className="block text-sm font-medium text-gray-700 mb-2">Renk *</label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { id: 'red', color: 'bg-red-500' },
+                    { id: 'orange', color: 'bg-orange-500' },
+                    { id: 'yellow', color: 'bg-yellow-500' },
+                    { id: 'green', color: 'bg-green-500' },
+                    { id: 'teal', color: 'bg-teal-500' },
+                    { id: 'blue', color: 'bg-blue-500' },
+                    { id: 'indigo', color: 'bg-indigo-500' },
+                    { id: 'purple', color: 'bg-purple-500' },
+                    { id: 'pink', color: 'bg-pink-500' },
+                    { id: 'gray', color: 'bg-gray-500' },
+                  ].map((renk) => (
                     <button
                       key={renk.id}
                       type="button"
                       onClick={() => setGrupFormData({ ...grupFormData, renk: renk.id })}
-                      className={`w-10 h-10 rounded-xl ${renk.bg} transition-all ${
-                        grupFormData.renk === renk.id 
-                          ? "ring-4 ring-offset-2 ring-pink-300 scale-110" 
-                          : "hover:scale-105"
-                      }`}
-                      title={renk.label}
+                      className={`w-8 h-8 rounded-full ${renk.color} ${grupFormData.renk === renk.id ? 'ring-2 ring-offset-2 ring-gray-800' : 'hover:scale-110'} transition`}
                     />
                   ))}
                 </div>
               </div>
-
+              
               {/* Önizleme */}
-              <div>
+              <div className="pt-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Önizleme</label>
-                <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
-                  {grupFormData.grupAdi ? (
-                    <>
-                      <span className={`w-3 h-3 rounded-full ${getRenkStilleri(grupFormData.renk).bg}`}></span>
-                      <span className={`px-4 py-1.5 rounded-full text-sm font-bold ${getRenkStilleri(grupFormData.renk).bg} text-white`}>
-                        {grupFormData.grupAdi}
-                      </span>
-                    </>
-                  ) : (
-                    <span className="text-gray-400 text-sm">Grup adı girin...</span>
-                  )}
-                </div>
+                <span className={`inline-block px-3 py-1 rounded-full text-white text-sm font-medium bg-${grupFormData.renk}-500`}>
+                  {grupFormData.grupAdi || "Örnek"}
+                </span>
               </div>
             </div>
 
