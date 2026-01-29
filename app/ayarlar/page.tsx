@@ -4,6 +4,7 @@ import { auth, db } from "../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Sidebar from "../components/Sidebar";
+import { RENK_PALETI, getRenkStilleri } from "../lib/grupEtiketleri";
 import { 
   collection, 
   addDoc, 
@@ -14,7 +15,8 @@ import {
   query, 
   orderBy,
   serverTimestamp,
-  where
+  getDocs,
+  writeBatch
 } from "firebase/firestore";
 
 interface Konum {
@@ -30,7 +32,8 @@ interface Konum {
 interface GrupEtiketi {
   id: string;
   grupAdi: string;
-  kullaniciSayisi: number;
+  renk: string;
+  sira: number;
   olusturulmaTarihi: any;
   sonDuzenleme: any;
 }
@@ -59,12 +62,10 @@ export default function AyarlarPage() {
   const [grupEtiketleri, setGrupEtiketleri] = useState<GrupEtiketi[]>([]);
   const [showGrupModal, setShowGrupModal] = useState(false);
   const [editingGrup, setEditingGrup] = useState<GrupEtiketi | null>(null);
-  const [grupFormData, setGrupFormData] = useState<GrupEtiketi>({
-    id: "",
+  const [grupFormData, setGrupFormData] = useState({
     grupAdi: "",
-    kullaniciSayisi: 0,
-    olusturulmaTarihi: null,
-    sonDuzenleme: null
+    renk: "blue",
+    sira: 0
   });
 
   const tabs = [
@@ -100,14 +101,18 @@ export default function AyarlarPage() {
     return () => unsubscribe();
   }, [user]);
 
-  // Grup Etiketlerini çek
+  // Grup Etiketlerini çek (sıraya göre)
   useEffect(() => {
     if (!user) return;
-    const q = query(collection(db, "groupTags"), orderBy("grupAdi", "asc"));
+    const q = query(collection(db, "groupTags"), orderBy("sira", "asc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        grupAdi: doc.data().grupAdi || "",
+        renk: doc.data().renk || "gray",
+        sira: doc.data().sira ?? 999,
+        olusturulmaTarihi: doc.data().olusturulmaTarihi,
+        sonDuzenleme: doc.data().sonDuzenleme
       } as GrupEtiketi));
       setGrupEtiketleri(data);
     });
@@ -179,15 +184,22 @@ export default function AyarlarPage() {
 
     try {
       if (editingGrup) {
-        const { id, ...dataToUpdate } = grupFormData;
         await updateDoc(doc(db, "groupTags", editingGrup.id), {
-          ...dataToUpdate,
+          grupAdi: grupFormData.grupAdi,
+          renk: grupFormData.renk,
+          sira: grupFormData.sira,
           sonDuzenleme: serverTimestamp()
         });
       } else {
-        const { id, ...dataToAdd } = grupFormData;
+        // Yeni sıra numarası hesapla
+        const yeniSira = grupEtiketleri.length > 0 
+          ? Math.max(...grupEtiketleri.map(g => g.sira)) + 1 
+          : 0;
+          
         await addDoc(collection(db, "groupTags"), {
-          ...dataToAdd,
+          grupAdi: grupFormData.grupAdi,
+          renk: grupFormData.renk,
+          sira: yeniSira,
           olusturulmaTarihi: serverTimestamp(),
           sonDuzenleme: serverTimestamp()
         });
@@ -203,7 +215,7 @@ export default function AyarlarPage() {
   };
 
   const handleGrupDelete = async (id: string) => {
-    if (confirm("Bu grup etiketini silmek istediğinize emin misiniz?")) {
+    if (confirm("Bu grup etiketini silmek istediğinize emin misiniz?\n\nDikkat: Bu etiketi kullanan personel ve duyurular etkilenebilir.")) {
       try {
         await deleteDoc(doc(db, "groupTags", id));
       } catch (error) {
@@ -214,18 +226,59 @@ export default function AyarlarPage() {
 
   const openGrupEditModal = (grup: GrupEtiketi) => {
     setEditingGrup(grup);
-    setGrupFormData(grup);
+    setGrupFormData({
+      grupAdi: grup.grupAdi,
+      renk: grup.renk || "blue",
+      sira: grup.sira
+    });
     setShowGrupModal(true);
   };
 
   const resetGrupForm = () => {
     setGrupFormData({
-      id: "",
       grupAdi: "",
-      kullaniciSayisi: 0,
-      olusturulmaTarihi: null,
-      sonDuzenleme: null
+      renk: "blue",
+      sira: 0
     });
+  };
+
+  // Mevcut etiketlere renk ekle (migration)
+  const handleRenkMigration = async () => {
+    const defaultRenkler: Record<string, string> = {
+      "genel": "blue",
+      "mg": "purple", 
+      "gys": "pink",
+      "tcb": "orange",
+      "ekip": "green",
+      "serbest": "gray"
+    };
+
+    try {
+      const batch = writeBatch(db);
+      let updated = 0;
+
+      grupEtiketleri.forEach((grup, index) => {
+        if (!grup.renk || grup.renk === "gray") {
+          const grupAdiLower = grup.grupAdi.toLowerCase();
+          const renk = defaultRenkler[grupAdiLower] || "gray";
+          batch.update(doc(db, "groupTags", grup.id), { 
+            renk,
+            sira: index
+          });
+          updated++;
+        }
+      });
+
+      if (updated > 0) {
+        await batch.commit();
+        alert(`${updated} etiket güncellendi!`);
+      } else {
+        alert("Tüm etiketlerin rengi zaten mevcut.");
+      }
+    } catch (error) {
+      console.error("Migration hatası:", error);
+      alert("Bir hata oluştu!");
+    }
   };
 
   if (loading) {
@@ -315,13 +368,6 @@ export default function AyarlarPage() {
                       <p className="text-xs text-gray-500">Personel mobil uygulamadan izin talebinde bulunabilsin mi?</p>
                     </div>
                   </div>
-                  <div className="flex items-start gap-3">
-                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">İzin onaylarında yönetici ön onayı zorunlu</p>
-                      <p className="text-xs text-gray-500">İzin talebi önce yönetici onayından geçsin mi?</p>
-                    </div>
-                  </div>
                 </div>
               </div>
 
@@ -354,103 +400,7 @@ export default function AyarlarPage() {
                       <p className="text-xs text-gray-500">Konum kontrolü yapılsın mı?</p>
                     </div>
                   </div>
-                  <div className="flex items-start gap-3">
-                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">Kişisel QR kod ile işlem</p>
-                      <p className="text-xs text-gray-500">Her personel kendi QR kodu ile işlem yapabilsin mi?</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">Vardiya planları görüntüleme</p>
-                      <p className="text-xs text-gray-500">Personel vardiyalarını görebilsin mi?</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">İşlem geçmişi</p>
-                      <p className="text-xs text-gray-500">Personel kendi giriş-çıkış geçmişini görebilsin mi?</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">Profil fotoğrafı yükleme</p>
-                      <p className="text-xs text-gray-500">Personel profil fotoğrafı ekleyebilsin mi?</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">Mazeret bildirme</p>
-                      <p className="text-xs text-gray-500">Personel mazeret bildirimi yapabilsin mi?</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <input type="checkbox" className="w-5 h-5 text-pink-600 rounded mt-1" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">QR kameralı mola işlemi</p>
-                      <p className="text-xs text-gray-500">Mola için QR okutma zorunlu olsun mu?</p>
-                    </div>
-                  </div>
                 </div>
-              </div>
-
-              {/* Bildirim Ayarları */}
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                  <span>🔔</span> Bildirim Ayarları
-                </h2>
-                <div className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">İşe giriş-çıkış hatırlatıcıları</p>
-                      <p className="text-xs text-gray-500">Personele giriş ve çıkış saatinde bildirim gönderilsin mi?</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Yetkili Ayarları */}
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                  <span>🔑</span> Yetkili Ayarları
-                </h2>
-                <div className="space-y-4">
-                  <p className="text-sm text-gray-600 mb-3">Yetkili grupları için menü erişim izinleri:</p>
-                  <div className="flex items-start gap-3">
-                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">"Raporlar" menüsü erişimi</p>
-                      <p className="text-xs text-gray-500">Yetkililer raporları görebilsin mi?</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">"İzinler" menüsü erişimi</p>
-                      <p className="text-xs text-gray-500">Yetkililer izin yönetimini görebilsin mi?</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">"Giriş-Çıkış Ekle" erişimi</p>
-                      <p className="text-xs text-gray-500">Yetkililer manuel giriş-çıkış ekleyebilsin mi?</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Kaydet Butonu */}
-              <div className="flex justify-end">
-                <button className="px-6 py-3 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition font-medium">
-                  💾 Ayarları Kaydet
-                </button>
               </div>
             </div>
           )}
@@ -480,9 +430,9 @@ export default function AyarlarPage() {
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Karekod</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Konum Adı</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Max Uzaklık</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Uzaklık</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Saat Limiti</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Konum Dışı</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">K.Dışı</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Durum</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">İşlemler</th>
                       </tr>
@@ -523,55 +473,84 @@ export default function AyarlarPage() {
           {activeTab === 2 && (
             <div>
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-lg font-bold text-gray-800">🏷️ Grup Etiketleri</h2>
-                <button
-                  onClick={() => { setShowGrupModal(true); setEditingGrup(null); resetGrupForm(); }}
-                  className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition"
-                >
-                  ➕ Yeni Grup
-                </button>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-800">🏷️ Grup Etiketleri</h2>
+                  <p className="text-sm text-gray-500 mt-1">Bu etiketler Duyurular ve Personel sayfalarında kullanılır</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleRenkMigration}
+                    className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium transition"
+                    title="Renksiz etiketlere otomatik renk ata"
+                  >
+                    🎨 Renkleri Güncelle
+                  </button>
+                  <button
+                    onClick={() => { setShowGrupModal(true); setEditingGrup(null); resetGrupForm(); }}
+                    className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition"
+                  >
+                    ➕ Yeni Grup
+                  </button>
+                </div>
+              </div>
+
+              {/* Bilgi Notu */}
+              <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                <p className="text-sm text-blue-700">
+                  <strong>💡 İpucu:</strong> Burada yaptığınız değişiklikler Duyurular sayfası, Personel Düzenle ve Görevler sayfalarına otomatik yansır.
+                </p>
               </div>
 
               {grupEtiketleri.length === 0 ? (
                 <div className="bg-white rounded-2xl p-12 text-center text-gray-500 border border-gray-100">
                   <span className="text-5xl mb-4 block">🏷️</span>
                   <p className="text-lg font-medium">Grup etiketi bulunamadı</p>
+                  <p className="text-sm text-gray-400 mt-2">Yeni grup eklemek için yukarıdaki butona tıklayın</p>
                 </div>
               ) : (
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                   <table className="w-full">
                     <thead className="bg-gray-50">
                       <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sıra</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Grup Adı</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kullanıcı Sayısı</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Renk</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Önizleme</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Oluşturulma</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Son Düzenleme</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">İşlemler</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {grupEtiketleri.map(grup => (
-                        <tr key={grup.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4">
-                            <span className="px-3 py-1 text-sm font-semibold bg-blue-100 text-blue-700 rounded-lg">
-                              {grup.grupAdi}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-900">{grup.kullaniciSayisi || 0}</td>
-                          <td className="px-6 py-4 text-sm text-gray-600">
-                            {grup.olusturulmaTarihi ? new Date(grup.olusturulmaTarihi.seconds * 1000).toLocaleDateString('tr-TR') : '-'}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-600">
-                            {grup.sonDuzenleme ? new Date(grup.sonDuzenleme.seconds * 1000).toLocaleDateString('tr-TR') : '-'}
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex gap-2">
-                              <button onClick={() => openGrupEditModal(grup)} className="w-8 h-8 hover:bg-yellow-50 text-yellow-600 rounded" title="Düzenle">✏️</button>
-                              <button onClick={() => handleGrupDelete(grup.id)} className="w-8 h-8 hover:bg-red-50 text-red-600 rounded" title="Sil">🗑️</button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                      {grupEtiketleri.map((grup, index) => {
+                        const stiller = getRenkStilleri(grup.renk);
+                        return (
+                          <tr key={grup.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 text-sm text-gray-500">{index + 1}</td>
+                            <td className="px-6 py-4 text-sm font-medium text-gray-900">{grup.grupAdi}</td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-2">
+                                <span className={`w-4 h-4 rounded-full ${stiller.bg}`}></span>
+                                <span className="text-sm text-gray-600 capitalize">{grup.renk}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={`${stiller.bg} text-white text-xs font-bold px-3 py-1 rounded-full`}>
+                                {grup.grupAdi}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-600">
+                              {grup.olusturulmaTarihi?.toDate ? 
+                                grup.olusturulmaTarihi.toDate().toLocaleDateString('tr-TR') : '-'}
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex gap-2">
+                                <button onClick={() => openGrupEditModal(grup)} className="w-8 h-8 hover:bg-yellow-50 text-yellow-600 rounded" title="Düzenle">✏️</button>
+                                <button onClick={() => handleGrupDelete(grup.id)} className="w-8 h-8 hover:bg-red-50 text-red-600 rounded" title="Sil">🗑️</button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -633,7 +612,7 @@ export default function AyarlarPage() {
         </div>
       )}
 
-      {/* Grup Modal */}
+      {/* Grup Modal - RENK SEÇİCİ İLE */}
       {showGrupModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
@@ -642,10 +621,54 @@ export default function AyarlarPage() {
               <button onClick={() => { setShowGrupModal(false); resetGrupForm(); }} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-5">
+              {/* Grup Adı */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Grup Adı *</label>
-                <input type="text" value={grupFormData.grupAdi} onChange={(e) => setGrupFormData({ ...grupFormData, grupAdi: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="ekip, GYS, MG..." />
+                <input 
+                  type="text" 
+                  value={grupFormData.grupAdi} 
+                  onChange={(e) => setGrupFormData({ ...grupFormData, grupAdi: e.target.value })} 
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500" 
+                  placeholder="örn: ekip, GYS, MG..." 
+                />
+              </div>
+
+              {/* Renk Seçimi */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">Renk</label>
+                <div className="grid grid-cols-6 gap-2">
+                  {RENK_PALETI.map(renk => (
+                    <button
+                      key={renk.id}
+                      type="button"
+                      onClick={() => setGrupFormData({ ...grupFormData, renk: renk.id })}
+                      className={`w-10 h-10 rounded-xl ${renk.bg} transition-all ${
+                        grupFormData.renk === renk.id 
+                          ? "ring-4 ring-offset-2 ring-pink-300 scale-110" 
+                          : "hover:scale-105"
+                      }`}
+                      title={renk.label}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Önizleme */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Önizleme</label>
+                <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
+                  {grupFormData.grupAdi ? (
+                    <>
+                      <span className={`w-3 h-3 rounded-full ${getRenkStilleri(grupFormData.renk).bg}`}></span>
+                      <span className={`px-4 py-1.5 rounded-full text-sm font-bold ${getRenkStilleri(grupFormData.renk).bg} text-white`}>
+                        {grupFormData.grupAdi}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-gray-400 text-sm">Grup adı girin...</span>
+                  )}
+                </div>
               </div>
             </div>
 

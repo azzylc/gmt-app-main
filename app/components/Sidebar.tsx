@@ -1,7 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "../lib/firebase";
 
@@ -11,22 +11,8 @@ interface SidebarProps {
 
 export default function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error("Çıkış hatası:", error);
-    }
-  };
-
-  const toggleMenu = (menu: string) => {
-    setExpandedMenu(expandedMenu === menu ? null : menu);
-  };
-
-  const isActive = (path: string) => pathname === path;
-  const isParentActive = (paths: string[]) => paths.some(path => pathname === path);
 
   const menuItems = [
     {
@@ -34,6 +20,18 @@ export default function Sidebar({ user }: SidebarProps) {
       label: "Genel Bakış",
       icon: "📊",
       path: "/",
+    },
+    {
+      id: "duyurular",
+      label: "Duyurular",
+      icon: "📢",
+      path: "/duyurular",
+    },
+    {
+      id: "gorevler",
+      label: "Görevler",
+      icon: "✅",
+      path: "/gorevler",
     },
     {
       id: "takvim",
@@ -56,10 +54,23 @@ export default function Sidebar({ user }: SidebarProps) {
         { label: "Yöneticiler", path: "/personel?tur=Yönetici" },
         { label: "Yetkililer", path: "/personel?tur=Yetkili" },
         { label: "Ayrılanlar", path: "/personel?ayrilanlar=true" },
-        { label: "İzinler", path: "/izinler" },
         { label: "Giriş-Çıkış", path: "/giris-cikis" },
         { label: "Vardiya Planları", path: "/vardiya" },
         { label: "Çalışma Saatleri", path: "/calisma-saatleri" },
+      ],
+    },
+    {
+      id: "izinler",
+      label: "İzinler",
+      icon: "🏖️",
+      submenu: [
+        { label: "İzin Ekle", path: "/izinler/ekle" },
+        { label: "İzin Listesi", path: "/izinler" },
+        { label: "İzin Toplamları", path: "/izinler/toplamlar" },
+        { label: "İzin Talepleri", path: "/izinler/talepler" },
+        { label: "İzin Hakkı Ekle", path: "/izinler/hakki-ekle" },
+        { label: "İzin Haklarını Listele", path: "/izinler/haklar" },
+        { label: "İzin Değişiklik Kayıtları", path: "/izinler/degisiklikler" },
       ],
     },
     {
@@ -79,6 +90,73 @@ export default function Sidebar({ user }: SidebarProps) {
       path: "/ayarlar",
     },
   ];
+
+  // Sayfa yüklendiğinde veya pathname değiştiğinde aktif menüyü aç
+  useEffect(() => {
+    // Hangi parent menünün altında olduğumuzu bul
+    for (const item of menuItems) {
+      if (item.submenu) {
+        const isInSubmenu = item.submenu.some(sub => {
+          const [subPath, subQuery] = sub.path.split("?");
+          
+          // Pathname eşleşiyor mu?
+          if (pathname === subPath) {
+            // Query string kontrolü
+            if (!subQuery) return searchParams.toString() === "";
+            return searchParams.toString() === subQuery;
+          }
+          
+          // Alt sayfa kontrolü (örn: /izinler/ekle pathname'i, /izinler ile başlar mı?)
+          // Ama /izinler için değil, sadece /izinler/xxx alt sayfaları için
+          if (pathname.startsWith(subPath + "/")) return true;
+          
+          return false;
+        });
+        
+        if (isInSubmenu) {
+          setExpandedMenu(item.id);
+          return;
+        }
+      }
+    }
+  }, [pathname, searchParams]);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Çıkış hatası:", error);
+    }
+  };
+
+  const toggleMenu = (menu: string) => {
+    setExpandedMenu(expandedMenu === menu ? null : menu);
+  };
+
+  const isActive = (path: string) => {
+    // Path'i parse et
+    const [cleanPath, queryString] = path.split("?");
+    
+    // Ana sayfa için özel kontrol
+    if (cleanPath === "/") {
+      return pathname === "/" && searchParams.toString() === "";
+    }
+    
+    // Pathname eşleşmeli
+    if (pathname !== cleanPath) return false;
+    
+    // Query string yoksa
+    if (!queryString) {
+      // Mevcut URL'de de query string olmamalı
+      return searchParams.toString() === "";
+    }
+    
+    // Query string varsa karşılaştır
+    return searchParams.toString() === queryString;
+  };
+
+  const isParentActive = (submenu: any[]) => 
+    submenu.some(sub => isActive(sub.path));
 
   return (
     <div className="sidebar scrollbar-thin">
@@ -112,7 +190,7 @@ export default function Sidebar({ user }: SidebarProps) {
                 <button
                   onClick={() => toggleMenu(item.id)}
                   className={`sidebar-item w-full ${
-                    isParentActive(item.submenu.map(sub => sub.path))
+                    isParentActive(item.submenu)
                       ? "sidebar-item-active"
                       : ""
                   }`}
@@ -127,7 +205,7 @@ export default function Sidebar({ user }: SidebarProps) {
                 </button>
                 {expandedMenu === item.id && (
                   <div className="sidebar-submenu animate-slide-in">
-                    {item.submenu.map((subItem) => (
+                    {item.submenu.map((subItem: any) => (
                       <Link
                         key={subItem.path}
                         href={subItem.path}

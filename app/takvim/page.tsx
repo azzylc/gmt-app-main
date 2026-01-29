@@ -4,7 +4,7 @@ import { auth, db } from "../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Sidebar from "../components/Sidebar";
-import GelinModal from "../components/GelinModal.tsx";
+import GelinModal from "../components/GelinModal";
 import { getIzinliler, resmiTatiller } from "../lib/data";
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 
@@ -277,7 +277,7 @@ export default function TakvimPage() {
                             </div>
                           )}
                           
-                          <div className="space-y-0.5 max-h-[75px] overflow-y-auto scrollbar-thin">
+                          <div className="space-y-0.5 max-h-[90px] overflow-y-auto scrollbar-thin">
                             {gunIzinliler.map((izin, idx) => (
                               <div key={idx} className="calendar-event calendar-event-accent">
                                 {izin.personel?.emoji} İzinli

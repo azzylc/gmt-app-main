@@ -263,7 +263,7 @@
      CALENDAR STYLES
      =========================================== */
   .calendar-day {
-    @apply min-h-[100px] border-b border-r p-1.5;
+    @apply min-h-[120px] border-b border-r p-1.5;
   }
   
   .calendar-day-header {
@@ -321,22 +321,22 @@
   
   /* Scrollbar */
   .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 4px;
+    height: 4px;
   }
   
   .scrollbar-thin::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: transparent;
     border-radius: 3px;
   }
   
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: #8B4513;
+    background: #d1d5db;
     border-radius: 3px;
   }
   
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background: #CD853F;
+    background: #9ca3af;
   }
   
   /* Animations */

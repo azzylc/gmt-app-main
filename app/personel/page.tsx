@@ -5,6 +5,8 @@ import { onAuthStateChanged } from "firebase/auth";
 import { useRouter, useSearchParams } from "next/navigation";
 import Sidebar from "../components/Sidebar";
 import Cropper from "react-easy-crop";
+import { useGrupEtiketleri } from "../hooks/useGrupEtiketleri";
+import { getRenkStilleri } from "../lib/grupEtiketleri";
 import { 
   collection, 
   addDoc, 
@@ -64,7 +66,9 @@ export default function PersonelPage() {
   const turFilter = searchParams.get("tur") || "";
   const ayrilanlarFilter = searchParams.get("ayrilanlar") === "true";
 
-  const gruplar = ["MG", "GYS", "ekip", "serbest", "TCB"];
+  // Grup etiketlerini Firebase'den çek
+  const { grupEtiketleri, loading: grupLoading } = useGrupEtiketleri();
+  
   const calismaSaatleri = ["serbest", "her gün 9:00-18:00", "hafta içi 9:00-18:00", "hafta sonu 10:00-17:00"];
   const kullaniciTurleri = ["Yönetici", "Personel", "Yetkili"];
   const ayarlarLabels = {
@@ -492,9 +496,13 @@ export default function PersonelPage() {
                         <td className="px-6 py-4 text-sm text-gray-600">{personel.calismaSaati}</td>
                         <td className="px-6 py-4">
                           <div className="flex flex-wrap gap-1">
-                            {personel.grupEtiketleri.map(g => (
-                              <span key={g} className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">{g}</span>
-                            ))}
+                            {personel.grupEtiketleri.map(g => {
+                              const grupData = grupEtiketleri.find(ge => ge.grupAdi === g);
+                              const stiller = getRenkStilleri(grupData?.renk || 'gray');
+                              return (
+                                <span key={g} className={`px-2 py-1 text-xs ${stiller.bg} text-white rounded-full`}>{g}</span>
+                              );
+                            })}
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -723,22 +731,34 @@ export default function PersonelPage() {
               {activeTab === 2 && (
                 <div>
                   <p className="text-sm text-gray-600 mb-4">Dahil Olduğu Grup Etiketleri:</p>
-                  <div className="flex flex-wrap gap-3">
-                    {gruplar.map(grup => (
-                      <button
-                        key={grup}
-                        type="button"
-                        onClick={() => toggleGrup(grup)}
-                        className={`px-4 py-2 rounded-lg border-2 transition ${
-                          formData.grupEtiketleri.includes(grup)
-                            ? 'border-pink-500 bg-pink-50 text-pink-700 font-semibold'
-                            : 'border-gray-200 hover:border-gray-300 text-gray-700'
-                        }`}
-                      >
-                        {grup}
-                      </button>
-                    ))}
-                  </div>
+                  {grupLoading ? (
+                    <div className="flex items-center gap-2 text-gray-500">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-pink-500"></div>
+                      <span className="text-sm">Yükleniyor...</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-3">
+                      {grupEtiketleri.map(grup => {
+                        const stiller = getRenkStilleri(grup.renk);
+                        const isSelected = formData.grupEtiketleri.includes(grup.grupAdi);
+                        return (
+                          <button
+                            key={grup.id}
+                            type="button"
+                            onClick={() => toggleGrup(grup.grupAdi)}
+                            className={`px-4 py-2 rounded-lg border-2 transition flex items-center gap-2 ${
+                              isSelected
+                                ? `${stiller.bg} text-white border-transparent font-semibold`
+                                : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                            }`}
+                          >
+                            <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white' : stiller.bg}`}></span>
+                            {grup.grupAdi}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -759,20 +779,25 @@ export default function PersonelPage() {
                     <div>
                       <p className="text-sm text-gray-600 mb-4">Yetkili Türündeki Kullanıcıların Sorumlu Olduğu Grup Etiketleri:</p>
                       <div className="flex flex-wrap gap-3">
-                        {gruplar.map(grup => (
-                          <button
-                            key={grup}
-                            type="button"
-                            onClick={() => toggleYetkiliGrup(grup)}
-                            className={`px-4 py-2 rounded-lg border-2 transition ${
-                              formData.yetkiliGruplar.includes(grup)
-                                ? 'border-blue-500 bg-blue-50 text-blue-700 font-semibold'
-                                : 'border-gray-200 hover:border-gray-300 text-gray-700'
-                            }`}
-                          >
-                            {grup}
-                          </button>
-                        ))}
+                        {grupEtiketleri.map(grup => {
+                          const stiller = getRenkStilleri(grup.renk);
+                          const isSelected = formData.yetkiliGruplar.includes(grup.grupAdi);
+                          return (
+                            <button
+                              key={grup.id}
+                              type="button"
+                              onClick={() => toggleYetkiliGrup(grup.grupAdi)}
+                              className={`px-4 py-2 rounded-lg border-2 transition flex items-center gap-2 ${
+                                isSelected
+                                  ? `${stiller.bg} text-white border-transparent font-semibold`
+                                  : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                              }`}
+                            >
+                              <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white' : stiller.bg}`}></span>
+                              {grup.grupAdi}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -828,9 +853,13 @@ export default function PersonelPage() {
                   <h4 className="text-xl font-bold text-gray-800">{selectedPersonel.ad} {selectedPersonel.soyad}</h4>
                   <p className="text-sm text-gray-500">{selectedPersonel.kullaniciTuru}</p>
                   <div className="flex gap-2 mt-2">
-                    {selectedPersonel.grupEtiketleri.map(g => (
-                      <span key={g} className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">{g}</span>
-                    ))}
+                    {selectedPersonel.grupEtiketleri.map(g => {
+                      const grupData = grupEtiketleri.find(ge => ge.grupAdi === g);
+                      const stiller = getRenkStilleri(grupData?.renk || 'gray');
+                      return (
+                        <span key={g} className={`px-2 py-1 text-xs ${stiller.bg} text-white rounded-full`}>{g}</span>
+                      );
+                    })}
                   </div>
                 </div>
                 <span className={`px-4 py-2 rounded-xl text-sm font-medium ${selectedPersonel.aktif ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>

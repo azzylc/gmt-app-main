@@ -4,6 +4,8 @@ import { auth, db } from "../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Sidebar from "../components/Sidebar";
+import { useGrupEtiketleri } from "../hooks/useGrupEtiketleri";
+import { getRenkStilleri } from "../lib/grupEtiketleri";
 import { 
   collection, 
   addDoc, 
@@ -20,6 +22,7 @@ interface Announcement {
   title: string;
   content: string;
   important: boolean;
+  group: string;
   author: string;
   createdAt: any;
 }
@@ -28,9 +31,26 @@ export default function DuyurularPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [filteredAnnouncements, setFilteredAnnouncements] = useState<Announcement[]>([]);
+  const [activeFilter, setActiveFilter] = useState("tumu");
   const [showModal, setShowModal] = useState(false);
-  const [newAnnouncement, setNewAnnouncement] = useState({ title: '', content: '', important: false });
+  const [newAnnouncement, setNewAnnouncement] = useState({ 
+    title: '', 
+    content: '', 
+    important: false,
+    group: ''
+  });
   const router = useRouter();
+  
+  // Grup etiketlerini Firebase'den çek
+  const { grupEtiketleri, loading: grupLoading } = useGrupEtiketleri();
+
+  // İlk grup yüklenince default grup ata
+  useEffect(() => {
+    if (grupEtiketleri.length > 0 && !newAnnouncement.group) {
+      setNewAnnouncement(prev => ({ ...prev, group: grupEtiketleri[0].grupAdi }));
+    }
+  }, [grupEtiketleri]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -60,6 +80,17 @@ export default function DuyurularPage() {
     return () => unsubscribe();
   }, [user]);
 
+  // Filtreleme
+  useEffect(() => {
+    if (activeFilter === "tumu") {
+      setFilteredAnnouncements(announcements);
+    } else {
+      setFilteredAnnouncements(announcements.filter(a => 
+        a.group.toLowerCase() === activeFilter.toLowerCase()
+      ));
+    }
+  }, [activeFilter, announcements]);
+
   const handleAddAnnouncement = async () => {
     if (!newAnnouncement.title || !newAnnouncement.content) {
       alert("Lütfen başlık ve içerik girin!");
@@ -71,12 +102,13 @@ export default function DuyurularPage() {
         title: newAnnouncement.title,
         content: newAnnouncement.content,
         important: newAnnouncement.important,
+        group: newAnnouncement.group,
         author: user?.email?.split('@')[0] || 'Admin',
         createdAt: serverTimestamp()
       });
 
       setShowModal(false);
-      setNewAnnouncement({ title: '', content: '', important: false });
+      setNewAnnouncement({ title: '', content: '', important: false, group: grupEtiketleri[0]?.grupAdi || '' });
     } catch (error) {
       console.error("Duyuru eklenirken hata:", error);
       alert("Duyuru eklenemedi!");
@@ -104,7 +136,35 @@ export default function DuyurularPage() {
     });
   };
 
-  if (loading) {
+  // Grup adına göre stil bilgisi getir
+  const getGroupInfo = (groupName: string) => {
+    const grup = grupEtiketleri.find(g => g.grupAdi.toLowerCase() === groupName.toLowerCase());
+    if (!grup) {
+      return { 
+        grupAdi: groupName, 
+        stiller: getRenkStilleri('gray')
+      };
+    }
+    return { 
+      grupAdi: grup.grupAdi, 
+      stiller: getRenkStilleri(grup.renk)
+    };
+  };
+
+  // Grup bazlı duyuru sayıları
+  const getGroupCounts = () => {
+    const counts: Record<string, number> = { tumu: announcements.length };
+    grupEtiketleri.forEach(g => {
+      counts[g.grupAdi] = announcements.filter(a => 
+        a.group.toLowerCase() === g.grupAdi.toLowerCase()
+      ).length;
+    });
+    return counts;
+  };
+
+  const counts = getGroupCounts();
+
+  if (loading || grupLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500"></div>
@@ -118,7 +178,7 @@ export default function DuyurularPage() {
       
       <div className="ml-64">
         <header className="bg-white border-b px-6 py-4 sticky top-0 z-30">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-xl font-bold text-gray-800">📢 Duyurular</h1>
               <p className="text-sm text-gray-500">Ekip için önemli duyurular</p>
@@ -130,55 +190,95 @@ export default function DuyurularPage() {
               ➕ Yeni Duyuru
             </button>
           </div>
+
+          {/* Grup Filtreleri */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setActiveFilter("tumu")}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
+                activeFilter === "tumu"
+                  ? "bg-gray-800 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              Tümü ({counts.tumu})
+            </button>
+            {grupEtiketleri.map(grup => {
+              const stiller = getRenkStilleri(grup.renk);
+              return (
+                <button
+                  key={grup.id}
+                  onClick={() => setActiveFilter(grup.grupAdi)}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2 ${
+                    activeFilter === grup.grupAdi
+                      ? `${stiller.bg} text-white`
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${activeFilter === grup.grupAdi ? "bg-white" : stiller.bg}`}></span>
+                  {grup.grupAdi} ({counts[grup.grupAdi] || 0})
+                </button>
+              );
+            })}
+          </div>
         </header>
 
         <main className="p-6">
-          {announcements.length === 0 ? (
+          {filteredAnnouncements.length === 0 ? (
             <div className="bg-white rounded-2xl p-12 text-center text-gray-500 border border-gray-100">
               <span className="text-5xl mb-4 block">📭</span>
-              <p className="text-lg font-medium">Henüz duyuru yok</p>
+              <p className="text-lg font-medium">
+                {activeFilter === "tumu" ? "Henüz duyuru yok" : `${activeFilter} grubunda duyuru yok`}
+              </p>
               <p className="text-sm text-gray-400 mt-2">Yeni duyuru eklemek için yukarıdaki butona tıklayın</p>
             </div>
           ) : (
             <div className="space-y-4">
-              {announcements.map(announcement => (
-                <div 
-                  key={announcement.id}
-                  className={`bg-white rounded-2xl shadow-sm border overflow-hidden ${
-                    announcement.important 
-                      ? 'border-red-200 bg-red-50' 
-                      : 'border-gray-100'
-                  }`}
-                >
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        {announcement.important && (
-                          <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                            ÖNEMLİ
+              {filteredAnnouncements.map(announcement => {
+                const groupInfo = getGroupInfo(announcement.group);
+                return (
+                  <div 
+                    key={announcement.id}
+                    className={`bg-white rounded-2xl shadow-sm border overflow-hidden ${
+                      announcement.important 
+                        ? 'border-red-300 ring-2 ring-red-100' 
+                        : groupInfo.stiller.border
+                    }`}
+                  >
+                    <div className="p-6">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          {/* Grup Etiketi */}
+                          <span className={`${groupInfo.stiller.bg} text-white text-xs font-bold px-3 py-1 rounded-full`}>
+                            {groupInfo.grupAdi}
                           </span>
-                        )}
-                        <h3 className="text-lg font-semibold text-gray-800">{announcement.title}</h3>
+                          {announcement.important && (
+                            <span className="bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full animate-pulse">
+                              🔥 ÖNEMLİ
+                            </span>
+                          )}
+                          <h3 className="text-lg font-semibold text-gray-800">{announcement.title}</h3>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteAnnouncement(announcement.id)}
+                          className="text-gray-400 hover:text-red-500 transition text-lg"
+                        >
+                          🗑️
+                        </button>
                       </div>
-                      <button
-                        onClick={() => handleDeleteAnnouncement(announcement.id)}
-                        className="text-gray-400 hover:text-red-500 transition text-lg"
-                      >
-                        🗑️
-                      </button>
-                    </div>
-                    <p className="text-gray-600 mb-4 whitespace-pre-wrap">{announcement.content}</p>
-                    <div className="flex items-center justify-between text-sm text-gray-500">
-                      <span className="flex items-center gap-1">
-                        👤 {announcement.author}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        📅 {formatTarih(announcement.createdAt)}
-                      </span>
+                      <p className="text-gray-600 mb-4 whitespace-pre-wrap">{announcement.content}</p>
+                      <div className="flex items-center justify-between text-sm text-gray-500">
+                        <span className="flex items-center gap-1">
+                          👤 {announcement.author}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          📅 {formatTarih(announcement.createdAt)}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </main>
@@ -191,6 +291,31 @@ export default function DuyurularPage() {
             <h3 className="text-xl font-bold text-gray-800 mb-4">📢 Yeni Duyuru</h3>
             
             <div className="space-y-4">
+              {/* Grup Seçimi */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Grup</label>
+                <div className="flex flex-wrap gap-2">
+                  {grupEtiketleri.map(grup => {
+                    const stiller = getRenkStilleri(grup.renk);
+                    return (
+                      <button
+                        key={grup.id}
+                        type="button"
+                        onClick={() => setNewAnnouncement({...newAnnouncement, group: grup.grupAdi})}
+                        className={`px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2 ${
+                          newAnnouncement.group === grup.grupAdi
+                            ? `${stiller.bg} text-white`
+                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        }`}
+                      >
+                        <span className={`w-2 h-2 rounded-full ${newAnnouncement.group === grup.grupAdi ? "bg-white" : stiller.bg}`}></span>
+                        {grup.grupAdi}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Başlık</label>
                 <input
@@ -221,19 +346,19 @@ export default function DuyurularPage() {
                   onChange={(e) => setNewAnnouncement({...newAnnouncement, important: e.target.checked})}
                   className="rounded"
                 />
-                <label htmlFor="important" className="text-sm text-gray-700">Önemli duyuru olarak işaretle</label>
+                <label htmlFor="important" className="text-sm text-gray-700">🔥 Önemli duyuru olarak işaretle</label>
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex gap-3 pt-2">
                 <button
                   onClick={handleAddAnnouncement}
-                  className="flex-1 bg-pink-500 hover:bg-pink-600 text-white py-2 rounded-xl font-medium transition"
+                  className="flex-1 bg-pink-500 hover:bg-pink-600 text-white py-2.5 rounded-xl font-medium transition"
                 >
                   Ekle
                 </button>
                 <button
                   onClick={() => setShowModal(false)}
-                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-xl font-medium transition"
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2.5 rounded-xl font-medium transition"
                 >
                   İptal
                 </button>

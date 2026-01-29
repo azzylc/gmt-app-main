@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
-import { auth } from "./lib/firebase";
+import { auth, db } from "./lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { collection, query, onSnapshot, addDoc, doc, updateDoc, increment } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import Sidebar from "./components/Sidebar";
 import { personelListesi, getPersonelByIsim, getYaklasanDogumGunleri, getIzinliler, getIzinlerAralik, duyurular, getYaklasanTatiller } from "./lib/data";
@@ -16,7 +17,6 @@ interface Gelin {
   kalan: number;
   makyaj: string;
   turban: string;
-  // Ek detaylar
   kinaGunu?: string;
   telefon?: string;
   esiTelefon?: string;
@@ -34,6 +34,24 @@ interface Gelin {
   dekontGorseli?: string;
 }
 
+interface Personel {
+  id: string;
+  ad: string;
+  soyad: string;
+  iseBaslama?: string;
+  yillikIzinHakki?: number;
+  kullaniciTuru?: string;
+  aktif: boolean;
+}
+
+interface EksikIzin {
+  personel: Personel;
+  calismaYili: number;
+  olmasiGereken: number;
+  mevcut: number;
+  eksik: number;
+}
+
 const API_URL = "https://script.google.com/macros/s/AKfycbyr_9fBVzkVXf-Fx4s-DUjFTPhHlxm54oBGrrG3UGfNengHOp8rQbXKdX8pOk4reH8/exec";
 const CACHE_KEY = "gmt_gelinler_cache";
 const CACHE_TIME_KEY = "gmt_gelinler_cache_time";
@@ -48,6 +66,11 @@ export default function HomePage() {
   const [selectedGelin, setSelectedGelin] = useState<Gelin | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const router = useRouter();
+
+  // İzin hakkı state'leri
+  const [firebasePersoneller, setFirebasePersoneller] = useState<Personel[]>([]);
+  const [eksikIzinler, setEksikIzinler] = useState<EksikIzin[]>([]);
+  const [izinEkleniyor, setIzinEkleniyor] = useState<string | null>(null);
 
   const loadFromCache = () => {
     try {
@@ -112,6 +135,110 @@ export default function HomePage() {
     setDataLoading(false);
   };
 
+  // Firebase'den personelleri çek
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, "personnel"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list: Personel[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.aktif !== false) {
+          list.push({
+            id: doc.id,
+            ad: data.ad || data.isim || "",
+            soyad: data.soyad || "",
+            iseBaslama: data.iseBaslama || "",
+            yillikIzinHakki: data.yillikIzinHakki || 0,
+            kullaniciTuru: data.kullaniciTuru || "",
+            aktif: true,
+          });
+        }
+      });
+      setFirebasePersoneller(list);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  // Çalışma yılı hesapla
+  const hesaplaCalismaYili = (iseBaslama: string) => {
+    if (!iseBaslama) return 0;
+    const baslangic = new Date(iseBaslama);
+    const bugun = new Date();
+    const yil = bugun.getFullYear() - baslangic.getFullYear();
+    const ayFarki = bugun.getMonth() - baslangic.getMonth();
+    if (ayFarki < 0 || (ayFarki === 0 && bugun.getDate() < baslangic.getDate())) {
+      return yil - 1;
+    }
+    return yil;
+  };
+
+  // Kümülatif izin hakkı hesapla
+  const hesaplaIzinHakki = (calismaYili: number) => {
+    let toplam = 0;
+    for (let yil = 1; yil <= calismaYili; yil++) {
+      if (yil <= 5) toplam += 14;
+      else if (yil <= 15) toplam += 20;
+      else toplam += 26;
+    }
+    return toplam;
+  };
+
+  // Eksik izinleri hesapla
+  useEffect(() => {
+    const eksikler: EksikIzin[] = [];
+    firebasePersoneller.forEach((personel) => {
+      if (!personel.iseBaslama) return;
+      // Yöneticileri atla
+      if (personel.kullaniciTuru === "Yönetici") return;
+      const calismaYili = hesaplaCalismaYili(personel.iseBaslama);
+      if (calismaYili < 1) return;
+      const olmasiGereken = hesaplaIzinHakki(calismaYili);
+      const mevcut = personel.yillikIzinHakki || 0;
+      const eksik = olmasiGereken - mevcut;
+      if (eksik > 0) {
+        eksikler.push({ personel, calismaYili, olmasiGereken, mevcut, eksik });
+      }
+    });
+    eksikler.sort((a, b) => b.eksik - a.eksik);
+    setEksikIzinler(eksikler);
+  }, [firebasePersoneller]);
+
+  // Eksik izin ekle
+  const handleIzinEkle = async (eksik: EksikIzin) => {
+    setIzinEkleniyor(eksik.personel.id);
+    try {
+      await addDoc(collection(db, "izinHakDegisiklikleri"), {
+        personelId: eksik.personel.id,
+        personelAd: eksik.personel.ad,
+        personelSoyad: eksik.personel.soyad,
+        eklenenGun: eksik.eksik,
+        aciklama: `Eksik ${eksik.eksik} gün izin hakkı eklendi. (${eksik.calismaYili}. yıl - Mevcut: ${eksik.mevcut} → Yeni: ${eksik.olmasiGereken})`,
+        islemTarihi: new Date().toISOString(),
+        islemYapan: user?.email || "",
+      });
+      const personelRef = doc(db, "personnel", eksik.personel.id);
+      await updateDoc(personelRef, {
+        yillikIzinHakki: increment(eksik.eksik),
+      });
+    } catch (error) {
+      console.error("Ekleme hatası:", error);
+      alert("İşlem başarısız oldu.");
+    } finally {
+      setIzinEkleniyor(null);
+    }
+  };
+
+  // Tümüne ekle
+  const handleTumIzinleriEkle = async () => {
+    if (!window.confirm(`${eksikIzinler.length} personele toplam ${eksikIzinler.reduce((t, e) => t + e.eksik, 0)} gün izin hakkı eklenecek. Onaylıyor musunuz?`)) {
+      return;
+    }
+    for (const eksik of eksikIzinler) {
+      await handleIzinEkle(eksik);
+    }
+  };
+
   // Tarih hesaplamaları
   const bugun = new Date().toISOString().split('T')[0];
   const bugunDate = new Date();
@@ -145,7 +272,7 @@ export default function HomePage() {
   // Boş günler (ilk 10 müsait günü bul)
   const bosGunler = [];
   let dayOffset = 0;
-  while (bosGunler.length < 10 && dayOffset < 60) { // Max 60 gün kontrol et
+  while (bosGunler.length < 10 && dayOffset < 60) {
     const tarih = new Date(bugunDate);
     tarih.setDate(bugunDate.getDate() + dayOffset);
     const tarihStr = tarih.toISOString().split('T')[0];
@@ -160,11 +287,11 @@ export default function HomePage() {
   const yaklasanTatiller = getYaklasanTatiller();
   const onemliDuyurular = duyurular.filter(d => d.onemli && !d.okundu);
 
-  // DİKKAT EDİLECEKLER - İletişim Hattı için kritik durumlar
+  // DİKKAT EDİLECEKLER
   const islenmemisUcretler = gelinler.filter(g => g.tarih >= bugun && g.ucret === -1);
   const bugunOdemebekleyenler = bugunGelinler.filter(g => g.kalan > 0);
   
-  const toplamDikkat = islenmemisUcretler.length + bugunOdemebekleyenler.length;
+  const toplamDikkat = islenmemisUcretler.length + bugunOdemebekleyenler.length + eksikIzinler.length;
 
   const ayIsimleri = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
   const gunIsimleri = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
@@ -186,12 +313,9 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Sidebar */}
       <Sidebar user={user} />
 
-      {/* Main Content */}
       <div className="ml-64">
-        {/* Header */}
         <header className="bg-white border-b px-6 py-4 sticky top-0 z-30">
           <div className="flex items-center justify-between">
             <div>
@@ -216,7 +340,6 @@ export default function HomePage() {
           </div>
         </header>
 
-        {/* Content */}
         <main className="p-6">
           {/* Önemli Duyuru Banner */}
           {onemliDuyurular.length > 0 && (
@@ -301,6 +424,69 @@ export default function HomePage() {
                             <span className="text-sm font-bold text-blue-600">{g.kalan.toLocaleString('tr-TR')} ₺</span>
                           </div>
                         ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Eksik İzin Hakları */}
+                  {eksikIzinler.length > 0 && (
+                    <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-green-600 text-xl">🏖️</span>
+                          <h4 className="font-semibold text-green-900">Eksik İzin Hakları</h4>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {eksikIzinler.length > 1 && (
+                            <button
+                              onClick={handleTumIzinleriEkle}
+                              className="bg-green-600 text-white text-xs px-2 py-1 rounded hover:bg-green-700 transition"
+                            >
+                              Tümünü Ekle
+                            </button>
+                          )}
+                          <span className="bg-green-600 text-white text-xs px-2 py-1 rounded-full font-bold">
+                            {eksikIzinler.length}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        {eksikIzinler.slice(0, 5).map(eksik => (
+                          <div 
+                            key={eksik.personel.id}
+                            className="flex items-center justify-between p-2 bg-white rounded-lg"
+                          >
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-gray-800">
+                                  {eksik.personel.ad} {eksik.personel.soyad}
+                                </span>
+                                <span className="text-xs text-gray-500">({eksik.calismaYili}. yıl)</span>
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {eksik.mevcut} → {eksik.olmasiGereken} gün
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold text-green-600">+{eksik.eksik}</span>
+                              <button
+                                onClick={() => handleIzinEkle(eksik)}
+                                disabled={izinEkleniyor === eksik.personel.id}
+                                className="bg-green-500 text-white text-xs px-2 py-1 rounded hover:bg-green-600 transition disabled:opacity-50"
+                              >
+                                {izinEkleniyor === eksik.personel.id ? "..." : "Ekle"}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        {eksikIzinler.length > 5 && (
+                          <button 
+                            onClick={() => router.push('/izinler/haklar')}
+                            className="text-green-600 text-xs font-medium hover:text-green-700 w-full text-center pt-2"
+                          >
+                            +{eksikIzinler.length - 5} daha gör →
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -609,7 +795,6 @@ function GelinModal({ gelin, onClose }: { gelin: any; onClose: () => void }) {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="p-6">
-          {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
               <span>👰</span> Gelin Detayı
@@ -617,7 +802,6 @@ function GelinModal({ gelin, onClose }: { gelin: any; onClose: () => void }) {
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
           </div>
           
-          {/* Gelin Bilgisi */}
           <div className="flex items-center gap-4 mb-6 p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl">
             <div className="w-16 h-16 bg-gradient-to-br from-pink-200 to-purple-200 rounded-2xl flex items-center justify-center text-gray-600 text-2xl font-bold">
               {gelin.isim.charAt(0)}
@@ -630,34 +814,34 @@ function GelinModal({ gelin, onClose }: { gelin: any; onClose: () => void }) {
           </div>
 
           <div className="space-y-4">
-            {/* İletişim Bilgileri */}
-            <div className="bg-blue-50 p-4 rounded-xl">
-              <h4 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
-                <span>📞</span> İletişim Bilgileri
-              </h4>
-              <div className="space-y-2 text-sm">
-                {gelin.telefon && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-blue-600 font-medium">Tel:</span>
-                    <a href={`tel:${gelin.telefon}`} className="text-blue-700 hover:underline">{gelin.telefon}</a>
-                  </div>
-                )}
-                {gelin.esiTelefon && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-blue-600 font-medium">Eşi Tel:</span>
-                    <a href={`tel:${gelin.esiTelefon}`} className="text-blue-700 hover:underline">{gelin.esiTelefon}</a>
-                  </div>
-                )}
-                {gelin.instagram && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-blue-600 font-medium">Instagram:</span>
-                    <a href={`https://instagram.com/${gelin.instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:underline">{gelin.instagram}</a>
-                  </div>
-                )}
+            {gelin.telefon && (
+              <div className="bg-blue-50 p-4 rounded-xl">
+                <h4 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
+                  <span>📞</span> İletişim Bilgileri
+                </h4>
+                <div className="space-y-2 text-sm">
+                  {gelin.telefon && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-blue-600 font-medium">Tel:</span>
+                      <a href={`tel:${gelin.telefon}`} className="text-blue-700 hover:underline">{gelin.telefon}</a>
+                    </div>
+                  )}
+                  {gelin.esiTelefon && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-blue-600 font-medium">Eşi Tel:</span>
+                      <a href={`tel:${gelin.esiTelefon}`} className="text-blue-700 hover:underline">{gelin.esiTelefon}</a>
+                    </div>
+                  )}
+                  {gelin.instagram && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-blue-600 font-medium">Instagram:</span>
+                      <a href={`https://instagram.com/${gelin.instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:underline">{gelin.instagram}</a>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Personel Bilgileri */}
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 bg-pink-50 rounded-xl">
                 <p className="text-pink-600 text-sm font-medium mb-2">💄 Makyaj</p>
@@ -693,28 +877,6 @@ function GelinModal({ gelin, onClose }: { gelin: any; onClose: () => void }) {
               </div>
             </div>
 
-            {/* Diğer Bilgiler */}
-            {(gelin.fotografci || gelin.modaevi) && (
-              <div className="bg-purple-50 p-4 rounded-xl">
-                <h4 className="font-semibold text-purple-900 mb-3">📸 Diğer Bilgiler</h4>
-                <div className="space-y-2 text-sm">
-                  {gelin.fotografci && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-purple-600 font-medium">Fotoğrafçı:</span>
-                      <span className="text-gray-700">{gelin.fotografci}</span>
-                    </div>
-                  )}
-                  {gelin.modaevi && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-purple-600 font-medium">Modaevi:</span>
-                      <span className="text-gray-700">{gelin.modaevi}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Finansal */}
             <div className="bg-gray-50 p-4 rounded-xl">
               <h4 className="font-medium text-gray-700 mb-3">💰 Ödeme Bilgileri</h4>
               <div className="grid grid-cols-3 gap-4 mb-3">
@@ -740,82 +902,6 @@ function GelinModal({ gelin, onClose }: { gelin: any; onClose: () => void }) {
               )}
             </div>
 
-            {/* Durum Checkboxları */}
-            <div className="bg-green-50 p-4 rounded-xl">
-              <h4 className="font-semibold text-green-900 mb-3">✓ İşlem Durumu</h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2">
-                  <span className={gelin.bilgilendirmeGonderildi ? 'text-green-600' : 'text-gray-400'}>
-                    {gelin.bilgilendirmeGonderildi ? '✓' : '○'}
-                  </span>
-                  <span className={gelin.bilgilendirmeGonderildi ? 'text-gray-700' : 'text-gray-500'}>
-                    Bilgilendirme metni gönderildi mi
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={gelin.ucretYazildi ? 'text-green-600' : 'text-gray-400'}>
-                    {gelin.ucretYazildi ? '✓' : '○'}
-                  </span>
-                  <span className={gelin.ucretYazildi ? 'text-gray-700' : 'text-gray-500'}>
-                    Anlaşılan ve kalan ücret yazıldı mı
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={gelin.malzemeListesiGonderildi ? 'text-green-600' : 'text-gray-400'}>
-                    {gelin.malzemeListesiGonderildi ? '✓' : '○'}
-                  </span>
-                  <span className={gelin.malzemeListesiGonderildi ? 'text-gray-700' : 'text-gray-500'}>
-                    Malzeme listesi gönderildi mi
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={gelin.paylasimIzni !== false ? 'text-green-600' : 'text-gray-400'}>
-                    {gelin.paylasimIzni !== false ? '✓' : '○'}
-                  </span>
-                  <span className={gelin.paylasimIzni !== false ? 'text-gray-700' : 'text-gray-500'}>
-                    Paylaşım izni var mı
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Yorum Durumu */}
-            {(gelin.yorumIstesinMi !== undefined || gelin.yorumIstendiMi !== undefined) && (
-              <div className="bg-amber-50 p-4 rounded-xl">
-                <h4 className="font-semibold text-amber-900 mb-3">💬 Yorum Durumu</h4>
-                <div className="space-y-2 text-sm">
-                  {gelin.yorumIstesinMi !== undefined && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-amber-600 font-medium">Yorum istesin mi:</span>
-                      <span className="text-gray-700">{gelin.yorumIstesinMi ? 'Evet' : 'Hayır'}</span>
-                    </div>
-                  )}
-                  {gelin.yorumIstendiMi !== undefined && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-amber-600 font-medium">Yorum istendi mi:</span>
-                      <span className="text-gray-700">{gelin.yorumIstendiMi ? 'Evet' : 'Hayır'}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Dekont Görseli */}
-            {gelin.dekontGorseli && (
-              <div className="bg-indigo-50 p-4 rounded-xl">
-                <h4 className="font-semibold text-indigo-900 mb-3">🖼️ Dekont Görseli</h4>
-                <a 
-                  href={gelin.dekontGorseli} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-indigo-600 hover:text-indigo-700 text-sm underline break-all"
-                >
-                  {gelin.dekontGorseli.substring(0, 80)}...
-                </a>
-              </div>
-            )}
-
-            {/* Gelin Notu */}
             <div className="bg-gray-50 p-4 rounded-xl">
               <h4 className="font-medium text-gray-700 mb-2">📝 Gelin Notu</h4>
               {gelin.gelinNotu ? (
