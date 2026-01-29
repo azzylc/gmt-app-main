@@ -4,6 +4,7 @@ import { auth, db } from "../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Sidebar from "../components/Sidebar";
+import GelinModal from "../components/GelinModal.tsx";
 import { getIzinliler, resmiTatiller } from "../lib/data";
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 
@@ -25,21 +26,21 @@ interface Gelin {
   kalan: number;
   makyaj: string;
   turban: string;
-  kinaGunu: string;
-  telefon: string;
-  esiTelefon: string;
-  instagram: string;
-  fotografci: string;
-  modaevi: string;
-  anlasildigiTarih: string;
-  bilgilendirmeGonderildi: boolean;
-  ucretYazildi: boolean;
-  malzemeListesiGonderildi: boolean;
-  paylasimIzni: boolean;
-  yorumIstesinMi: boolean;
-  yorumIstendiMi: boolean;
-  gelinNotu: string;
-  dekontGorseli: string;
+  kinaGunu?: string;
+  telefon?: string;
+  esiTelefon?: string;
+  instagram?: string;
+  fotografci?: string;
+  modaevi?: string;
+  anlasildigiTarih?: string;
+  bilgilendirmeGonderildi?: boolean;
+  ucretYazildi?: boolean;
+  malzemeListesiGonderildi?: boolean;
+  paylasimIzni?: boolean;
+  yorumIstesinMi?: boolean;
+  yorumIstendiMi?: boolean;
+  gelinNotu?: string;
+  dekontGorseli?: string;
 }
 
 const API_URL = "https://script.google.com/macros/s/AKfycbyr_9fBVzkVXf-Fx4s-DUjFTPhHlxm54oBGrrG3UGfNengHOp8rQbXKdX8pOk4reH8/exec";
@@ -310,181 +311,11 @@ export default function TakvimPage() {
 
       {/* Gelin Modal */}
       {selectedGelin && (
-        <div className="modal-overlay" onClick={() => setSelectedGelin(null)}>
-          <div className="modal modal-md animate-fade-in" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 className="modal-title">👰 {selectedGelin.isim}</h3>
-              <button onClick={() => setSelectedGelin(null)} className="modal-close">×</button>
-            </div>
-
-            <div className="space-y-3">
-              {/* Temel */}
-              <div className="bg-primary-50 rounded-lg p-3">
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <p className="text-xs text-gray-500">📅 Tarih</p>
-                    <p className="font-semibold">{new Date(selectedGelin.tarih).toLocaleDateString('tr-TR')}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">🕐 Saat</p>
-                    <p className="font-semibold">{selectedGelin.saat}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Personel */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-primary-100 rounded-lg p-3">
-                  <p className="text-xs text-gray-600 mb-1">💄 Makyaj</p>
-                  <p className="font-bold text-sm">{getKisaltma(selectedGelin.makyaj)} - {selectedGelin.makyaj}</p>
-                </div>
-                <div className="bg-gold-100 rounded-lg p-3">
-                  <p className="text-xs text-gray-600 mb-1">🧕 Türban</p>
-                  <p className="font-bold text-sm">{getKisaltma(selectedGelin.turban)} - {selectedGelin.turban}</p>
-                </div>
-              </div>
-
-              {/* Mali */}
-              <div className="gradient-accent text-white rounded-lg p-3">
-                <h4 className="font-bold text-sm mb-2">💰 Mali Bilgiler</h4>
-                <div className="grid grid-cols-3 gap-3 text-sm">
-                  <div>
-                    <p className="text-xs opacity-80 mb-0.5">Ücret</p>
-                    <p className="font-bold">
-                      {selectedGelin.ucret === -1 ? '-' : `${selectedGelin.ucret.toLocaleString('tr-TR')} ₺`}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs opacity-80 mb-0.5">Kapora</p>
-                    <p className="font-bold">{selectedGelin.kapora.toLocaleString('tr-TR')} ₺</p>
-                  </div>
-                  <div>
-                    <p className="text-xs opacity-80 mb-0.5">Kalan</p>
-                    <p className="font-bold">
-                      {selectedGelin.ucret === -1 ? '-' : `${selectedGelin.kalan.toLocaleString('tr-TR')} ₺`}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {selectedGelin.kinaGunu && (
-                <div className="bg-gold-50 rounded-lg p-3">
-                  <p className="text-xs text-gray-500 mb-0.5">🎉 Kına Günü</p>
-                  <p className="font-semibold text-sm">{selectedGelin.kinaGunu}</p>
-                </div>
-              )}
-
-              {(selectedGelin.telefon || selectedGelin.esiTelefon || selectedGelin.instagram) && (
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <h4 className="font-bold text-sm mb-2">📞 İletişim</h4>
-                  <div className="space-y-1.5 text-sm">
-                    {selectedGelin.telefon && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-500 text-xs w-20">Telefon:</span>
-                        <a href={`tel:${selectedGelin.telefon}`} className="font-semibold text-primary-600 hover:underline">{selectedGelin.telefon}</a>
-                      </div>
-                    )}
-                    {selectedGelin.esiTelefon && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-500 text-xs w-20">Eşi Tel:</span>
-                        <a href={`tel:${selectedGelin.esiTelefon}`} className="font-semibold text-primary-600 hover:underline">{selectedGelin.esiTelefon}</a>
-                      </div>
-                    )}
-                    {selectedGelin.instagram && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-500 text-xs w-20">Instagram:</span>
-                        <a href={`https://instagram.com/${selectedGelin.instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary-600 hover:underline">
-                          {selectedGelin.instagram}
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {(selectedGelin.fotografci || selectedGelin.modaevi) && (
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <h4 className="font-bold text-sm mb-2">🎨 Hizmet Sağlayıcılar</h4>
-                  <div className="space-y-1.5 text-sm">
-                    {selectedGelin.fotografci && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-500 text-xs w-20">📷 Fotoğrafçı:</span>
-                        <span className="font-semibold">{selectedGelin.fotografci}</span>
-                      </div>
-                    )}
-                    {selectedGelin.modaevi && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-500 text-xs w-20">👗 Modaevi:</span>
-                        <span className="font-semibold">{selectedGelin.modaevi}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {selectedGelin.anlasildigiTarih && (
-                <div className="bg-gold-50 rounded-lg p-3">
-                  <p className="text-xs text-gray-500 mb-0.5">📝 Anlaşıldığı Tarih</p>
-                  <p className="font-semibold text-sm">
-                    {new Date(selectedGelin.anlasildigiTarih).toLocaleDateString('tr-TR', { 
-                      day: 'numeric', 
-                      month: 'long', 
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </p>
-                </div>
-              )}
-
-              <div className="bg-gray-50 rounded-lg p-3">
-                <h4 className="font-bold text-sm mb-2">✅ Durum</h4>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <div className={`px-2 py-1.5 rounded text-xs ${selectedGelin.bilgilendirmeGonderildi ? 'badge-success' : 'badge-gray'}`}>
-                    {selectedGelin.bilgilendirmeGonderildi ? '✅' : '⬜'} Bilgilendirme
-                  </div>
-                  <div className={`px-2 py-1.5 rounded text-xs ${selectedGelin.ucretYazildi ? 'badge-success' : 'badge-gray'}`}>
-                    {selectedGelin.ucretYazildi ? '✅' : '⬜'} Ücret Yazıldı
-                  </div>
-                  <div className={`px-2 py-1.5 rounded text-xs ${selectedGelin.malzemeListesiGonderildi ? 'badge-success' : 'badge-gray'}`}>
-                    {selectedGelin.malzemeListesiGonderildi ? '✅' : '⬜'} Malzeme Listesi
-                  </div>
-                  <div className={`px-2 py-1.5 rounded text-xs ${selectedGelin.paylasimIzni ? 'badge-success' : 'badge-gray'}`}>
-                    {selectedGelin.paylasimIzni ? '✅' : '⬜'} Paylaşım İzni
-                  </div>
-                  <div className={`px-2 py-1.5 rounded text-xs ${selectedGelin.yorumIstesinMi ? 'badge-success' : 'badge-gray'}`}>
-                    {selectedGelin.yorumIstesinMi ? '✅' : '⬜'} Yorum İstesin
-                  </div>
-                  <div className={`px-2 py-1.5 rounded text-xs ${selectedGelin.yorumIstendiMi ? 'badge-success' : 'badge-gray'}`}>
-                    {selectedGelin.yorumIstendiMi ? '✅' : '⬜'} Yorum İstendi
-                  </div>
-                </div>
-              </div>
-
-              {selectedGelin.gelinNotu && (
-                <div className="bg-accent-50 rounded-lg p-3">
-                  <h4 className="font-bold text-sm mb-1.5">📝 Not</h4>
-                  <p className="text-xs text-gray-700 whitespace-pre-wrap">{selectedGelin.gelinNotu}</p>
-                </div>
-              )}
-
-              {selectedGelin.dekontGorseli && (
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <h4 className="font-bold text-sm mb-1.5">🧾 Dekont</h4>
-                  <a href={selectedGelin.dekontGorseli} target="_blank" rel="noopener noreferrer" className="text-xs text-primary-600 hover:underline break-all">
-                    {selectedGelin.dekontGorseli}
-                  </a>
-                </div>
-              )}
-            </div>
-
-            <div className="mt-4">
-              <button onClick={() => setSelectedGelin(null)} className="btn btn-ghost w-full">
-                Kapat
-              </button>
-            </div>
-          </div>
-        </div>
+        <GelinModal 
+          gelin={selectedGelin}
+          onClose={() => setSelectedGelin(null)}
+          mode="full"
+        />
       )}
 
       {/* Günlük Modal */}
