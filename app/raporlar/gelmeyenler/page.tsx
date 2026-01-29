@@ -93,111 +93,144 @@ export default function GelmeyenlerPage() {
   // Verileri getir
   const fetchRecords = async () => {
     if (!user) return;
+    
+    if (personeller.length === 0) {
+      alert("Personel listesi henüz yüklenmedi, lütfen bekleyin.");
+      return;
+    }
+    
     setDataLoading(true);
 
-    const baslangic = new Date(baslangicTarih);
-    baslangic.setHours(0, 0, 0, 0);
-    const bitis = new Date(bitisTarih);
-    bitis.setHours(23, 59, 59, 999);
+    try {
+      const baslangic = new Date(baslangicTarih);
+      baslangic.setHours(0, 0, 0, 0);
+      const bitis = new Date(bitisTarih);
+      bitis.setHours(23, 59, 59, 999);
 
-    // Giriş yapan personelleri çek
-    const q = query(
-      collection(db, "attendance"),
-      where("tarih", ">=", Timestamp.fromDate(baslangic)),
-      where("tarih", "<=", Timestamp.fromDate(bitis)),
-      where("tip", "==", "giris")
-    );
+      // Giriş yapan personelleri çek
+      const q = query(
+        collection(db, "attendance"),
+        where("tarih", ">=", Timestamp.fromDate(baslangic)),
+        where("tarih", "<=", Timestamp.fromDate(bitis)),
+        where("tip", "==", "giris")
+      );
 
-    const snapshot = await getDocs(q);
-    
-    // Personel-gün bazında giriş yapanları kaydet
-    const girisYapanlar = new Set<string>();
-    snapshot.forEach(doc => {
-      const d = doc.data();
-      const tarih = d.tarih?.toDate?.();
-      if (tarih) {
-        const gunStr = tarih.toISOString().split('T')[0];
-        girisYapanlar.add(`${d.personelId}-${gunStr}`);
-      }
-    });
-
-    // İzinleri çek
-    const izinSnapshot = await getDocs(collection(db, "izinler"));
-    const izinMap = new Map<string, string>();
-    
-    izinSnapshot.forEach(doc => {
-      const d = doc.data();
-      if (d.durum === "onaylandi" || d.onayDurumu === "onaylandi") {
-        const start = new Date(d.baslangicTarihi || d.baslangic);
-        const end = new Date(d.bitisTarihi || d.bitis);
-        
-        for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
-          const dateStr = date.toISOString().split('T')[0];
-          izinMap.set(`${d.personelId}-${dateStr}`, d.izinTuru || d.tur || "Yıllık İzin");
-        }
-      }
-    });
-
-    // Gelmeyen personelleri bul
-    const results: GelmeyenKayit[] = [];
-    
-    for (let date = new Date(baslangic); date <= bitis; date.setDate(date.getDate() + 1)) {
-      const dateStr = date.toISOString().split('T')[0];
+      const snapshot = await getDocs(q);
       
-      for (const personel of personeller) {
-        const key = `${personel.id}-${dateStr}`;
-        
-        // Giriş yapmadıysa
-        if (!girisYapanlar.has(key)) {
-          let tatilVeyaIzin = "";
-          
-          // Hafta tatili mi?
-          if (isHaftaTatili(dateStr)) {
-            tatilVeyaIzin = "Hafta Tatili";
-          }
-          // Resmi tatil mi?
-          const resmiTatil = isResmiTatil(dateStr);
-          if (resmiTatil) {
-            tatilVeyaIzin = resmiTatil;
-          }
-          // İzinli mi?
-          if (izinMap.has(key)) {
-            tatilVeyaIzin = izinMap.get(key)!;
-          }
-
-          // Tatil/izin filtreleme
-          if (tatilGoster === "Gizle" && tatilVeyaIzin) {
-            continue;
-          }
-
-          // Plan saatini çıkar
-          let planSaati = "";
-          const match = personel.calismaSaati?.match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/);
-          if (match) {
-            planSaati = `${match[1]} - ${match[2]}`;
-          }
-
-          results.push({
-            personelId: personel.id,
-            personelAd: `${personel.ad} ${personel.soyad}`.trim(),
-            sicilNo: personel.sicilNo || "",
-            calismaSaati: personel.calismaSaati || "serbest",
-            planSaati,
-            tarih: dateStr,
-            tatilVeyaIzin
-          });
+      // Personel-gün bazında giriş yapanları kaydet
+      const girisYapanlar = new Set<string>();
+      snapshot.forEach(doc => {
+        const d = doc.data();
+        const tarih = d.tarih?.toDate?.();
+        if (tarih) {
+          const gunStr = tarih.toISOString().split('T')[0];
+          girisYapanlar.add(`${d.personelId}-${gunStr}`);
         }
+      });
+
+      // İzinleri çek
+      const izinMap = new Map<string, string>();
+      try {
+        const izinSnapshot = await getDocs(collection(db, "izinler"));
+        izinSnapshot.forEach(doc => {
+          const d = doc.data();
+          if (d.durum === "onaylandi" || d.onayDurumu === "onaylandi") {
+            const start = new Date(d.baslangicTarihi || d.baslangic);
+            const end = new Date(d.bitisTarihi || d.bitis);
+            
+            if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+              for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
+                const dateStr = date.toISOString().split('T')[0];
+                izinMap.set(`${d.personelId}-${dateStr}`, d.izinTuru || d.tur || "Yıllık İzin");
+              }
+            }
+          }
+        });
+      } catch (e) {
+        console.log("İzin verisi çekilemedi:", e);
       }
+
+      // Gelmeyen personelleri bul
+      const results: GelmeyenKayit[] = [];
+      
+      const currentDate = new Date(baslangic);
+      while (currentDate <= bitis) {
+        const dateStr = currentDate.toISOString().split('T')[0];
+        
+        for (const personel of personeller) {
+          const key = `${personel.id}-${dateStr}`;
+          
+          // Giriş yapmadıysa
+          if (!girisYapanlar.has(key)) {
+            let tatilVeyaIzin = "";
+            
+            // Hafta tatili mi?
+            if (isHaftaTatili(dateStr)) {
+              tatilVeyaIzin = "Hafta Tatili";
+            }
+            // Resmi tatil mi?
+            const resmiTatil = isResmiTatil(dateStr);
+            if (resmiTatil) {
+              tatilVeyaIzin = resmiTatil;
+            }
+            // İzinli mi?
+            if (izinMap.has(key)) {
+              tatilVeyaIzin = izinMap.get(key)!;
+            }
+
+            // Tatil/izin filtreleme
+            if (tatilGoster === "Gizle" && tatilVeyaIzin) {
+              continue;
+            }
+
+            // Plan saatini çıkar
+            let planSaati = "";
+            const match = personel.calismaSaati?.match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/);
+            if (match) {
+              planSaati = `${match[1]} - ${match[2]}`;
+            }
+
+            results.push({
+              personelId: personel.id,
+              personelAd: `${personel.ad} ${personel.soyad}`.trim(),
+              sicilNo: personel.sicilNo || "",
+              calismaSaati: personel.calismaSaati || "serbest",
+              planSaati,
+              tarih: dateStr,
+              tatilVeyaIzin
+            });
+          }
+        }
+        
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+
+      // Tarihe göre sırala
+      results.sort((a, b) => b.tarih.localeCompare(a.tarih));
+
+      setGelmeyenler(results);
+    } catch (error) {
+      console.error("Veri çekme hatası:", error);
+      alert("Veri çekilirken hata oluştu. Konsolu kontrol edin.");
+    } finally {
+      setDataLoading(false);
     }
-
-    // Tarihe göre sırala
-    results.sort((a, b) => b.tarih.localeCompare(a.tarih));
-
-    setGelmeyenler(results);
-    setDataLoading(false);
   };
 
-  // Excel export
+  // Excel'e kopyala
+  const copyToClipboard = async () => {
+    let text = "Sıra\tSicil No\tKullanıcı\tÇalışma Saati\tPlan Saati\tTarih\tTatil/İzin\n";
+    
+    gelmeyenler.forEach((g, index) => {
+      const tarihFormatted = new Date(g.tarih).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' });
+      text += `${index + 1}\t${g.sicilNo || "-"}\t${g.personelAd}\t${g.calismaSaati}\t${g.planSaati || "-"}\t${tarihFormatted}\t${g.tatilVeyaIzin || "-"}\n`;
+    });
+
+    await navigator.clipboard.writeText(text);
+    alert("Rapor panoya kopyalandı! Excel'de Ctrl+V ile yapıştırabilirsiniz.");
+  };
+
+  // Excel indir
   const exportToExcel = () => {
     let csv = "Sıra;Sicil No;Kullanıcı;Çalışma Saati;Plan Saati;Tarih;Tatil veya İzinler\n";
     
@@ -283,7 +316,7 @@ export default function GelmeyenlerPage() {
           {/* Uyarı Mesajı */}
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
             <p className="text-sm text-amber-800">
-              <span className="font-medium">ℹ️ Tüm raporlar</span>, sistemimizi kullanan firmaların tamamının ortak ve genel ihtiyaçlarına yönelik hazırlanmakta ve sonuç vermektedir.
+              <span className="font-medium">ℹ️ Bilgilendirme:</span> Seçilen tarih aralığında hiç giriş yapmayan personeller listelenir.
             </p>
           </div>
 
@@ -344,15 +377,21 @@ export default function GelmeyenlerPage() {
             <div className="flex flex-col md:flex-row gap-3 justify-center mt-6">
               <button
                 onClick={() => window.print()}
-                className="bg-pink-100 hover:bg-pink-200 text-pink-700 px-6 py-3 rounded-lg font-medium transition flex items-center justify-center gap-2"
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-medium transition flex items-center justify-center gap-2"
               >
-                🖨️ Yazdır veya PDF kaydet
+                🖨️ Yazdır / PDF
+              </button>
+              <button
+                onClick={copyToClipboard}
+                className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-6 py-3 rounded-lg font-medium transition flex items-center justify-center gap-2"
+              >
+                📋 Excel'e Kopyala
               </button>
               <button
                 onClick={exportToExcel}
                 className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition flex items-center justify-center gap-2"
               >
-                📊 Raporu kopyala ve Excel (.xlsx) kaydet
+                📥 Excel İndir
               </button>
             </div>
           )}

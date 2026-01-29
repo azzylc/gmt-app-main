@@ -310,7 +310,21 @@ export default function HaftalikCalismaSureleriPage() {
     }
   };
 
-  // Excel export
+  // Excel'e kopyala
+  const copyToClipboard = async () => {
+    const gunBasliklari = getGunBasliklari();
+    let text = "Sicil No\tAd Soyad\t" + gunBasliklari.join("\t") + "\tToplam Saat\tGeldiği Gün\tFazla Çalışma\n";
+    
+    haftalikData.forEach(h => {
+      const gunVerileri = h.gunler.map(g => g.girisSaati || "-").join("\t");
+      text += `${h.sicilNo || "-"}\t${h.personelAd}\t${gunVerileri}\t${h.toplamSaat}\t${h.geldigiGun}\t${h.fazlaCalisma}\n`;
+    });
+
+    await navigator.clipboard.writeText(text);
+    alert("Rapor panoya kopyalandı! Excel'de Ctrl+V ile yapıştırabilirsiniz.");
+  };
+
+  // Excel indir
   const exportToExcel = () => {
     const gunBasliklari = getGunBasliklari();
     let csv = "Sicil No;Ad Soyad;" + gunBasliklari.join(";") + ";Toplam Saat;Geldiği Gün;Fazla Çalışma\n";
@@ -442,7 +456,7 @@ export default function HaftalikCalismaSureleriPage() {
           {/* Uyarı */}
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
             <p className="text-sm text-amber-800">
-              <span className="font-medium">ℹ️ Tüm raporlar</span>, sistemimizi kullanan firmaların tamamının ortak ve genel ihtiyaçlarına yönelik hazırlanmakta ve sonuç vermektedir.
+              <span className="font-medium">ℹ️ Not:</span> Resmi tatil ve izin günleri toplam çalışma süresine dahil edilmez.
             </p>
           </div>
 
@@ -504,15 +518,21 @@ export default function HaftalikCalismaSureleriPage() {
               <div className="flex flex-col md:flex-row gap-3 justify-center">
                 <button
                   onClick={() => window.print()}
-                  className="bg-pink-100 hover:bg-pink-200 text-pink-700 px-6 py-3 rounded-lg font-medium transition flex items-center justify-center gap-2"
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-medium transition flex items-center justify-center gap-2"
                 >
-                  🖨️ Yazdır veya PDF kaydet
+                  🖨️ Yazdır / PDF
+                </button>
+                <button
+                  onClick={copyToClipboard}
+                  className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-6 py-3 rounded-lg font-medium transition flex items-center justify-center gap-2"
+                >
+                  📋 Excel'e Kopyala
                 </button>
                 <button
                   onClick={exportToExcel}
                   className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition flex items-center justify-center gap-2"
                 >
-                  📊 Raporu kopyala ve Excel (.xlsx) kaydet
+                  📥 Excel İndir
                 </button>
               </div>
             </>

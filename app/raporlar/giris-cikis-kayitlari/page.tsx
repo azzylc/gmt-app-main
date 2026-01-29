@@ -30,6 +30,7 @@ interface Personel {
   soyad: string;
   sicilNo?: string;
   calismaSaati?: string;
+  aktif: boolean;
 }
 
 interface Konum {
@@ -77,9 +78,10 @@ export default function GirisCikisKayitlariPage() {
         ad: doc.data().ad || "",
         soyad: doc.data().soyad || "",
         sicilNo: doc.data().sicilNo || "",
-        calismaSaati: doc.data().calismaSaati || "09:00-18:00"
+        calismaSaati: doc.data().calismaSaati || "09:00-18:00",
+        aktif: doc.data().aktif !== false
       }));
-      setPersoneller(data);
+      setPersoneller(data.filter(p => p.aktif));
     });
     return () => unsubscribe();
   }, [user]);
@@ -169,7 +171,24 @@ export default function GirisCikisKayitlariPage() {
     return personeller.find(p => p.id === personelId);
   };
 
-  // Excel export
+  // Excel'e kopyala (clipboard)
+  const copyToClipboard = async () => {
+    let text = "Sıra\tSicil No\tKullanıcı\tKonum\tÇalışma Saati\tTarih\tSaat\tİşlem Türü\tKonum Dışı\tMazeret Notu\n";
+    
+    filteredRecords.forEach((r, index) => {
+      const personel = getPersonelBilgi(r.personelId);
+      const tarih = r.tarih?.toDate?.() ? r.tarih.toDate() : new Date();
+      const tarihStr = tarih.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' });
+      const saatStr = tarih.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      
+      text += `${index + 1}\t${personel?.sicilNo || r.sicilNo || "-"}\t${r.personelAd}\t${r.konumAdi}\t${personel?.calismaSaati || "her gün 9:00-18:00"}\t${tarihStr}\t${saatStr}\t${r.tip === "giris" ? "Giriş" : "Çıkış"}\t${r.konumDisi ? "Evet" : ""}\t${r.mazeretNotu || ""}\n`;
+    });
+
+    await navigator.clipboard.writeText(text);
+    alert("Rapor panoya kopyalandı! Excel'de Ctrl+V ile yapıştırabilirsiniz.");
+  };
+
+  // Excel indir
   const exportToExcel = () => {
     let csv = "Sıra;Sicil No;Kullanıcı;Konum;Çalışma Saati;Tarih;Saat;İşlem Türü;Konum Dışı;Mazeret Notu\n";
     
@@ -286,7 +305,7 @@ export default function GirisCikisKayitlariPage() {
           {/* Uyarı Mesajı */}
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
             <p className="text-sm text-amber-800">
-              <span className="font-medium">ℹ️ Tüm raporlar</span>, sistemimizi kullanan firmaların tamamının ortak ve genel ihtiyaçlarına yönelik hazırlanmakta ve sonuç vermektedir. İlgili verilerin doğruluğunu, en az bir defa olmak kaydıyla mali müşaviriniz ile değerlendirerek kullanmanızı öneririz.
+              <span className="font-medium">ℹ️ Bilgilendirme:</span> Bu rapor otomatik olarak oluşturulmuştur. Resmi işlemlerde kullanmadan önce verileri kontrol etmenizi öneririz.
             </p>
           </div>
 
@@ -360,15 +379,21 @@ export default function GirisCikisKayitlariPage() {
             <div className="flex flex-col md:flex-row gap-3 justify-center mt-6">
               <button
                 onClick={() => window.print()}
-                className="bg-pink-100 hover:bg-pink-200 text-pink-700 px-6 py-3 rounded-lg font-medium transition flex items-center justify-center gap-2"
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-medium transition flex items-center justify-center gap-2"
               >
-                🖨️ Yazdır veya PDF kaydet
+                🖨️ Yazdır / PDF
+              </button>
+              <button
+                onClick={copyToClipboard}
+                className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-6 py-3 rounded-lg font-medium transition flex items-center justify-center gap-2"
+              >
+                📋 Excel'e Kopyala
               </button>
               <button
                 onClick={exportToExcel}
                 className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition flex items-center justify-center gap-2"
               >
-                📊 Raporu kopyala ve Excel (.xlsx) kaydet
+                📥 Excel İndir
               </button>
             </div>
           )}

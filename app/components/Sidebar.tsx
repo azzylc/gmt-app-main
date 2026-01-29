@@ -70,6 +70,19 @@ function SidebarContent({ user }: SidebarProps) {
       path: "/qr-giris",
     },
     {
+      id: "giris-cikis-islemleri",
+      label: "Giriş - Çıkış / Vardiya",
+      icon: "🔄",
+      submenu: [
+        { label: "İşlem Listesi", path: "/giris-cikis/islem-listesi" },
+        { label: "Manuel İşlem Ekle", path: "/giris-cikis/islem-ekle" },
+        { label: "İşlem Ekle (Puantaj)", path: "/giris-cikis/puantaj" },
+        { label: "Vardiya Planı", path: "/giris-cikis/vardiya-plani" },
+        { label: "Toplu İşlem Ekle", path: "/giris-cikis/toplu-islem-ekle" },
+        { label: "Değişiklik Kayıtları", path: "/giris-cikis/degisiklik-kayitlari" },
+      ],
+    },
+    {
       id: "genel-bakis",
       label: "Genel Bakış",
       icon: "📊",

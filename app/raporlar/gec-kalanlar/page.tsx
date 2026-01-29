@@ -12,6 +12,7 @@ interface Personel {
   soyad: string;
   sicilNo?: string;
   calismaSaati?: string;
+  aktif: boolean;
 }
 
 interface Konum {
@@ -71,9 +72,10 @@ export default function GecKalanlarPage() {
         ad: doc.data().ad || "",
         soyad: doc.data().soyad || "",
         sicilNo: doc.data().sicilNo || "",
-        calismaSaati: doc.data().calismaSaati || ""
+        calismaSaati: doc.data().calismaSaati || "",
+        aktif: doc.data().aktif !== false
       }));
-      setPersoneller(data);
+      setPersoneller(data.filter(p => p.aktif));
     });
     return () => unsubscribe();
   }, [user]);
@@ -105,92 +107,117 @@ export default function GecKalanlarPage() {
   // Verileri getir
   const fetchRecords = async () => {
     if (!user) return;
+    
+    if (personeller.length === 0) {
+      alert("Personel listesi henüz yüklenmedi, lütfen bekleyin.");
+      return;
+    }
+    
     setDataLoading(true);
 
-    const baslangic = new Date(baslangicTarih);
-    baslangic.setHours(0, 0, 0, 0);
-    const bitis = new Date(bitisTarih);
-    bitis.setHours(23, 59, 59, 999);
+    try {
+      const baslangic = new Date(baslangicTarih);
+      baslangic.setHours(0, 0, 0, 0);
+      const bitis = new Date(bitisTarih);
+      bitis.setHours(23, 59, 59, 999);
 
-    // Sadece giriş kayıtlarını çek
-    const q = query(
-      collection(db, "attendance"),
-      where("tarih", ">=", Timestamp.fromDate(baslangic)),
-      where("tarih", "<=", Timestamp.fromDate(bitis)),
-      where("tip", "==", "giris"),
-      orderBy("tarih", "asc")
-    );
+      // Sadece giriş kayıtlarını çek
+      const q = query(
+        collection(db, "attendance"),
+        where("tarih", ">=", Timestamp.fromDate(baslangic)),
+        where("tarih", "<=", Timestamp.fromDate(bitis)),
+        where("tip", "==", "giris"),
+        orderBy("tarih", "asc")
+      );
 
-    const snapshot = await getDocs(q);
-    
-    // Her personelin her günkü ilk girişini bul
-    const ilkGirisler = new Map<string, any>();
-    
-    snapshot.forEach(doc => {
-      const d = doc.data();
-      const tarih = d.tarih?.toDate?.();
-      if (!tarih) return;
+      const snapshot = await getDocs(q);
       
-      const gunStr = tarih.toISOString().split('T')[0];
-      const key = `${d.personelId}-${gunStr}`;
+      // Her personelin her günkü ilk girişini bul
+      const ilkGirisler = new Map<string, any>();
       
-      // İlk giriş mi?
-      if (!ilkGirisler.has(key) || tarih < ilkGirisler.get(key).tarihDate) {
-        ilkGirisler.set(key, { ...d, tarihDate: tarih, gunStr });
-      }
-    });
+      snapshot.forEach(doc => {
+        const d = doc.data();
+        const tarih = d.tarih?.toDate?.();
+        if (!tarih) return;
+        
+        const gunStr = tarih.toISOString().split('T')[0];
+        const key = `${d.personelId}-${gunStr}`;
+        
+        // İlk giriş mi?
+        if (!ilkGirisler.has(key) || tarih < ilkGirisler.get(key).tarihDate) {
+          ilkGirisler.set(key, { ...d, tarihDate: tarih, gunStr });
+        }
+      });
 
-    // Geç kalanları hesapla
-    const results: GecKalanKayit[] = [];
+      // Geç kalanları hesapla
+      const results: GecKalanKayit[] = [];
 
-    ilkGirisler.forEach((kayit) => {
-      const personel = personeller.find(p => p.id === kayit.personelId);
-      if (!personel) return;
+      ilkGirisler.forEach((kayit) => {
+        const personel = personeller.find(p => p.id === kayit.personelId);
+        if (!personel) return;
 
-      // Konum filtresi
-      if (seciliKonum !== "Tümü" && kayit.konumAdi !== seciliKonum) return;
+        // Konum filtresi
+        if (seciliKonum !== "Tümü" && kayit.konumAdi !== seciliKonum) return;
 
-      // Plan saati yoksa atla
-      const planSaati = parsePlanSaati(personel.calismaSaati || "");
-      if (!planSaati) return;
+        // Plan saati yoksa atla
+        const planSaati = parsePlanSaati(personel.calismaSaati || "");
+        if (!planSaati) return;
 
-      // Giriş saatini al
-      const girisSaat = kayit.tarihDate.getHours();
-      const girisDakika = kayit.tarihDate.getMinutes();
-      const girisSaniye = kayit.tarihDate.getSeconds();
+        // Giriş saatini al
+        const girisSaat = kayit.tarihDate.getHours();
+        const girisDakika = kayit.tarihDate.getMinutes();
+        const girisSaniye = kayit.tarihDate.getSeconds();
 
-      // Geç kalma süresini hesapla
-      const planDakikaTotal = planSaati.saat * 60 + planSaati.dakika;
-      const girisDakikaTotal = girisSaat * 60 + girisDakika;
-      const gecKalmaDakika = girisDakikaTotal - planDakikaTotal;
+        // Geç kalma süresini hesapla
+        const planDakikaTotal = planSaati.saat * 60 + planSaati.dakika;
+        const girisDakikaTotal = girisSaat * 60 + girisDakika;
+        const gecKalmaDakika = girisDakikaTotal - planDakikaTotal;
 
-      // Tolerans kontrolü
-      if (gecKalmaDakika > gecKalmaToleransi) {
-        const saat = Math.floor(gecKalmaDakika / 60);
-        const dakika = gecKalmaDakika % 60;
+        // Tolerans kontrolü
+        if (gecKalmaDakika > gecKalmaToleransi) {
+          const saat = Math.floor(gecKalmaDakika / 60);
+          const dakika = gecKalmaDakika % 60;
 
-        results.push({
-          personelId: kayit.personelId,
-          personelAd: kayit.personelAd || `${personel.ad} ${personel.soyad}`.trim(),
-          sicilNo: personel.sicilNo || "",
-          tarih: kayit.gunStr,
-          konum: kayit.konumAdi || "-",
-          planSaati: `${String(planSaati.saat).padStart(2, '0')}:${String(planSaati.dakika).padStart(2, '0')}:00`,
-          ilkGiris: `${String(girisSaat).padStart(2, '0')}:${String(girisDakika).padStart(2, '0')}:${String(girisSaniye).padStart(2, '0')}`,
-          gecKalmaSuresi: `00:${String(saat * 60 + dakika).padStart(2, '0')}:${String(girisSaniye).padStart(2, '0')}`,
-          mazeretNotu: kayit.mazeretNotu || ""
-        });
-      }
-    });
+          results.push({
+            personelId: kayit.personelId,
+            personelAd: kayit.personelAd || `${personel.ad} ${personel.soyad}`.trim(),
+            sicilNo: personel.sicilNo || "",
+            tarih: kayit.gunStr,
+            konum: kayit.konumAdi || "-",
+            planSaati: `${String(planSaati.saat).padStart(2, '0')}:${String(planSaati.dakika).padStart(2, '0')}:00`,
+            ilkGiris: `${String(girisSaat).padStart(2, '0')}:${String(girisDakika).padStart(2, '0')}:${String(girisSaniye).padStart(2, '0')}`,
+            gecKalmaSuresi: `00:${String(saat * 60 + dakika).padStart(2, '0')}:${String(girisSaniye).padStart(2, '0')}`,
+            mazeretNotu: kayit.mazeretNotu || ""
+          });
+        }
+      });
 
-    // Tarihe göre sırala
-    results.sort((a, b) => a.tarih.localeCompare(b.tarih));
+      // Tarihe göre sırala
+      results.sort((a, b) => a.tarih.localeCompare(b.tarih));
 
-    setGecKalanlar(results);
-    setDataLoading(false);
+      setGecKalanlar(results);
+    } catch (error) {
+      console.error("Veri çekme hatası:", error);
+      alert("Veri çekilirken hata oluştu. Konsolu kontrol edin.");
+    } finally {
+      setDataLoading(false);
+    }
   };
 
-  // Excel export
+  // Excel'e kopyala
+  const copyToClipboard = async () => {
+    let text = "Sıra\tSicil No\tKullanıcı\tTarih\tKonum\tPlan Saati\tİlk Giriş\tGeç Kalma\tMazeret\n";
+    
+    gecKalanlar.forEach((g, index) => {
+      const tarihFormatted = new Date(g.tarih).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' });
+      text += `${index + 1}\t${g.sicilNo || "-"}\t${g.personelAd}\t${tarihFormatted}\t${g.konum}\t${g.planSaati}\t${g.ilkGiris}\t${g.gecKalmaSuresi}\t${g.mazeretNotu || "-"}\n`;
+    });
+
+    await navigator.clipboard.writeText(text);
+    alert("Rapor panoya kopyalandı! Excel'de Ctrl+V ile yapıştırabilirsiniz.");
+  };
+
+  // Excel indir
   const exportToExcel = () => {
     let csv = "Sıra;Sicil No;Kullanıcı;Tarih;Konum;Plan Saati;İlk Giriş İşlemi;Geç Kalma Süresi;Mazeret Notu\n";
     
@@ -288,7 +315,7 @@ export default function GecKalanlarPage() {
           {/* Uyarı Mesajı */}
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
             <p className="text-sm text-amber-800">
-              <span className="font-medium">ℹ️ Tüm raporlar</span>, sistemimizi kullanan firmaların tamamının ortak ve genel ihtiyaçlarına yönelik hazırlanmakta ve sonuç vermektedir. İlgili verilerin doğruluğunu, en az bir defa olmak kaydıyla mali müşaviriniz ile değerlendirerek kullanmanızı öneririz.
+              <span className="font-medium">ℹ️ Bilgilendirme:</span> Plan saatinden sonra giriş yapan personeller listelenir. Tolerans süresi ayarlanabilir.
             </p>
           </div>
 
@@ -343,15 +370,21 @@ export default function GecKalanlarPage() {
             <div className="flex flex-col md:flex-row gap-3 justify-center mt-6">
               <button
                 onClick={() => window.print()}
-                className="bg-pink-100 hover:bg-pink-200 text-pink-700 px-6 py-3 rounded-lg font-medium transition flex items-center justify-center gap-2"
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-medium transition flex items-center justify-center gap-2"
               >
-                🖨️ Yazdır veya PDF kaydet
+                🖨️ Yazdır / PDF
+              </button>
+              <button
+                onClick={copyToClipboard}
+                className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-6 py-3 rounded-lg font-medium transition flex items-center justify-center gap-2"
+              >
+                📋 Excel'e Kopyala
               </button>
               <button
                 onClick={exportToExcel}
                 className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition flex items-center justify-center gap-2"
               >
-                📊 Raporu kopyala ve Excel (.xlsx) kaydet
+                📥 Excel İndir
               </button>
             </div>
           )}

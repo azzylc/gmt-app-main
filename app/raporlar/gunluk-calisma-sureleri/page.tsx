@@ -11,6 +11,7 @@ interface Personel {
   ad: string;
   soyad: string;
   sicilNo?: string;
+  aktif: boolean;
 }
 
 interface CalismaSuresi {
@@ -58,9 +59,10 @@ export default function GunlukCalismaSureleriPage() {
         id: doc.id,
         ad: doc.data().ad || "",
         soyad: doc.data().soyad || "",
-        sicilNo: doc.data().sicilNo || ""
+        sicilNo: doc.data().sicilNo || "",
+        aktif: doc.data().aktif !== false
       }));
-      setPersoneller(data);
+      setPersoneller(data.filter(p => p.aktif));
     });
     return () => unsubscribe();
   }, [user]);
@@ -152,7 +154,20 @@ export default function GunlukCalismaSureleriPage() {
     });
   };
 
-  // Excel export
+  // Excel'e kopyala
+  const copyToClipboard = async () => {
+    let text = "Sıra\tSicil No\tKullanıcı\tTarih\tİlk Giriş\tSon Çıkış\tÇalışma Süresi\n";
+    
+    calismalar.forEach((c, index) => {
+      const tarihFormatted = new Date(c.tarih).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' });
+      text += `${index + 1}\t${c.sicilNo || "-"}\t${c.personelAd}\t${tarihFormatted}\t${c.ilkGiris}\t${c.sonCikis}\t${c.calismaSuresi}\n`;
+    });
+
+    await navigator.clipboard.writeText(text);
+    alert("Rapor panoya kopyalandı! Excel'de Ctrl+V ile yapıştırabilirsiniz.");
+  };
+
+  // Excel indir
   const exportToExcel = () => {
     let csv = "Sıra;Sicil No;Kullanıcı;Tarih;İlk Giriş İşlemi;Son Çıkış İşlemi;Çalışma Süresi\n";
     
@@ -250,7 +265,7 @@ export default function GunlukCalismaSureleriPage() {
           {/* Uyarı Mesajı */}
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
             <p className="text-sm text-amber-800">
-              <span className="font-medium">ℹ️ Sadece gün içindeki</span> <u>İlk Giriş</u> ve <u>Son Çıkış</u> işlemleri hesaba katılmaktadır. Gün içindeki diğer işlemler hesaplamalarda dikkate alınmamaktadır.
+              <span className="font-medium">ℹ️ Not:</span> Sadece gün içindeki <u>İlk Giriş</u> ve <u>Son Çıkış</u> işlemleri hesaba katılmaktadır.
             </p>
           </div>
 
@@ -301,15 +316,21 @@ export default function GunlukCalismaSureleriPage() {
             <div className="flex flex-col md:flex-row gap-3 justify-center mt-6">
               <button
                 onClick={() => window.print()}
-                className="bg-pink-100 hover:bg-pink-200 text-pink-700 px-6 py-3 rounded-lg font-medium transition flex items-center justify-center gap-2"
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-medium transition flex items-center justify-center gap-2"
               >
-                🖨️ Yazdır veya PDF kaydet
+                🖨️ Yazdır / PDF
+              </button>
+              <button
+                onClick={copyToClipboard}
+                className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-6 py-3 rounded-lg font-medium transition flex items-center justify-center gap-2"
+              >
+                📋 Excel'e Kopyala
               </button>
               <button
                 onClick={exportToExcel}
                 className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition flex items-center justify-center gap-2"
               >
-                📊 Raporu kopyala ve Excel (.xlsx) kaydet
+                📥 Excel İndir
               </button>
             </div>
           )}
