@@ -272,6 +272,7 @@ export interface ResmiTatil {
 }
 
 export const resmiTatiller: ResmiTatil[] = [
+  // 2026 Tatilleri
   { tarih: "2026-01-01", isim: "Yılbaşı", sure: 1 },
   { tarih: "2026-03-20", isim: "Ramazan Bayramı", sure: 3 },
   { tarih: "2026-04-23", isim: "Ulusal Egemenlik ve Çocuk Bayramı", sure: 1 },
@@ -281,12 +282,28 @@ export const resmiTatiller: ResmiTatil[] = [
   { tarih: "2026-07-15", isim: "Demokrasi ve Milli Birlik Günü", sure: 1 },
   { tarih: "2026-08-30", isim: "Zafer Bayramı", sure: 1 },
   { tarih: "2026-10-29", isim: "Cumhuriyet Bayramı", sure: 1 },
+  // 2027 Tatilleri
+  { tarih: "2027-01-01", isim: "Yılbaşı", sure: 1 },
+  { tarih: "2027-03-09", isim: "Ramazan Bayramı", sure: 3 },
+  { tarih: "2027-04-23", isim: "Ulusal Egemenlik ve Çocuk Bayramı", sure: 1 },
+  { tarih: "2027-05-01", isim: "Emek ve Dayanışma Günü", sure: 1 },
+  { tarih: "2027-05-16", isim: "Kurban Bayramı", sure: 4 },
+  { tarih: "2027-05-19", isim: "Atatürk'ü Anma, Gençlik ve Spor Bayramı", sure: 1 },
+  { tarih: "2027-07-15", isim: "Demokrasi ve Milli Birlik Günü", sure: 1 },
+  { tarih: "2027-08-30", isim: "Zafer Bayramı", sure: 1 },
+  { tarih: "2027-10-29", isim: "Cumhuriyet Bayramı", sure: 1 },
 ];
 
-// Yaklaşan resmi tatilleri getir
+// Yaklaşan resmi tatilleri getir (önümüzdeki 10 ay)
 export const getYaklasanTatiller = () => {
-  const bugun = new Date().toISOString().split('T')[0];
+  const bugun = new Date();
+  const onAySonra = new Date();
+  onAySonra.setMonth(bugun.getMonth() + 10);
+  
+  const bugunStr = bugun.toISOString().split('T')[0];
+  const onAySonraStr = onAySonra.toISOString().split('T')[0];
+  
   return resmiTatiller
-    .filter(t => t.tarih >= bugun)
-    .slice(0, 5);
+    .filter(t => t.tarih >= bugunStr && t.tarih <= onAySonraStr)
+    .sort((a, b) => a.tarih.localeCompare(b.tarih));
 };

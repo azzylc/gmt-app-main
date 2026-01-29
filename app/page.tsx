@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { auth, db } from "./lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, query, onSnapshot, addDoc, doc, updateDoc, increment, orderBy, limit } from "firebase/firestore";
+import { collection, query, onSnapshot, addDoc, doc, updateDoc, increment, orderBy, limit, where, Timestamp } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import Sidebar from "./components/Sidebar";
 import { personelListesi, getPersonelByIsim, getYaklasanDogumGunleri, getIzinliler, getIzinlerAralik, getYaklasanTatiller } from "./lib/data";
@@ -62,6 +62,24 @@ interface Duyuru {
   createdAt: any;
 }
 
+interface AttendanceRecord {
+  id: string;
+  personelId: string;
+  personelAd: string;
+  personelEmail: string;
+  tip: "giris" | "cikis";
+  tarih: any;
+  konumAdi: string;
+}
+
+interface PersonelGunlukDurum {
+  personelId: string;
+  personelAd: string;
+  girisSaati: string | null;
+  cikisSaati: string | null;
+  aktifMi: boolean;
+}
+
 const API_URL = "https://script.google.com/macros/s/AKfycbyr_9fBVzkVXf-Fx4s-DUjFTPhHlxm54oBGrrG3UGfNengHOp8rQbXKdX8pOk4reH8/exec";
 const CACHE_KEY = "gmt_gelinler_cache";
 const CACHE_TIME_KEY = "gmt_gelinler_cache_time";
@@ -78,6 +96,30 @@ export default function HomePage() {
   const [haftaModalOpen, setHaftaModalOpen] = useState(false);
   const router = useRouter();
 
+  // Gelin listesi modal state'leri
+  const [gelinListeModal, setGelinListeModal] = useState<{open: boolean; title: string; gelinler: Gelin[]}>({
+    open: false,
+    title: "",
+    gelinler: []
+  });
+
+  // Modal açıkken body scroll'u kilitle
+  useEffect(() => {
+    const isAnyModalOpen = selectedGelin !== null || haftaModalOpen || gelinListeModal.open;
+    if (isAnyModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [selectedGelin, haftaModalOpen, gelinListeModal.open]);
+
+  // Attendance state'leri
+  const [bugunAttendance, setBugunAttendance] = useState<AttendanceRecord[]>([]);
+  const [personelDurumlar, setPersonelDurumlar] = useState<PersonelGunlukDurum[]>([]);
+
   // İzin hakkı state'leri
   const [firebasePersoneller, setFirebasePersoneller] = useState<Personel[]>([]);
   const [eksikIzinler, setEksikIzinler] = useState<EksikIzin[]>([]);
@@ -88,6 +130,9 @@ export default function HomePage() {
 
   // Aylık hedef state
   const [aylikHedef, setAylikHedef] = useState<number>(0);
+
+  // Sakin günler filtre state
+  const [sakinGunFiltre, setSakinGunFiltre] = useState<number>(0);
 
   const loadFromCache = () => {
     try {
@@ -152,6 +197,74 @@ export default function HomePage() {
     setDataLoading(false);
   };
 
+  // Firebase'den bugünün attendance kayıtlarını çek
+  useEffect(() => {
+    if (!user) return;
+    
+    const bugunBaslangic = new Date();
+    bugunBaslangic.setHours(0, 0, 0, 0);
+    const bugunBitis = new Date();
+    bugunBitis.setHours(23, 59, 59, 999);
+
+    const q = query(
+      collection(db, "attendance"),
+      where("tarih", ">=", Timestamp.fromDate(bugunBaslangic)),
+      where("tarih", "<=", Timestamp.fromDate(bugunBitis)),
+      orderBy("tarih", "asc")
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const records: AttendanceRecord[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        records.push({
+          id: doc.id,
+          personelId: data.personelId,
+          personelAd: data.personelAd,
+          personelEmail: data.personelEmail,
+          tip: data.tip,
+          tarih: data.tarih,
+          konumAdi: data.konumAdi || ""
+        });
+      });
+      setBugunAttendance(records);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  // Attendance'dan personel durumlarını hesapla
+  useEffect(() => {
+    const durumMap = new Map<string, PersonelGunlukDurum>();
+
+    bugunAttendance.forEach((record) => {
+      const mevcut = durumMap.get(record.personelId);
+      const saat = record.tarih?.toDate?.() 
+        ? record.tarih.toDate().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+        : "";
+
+      if (!mevcut) {
+        durumMap.set(record.personelId, {
+          personelId: record.personelId,
+          personelAd: record.personelAd,
+          girisSaati: record.tip === "giris" ? saat : null,
+          cikisSaati: record.tip === "cikis" ? saat : null,
+          aktifMi: record.tip === "giris"
+        });
+      } else {
+        if (record.tip === "giris") {
+          mevcut.girisSaati = saat;
+          mevcut.aktifMi = true;
+        } else {
+          mevcut.cikisSaati = saat;
+          mevcut.aktifMi = false;
+        }
+      }
+    });
+
+    setPersonelDurumlar(Array.from(durumMap.values()));
+  }, [bugunAttendance]);
+
   // Firebase'den personelleri çek
   useEffect(() => {
     if (!user) return;
@@ -206,7 +319,6 @@ export default function HomePage() {
     const eksikler: EksikIzin[] = [];
     firebasePersoneller.forEach((personel) => {
       if (!personel.iseBaslama) return;
-      // Yöneticileri atla
       if (personel.kullaniciTuru === "Yönetici") return;
       const calismaYili = hesaplaCalismaYili(personel.iseBaslama);
       if (calismaYili < 1) return;
@@ -309,20 +421,21 @@ export default function HomePage() {
   // Bugün izinli olanlar
   const bugunIzinliler = getIzinliler(bugun);
   const haftaIzinliler = getIzinlerAralik(haftaBasiStr, haftaSonuStr);
-  
-  // Bugün çalışanlar (izinli olmayanlar)
-  const izinliIdler = bugunIzinliler.map(i => i.personelId);
-  const calisanlar = personelListesi.filter(p => !izinliIdler.includes(p.id));
 
-  // Boş günler (ilk 10 müsait günü bul)
-  const bosGunler = [];
+  // Attendance bazlı hesaplamalar
+  const bugunGelenler = personelDurumlar.filter(p => p.girisSaati !== null);
+  const suAnCalisanlar = personelDurumlar.filter(p => p.aktifMi);
+
+  // Sakin günler (filtreye göre)
+  const sakinGunler: {tarih: string; gelinSayisi: number}[] = [];
   let dayOffset = 0;
-  while (bosGunler.length < 10 && dayOffset < 60) {
+  while (sakinGunler.length < 10 && dayOffset < 60) {
     const tarih = new Date(bugunDate);
     tarih.setDate(bugunDate.getDate() + dayOffset);
     const tarihStr = tarih.toISOString().split('T')[0];
-    if (gelinler.filter(g => g.tarih === tarihStr).length === 0) {
-      bosGunler.push(tarihStr);
+    const gelinSayisi = gelinler.filter(g => g.tarih === tarihStr).length;
+    if (gelinSayisi === sakinGunFiltre) {
+      sakinGunler.push({ tarih: tarihStr, gelinSayisi });
     }
     dayOffset++;
   }
@@ -343,14 +456,14 @@ export default function HomePage() {
   const formatTarihUzun = (tarih: string) => new Date(tarih).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
   const formatGun = (tarih: string) => gunIsimleri[new Date(tarih).getDay()];
 
-  // Hafta takvimi renderı (hem panel hem modal için)
+  // Hafta takvimi renderı
   const renderHaftaTakvimi = (isModal: boolean = false) => {
     const gunAdlari = isModal 
       ? ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar']
       : ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
     
     return (
-      <div className={`grid grid-cols-7 gap-2 ${isModal ? '' : 'min-w-[600px]'}`}>
+      <div className={`grid grid-cols-7 gap-3 ${isModal ? 'min-w-[1200px]' : 'min-w-[600px]'}`}>
         {gunAdlari.map((gunAdi, index) => {
           const tarih = new Date(haftaBasi);
           tarih.setDate(haftaBasi.getDate() + index);
@@ -362,17 +475,17 @@ export default function HomePage() {
           return (
             <div 
               key={gunAdi} 
-              className={`${isModal ? 'p-3 min-h-[200px]' : 'p-2'} rounded-xl ${isToday ? 'bg-pink-50 ring-2 ring-pink-300' : 'bg-gray-50'}`}
+              className={`${isModal ? 'p-4 min-h-[350px] min-w-[150px]' : 'p-2'} rounded-xl ${isToday ? 'bg-pink-50 ring-2 ring-pink-300' : 'bg-gray-50'}`}
             >
-              <div className={`text-center ${isModal ? 'text-sm' : 'text-xs'} font-medium ${isToday ? 'text-pink-600' : 'text-gray-500'}`}>
+              <div className={`text-center ${isModal ? 'text-base' : 'text-xs'} font-medium ${isToday ? 'text-pink-600' : 'text-gray-500'}`}>
                 {gunAdi}
-                <div className={`${isModal ? 'text-2xl' : 'text-lg'} font-bold ${isToday ? 'text-pink-600' : 'text-gray-700'}`}>
+                <div className={`${isModal ? 'text-3xl' : 'text-lg'} font-bold ${isToday ? 'text-pink-600' : 'text-gray-700'}`}>
                   {tarih.getDate()}
                 </div>
               </div>
-              <div className={`space-y-1 mt-2 ${isModal ? 'max-h-[400px]' : 'max-h-[250px]'} overflow-y-auto`}>
+              <div className={`space-y-2 mt-3 ${isModal ? 'max-h-[500px]' : 'max-h-[250px]'} overflow-y-auto`}>
                 {gunIzinliler.map((izin, idx) => (
-                  <div key={idx} className={`bg-orange-100 text-orange-700 ${isModal ? 'p-2' : 'p-1'} rounded ${isModal ? 'text-sm' : 'text-xs'} text-center`}>
+                  <div key={idx} className={`bg-orange-100 text-orange-700 ${isModal ? 'p-3' : 'p-1'} rounded-lg ${isModal ? 'text-base' : 'text-xs'} text-center`}>
                     {izin.personel?.isim} 🏖️
                   </div>
                 ))}
@@ -380,17 +493,17 @@ export default function HomePage() {
                   <div 
                     key={g.id} 
                     onClick={() => { setSelectedGelin(g); if(isModal) setHaftaModalOpen(false); }}
-                    className={`bg-white ${isModal ? 'p-2' : 'p-1.5'} rounded shadow-sm ${isModal ? 'text-sm' : 'text-xs'} cursor-pointer hover:bg-gray-100`}
+                    className={`bg-white ${isModal ? 'p-3' : 'p-1.5'} rounded-lg shadow-sm ${isModal ? 'text-base' : 'text-xs'} cursor-pointer hover:bg-gray-100`}
                   >
-                    <p className="font-medium truncate">{g.isim}</p>
-                    <p className="text-gray-500">{g.saat}</p>
+                    <p className={`font-medium ${isModal ? '' : 'truncate'}`}>{g.isim}</p>
+                    <p className={`text-gray-500 ${isModal ? 'text-sm mt-1' : ''}`}>{g.saat}</p>
                     {isModal && g.makyaj && (
-                      <p className="text-pink-500 text-xs mt-1">{g.makyaj}</p>
+                      <p className="text-pink-500 text-sm mt-1">{g.makyaj}</p>
                     )}
                   </div>
                 ))}
                 {gunGelinler.length === 0 && gunIzinliler.length === 0 && (
-                  <div className={`text-center text-gray-400 ${isModal ? 'text-sm py-4' : 'text-xs py-2'}`}>-</div>
+                  <div className={`text-center text-gray-400 ${isModal ? 'text-base py-6' : 'text-xs py-2'}`}>-</div>
                 )}
               </div>
             </div>
@@ -474,7 +587,6 @@ export default function HomePage() {
             <div className="mb-4 md:mb-6">
               <Panel icon="⚠️" title="Dikkat Edilecekler" badge={toplamDikkat}>
                 <div className="space-y-3">
-                  {/* İşlenmemiş Ücretler */}
                   {islenmemisUcretler.length > 0 && (
                     <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
                       <div className="flex items-center justify-between mb-3">
@@ -512,7 +624,6 @@ export default function HomePage() {
                     </div>
                   )}
 
-                  {/* Eksik İzin Hakları */}
                   {eksikIzinler.length > 0 && (
                     <div className="bg-green-50 border border-green-200 rounded-xl p-4">
                       <div className="flex items-center justify-between mb-3">
@@ -563,14 +674,6 @@ export default function HomePage() {
                             </div>
                           </div>
                         ))}
-                        {eksikIzinler.length > 5 && (
-                          <button 
-                            onClick={() => router.push('/izinler/haklar')}
-                            className="text-green-600 text-xs font-medium hover:text-green-700 w-full text-center pt-2"
-                          >
-                            +{eksikIzinler.length - 5} daha gör →
-                          </button>
-                        )}
                       </div>
                     </div>
                   )}
@@ -579,12 +682,44 @@ export default function HomePage() {
             </div>
           )}
 
-          {/* Üst Kartlar */}
+          {/* Üst Kartlar - Tıklanabilir */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mb-6">
-            <Card icon="💄" title="Bugün" value={bugunGelinler.length} subtitle="gelin" color="pink" />
-            <Card icon="📅" title="Bu Hafta" value={buHaftaGelinler.length} subtitle="gelin" color="purple" />
-            {/* Ay kartı - hedefli */}
-            <div className="bg-white p-3 md:p-4 rounded-2xl shadow-sm border border-gray-100 col-span-2 md:col-span-1">
+            <div 
+              className="bg-white p-3 md:p-4 rounded-2xl shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition"
+              onClick={() => setGelinListeModal({ open: true, title: "Bugünkü Gelinler", gelinler: bugunGelinler })}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-500 text-xs">Bugün</p>
+                  <p className="text-xl md:text-2xl font-bold mt-1 text-pink-600">{bugunGelinler.length}</p>
+                  <p className="text-gray-400 text-xs">gelin</p>
+                </div>
+                <div className="w-9 h-9 md:w-10 md:h-10 bg-pink-100 rounded-xl flex items-center justify-center">
+                  <span className="text-lg md:text-xl">💄</span>
+                </div>
+              </div>
+            </div>
+
+            <div 
+              className="bg-white p-3 md:p-4 rounded-2xl shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition"
+              onClick={() => setGelinListeModal({ open: true, title: "Bu Haftaki Gelinler", gelinler: buHaftaGelinler })}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-500 text-xs">Bu Hafta</p>
+                  <p className="text-xl md:text-2xl font-bold mt-1 text-purple-600">{buHaftaGelinler.length}</p>
+                  <p className="text-gray-400 text-xs">gelin</p>
+                </div>
+                <div className="w-9 h-9 md:w-10 md:h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                  <span className="text-lg md:text-xl">📅</span>
+                </div>
+              </div>
+            </div>
+
+            <div 
+              className="bg-white p-3 md:p-4 rounded-2xl shadow-sm border border-gray-100 col-span-2 md:col-span-1 cursor-pointer hover:shadow-md transition"
+              onClick={() => setGelinListeModal({ open: true, title: `${ayIsimleri[bugunDate.getMonth()]} Ayı Gelinleri`, gelinler: buAyGelinler })}
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-500 text-xs">{ayIsimleri[bugunDate.getMonth()]}</p>
@@ -683,19 +818,60 @@ export default function HomePage() {
             {/* Sağ Kolon */}
             <div className="space-y-4 md:space-y-6">
               
-              {/* Aktif Personel */}
-              <Panel icon="👥" title={`Bugün ${calisanlar.length} Kişi Aktif`}>
-                <div className="space-y-2">
-                  {calisanlar.map((p) => (
-                    <div key={p.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <span>{p.emoji}</span>
-                        <span className="text-sm font-medium text-gray-700">{p.isim}</span>
-                      </div>
-                      <span className="text-xs text-gray-400">{p.calismaSaatleri}</span>
-                    </div>
-                  ))}
-                </div>
+              {/* Şu An Çalışanlar */}
+              <Panel icon="🟢" title={`Şu An ${suAnCalisanlar.length} Kişi Çalışıyor`}>
+                {suAnCalisanlar.length === 0 ? (
+                  <div className="text-center py-6 text-gray-500">
+                    <span className="text-3xl">😴</span>
+                    <p className="mt-2 text-sm">Şu anda aktif çalışan yok</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {suAnCalisanlar.map((p) => {
+                      const personel = personelListesi.find(per => per.id === p.personelId);
+                      return (
+                        <div key={p.personelId} className="flex items-center justify-between p-2 bg-green-50 rounded-lg border border-green-200">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">{personel?.emoji || "👤"}</span>
+                            <span className="text-sm font-medium text-gray-700">{p.personelAd}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-xs text-green-600 font-medium">Giriş: {p.girisSaati}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </Panel>
+
+              {/* Bugün Gelenler */}
+              <Panel icon="📋" title={`Bugün ${bugunGelenler.length} Kişi Geldi`}>
+                {bugunGelenler.length === 0 ? (
+                  <div className="text-center py-6 text-gray-500">
+                    <span className="text-3xl">🕐</span>
+                    <p className="mt-2 text-sm">Henüz kimse giriş yapmadı</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {bugunGelenler.map((p) => {
+                      const personel = personelListesi.find(per => per.id === p.personelId);
+                      return (
+                        <div key={p.personelId} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">{personel?.emoji || "👤"}</span>
+                            <span className="text-sm font-medium text-gray-700">{p.personelAd}</span>
+                          </div>
+                          <div className="text-right text-xs">
+                            <p className="text-green-600">Giriş: {p.girisSaati}</p>
+                            {p.cikisSaati && <p className="text-red-500">Çıkış: {p.cikisSaati}</p>}
+                            {!p.cikisSaati && <p className="text-gray-400">Çıkış: -</p>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
                 {bugunIzinliler.length > 0 && (
                   <div className="mt-3 pt-3 border-t">
                     <p className="text-xs text-gray-500 mb-2">İzinli ({bugunIzinliler.length})</p>
@@ -710,19 +886,46 @@ export default function HomePage() {
                 )}
               </Panel>
 
-              {/* Müsait Günler */}
-              {bosGunler.length > 0 && (
-                <Panel icon="📭" title="Önümüzdeki 10 Müsait Gün" badge={bosGunler.length}>
-                  <div className="space-y-1 max-h-[240px] overflow-y-auto">
-                    {bosGunler.map((tarih) => (
-                      <div key={tarih} className="flex items-center justify-between p-2 bg-green-50 rounded-lg">
-                        <span className="text-sm text-gray-700">{formatTarih(tarih)}</span>
-                        <span className="text-xs text-gray-500">{formatGun(tarih)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </Panel>
-              )}
+              {/* Sakin Günler */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="px-3 md:px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                  <h2 className="font-semibold text-gray-800 flex items-center gap-2 text-sm">
+                    <span>📭</span> Önümüzdeki Sakin Günler
+                    <span className="bg-pink-100 text-pink-600 text-xs px-2 py-0.5 rounded-full">{sakinGunler.length}</span>
+                  </h2>
+                  <select 
+                    value={sakinGunFiltre}
+                    onChange={(e) => setSakinGunFiltre(Number(e.target.value))}
+                    className="text-xs bg-gray-100 border-0 rounded-lg px-2 py-1 text-gray-600 focus:ring-2 focus:ring-pink-300"
+                  >
+                    <option value={0}>Hiç gelin yok</option>
+                    <option value={1}>Sadece 1 gelin var</option>
+                    <option value={2}>Sadece 2 gelin var</option>
+                  </select>
+                </div>
+                <div className="p-3 md:p-4">
+                  {sakinGunler.length === 0 ? (
+                    <div className="text-center py-6 text-gray-500">
+                      <span className="text-3xl">🔍</span>
+                      <p className="mt-2 text-sm">Bu kriterde gün bulunamadı</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1 max-h-[240px] overflow-y-auto">
+                      {sakinGunler.map((gun) => (
+                        <div key={gun.tarih} className="flex items-center justify-between p-2 bg-green-50 rounded-lg">
+                          <span className="text-sm text-gray-700">{formatTarih(gun.tarih)}</span>
+                          <div className="flex items-center gap-2">
+                            {gun.gelinSayisi > 0 && (
+                              <span className="text-xs bg-pink-100 text-pink-600 px-1.5 py-0.5 rounded">{gun.gelinSayisi} gelin</span>
+                            )}
+                            <span className="text-xs text-gray-500">{formatGun(gun.tarih)}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
 
               {/* Doğum Günleri */}
               {yaklasanDogumGunleri.length > 0 && (
@@ -747,9 +950,9 @@ export default function HomePage() {
               )}
 
               {/* Resmi Tatiller */}
-              <Panel icon="🏛️" title="Resmi Tatiller">
-                <div className="space-y-2">
-                  {yaklasanTatiller.map((t) => (
+              <Panel icon="🏛️" title="Önümüzdeki Resmi Tatiller">
+                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                  {yaklasanTatiller.slice(0, 15).map((t) => (
                     <div key={t.tarih} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
                       <span className="text-sm text-gray-700">{t.isim}</span>
                       <span className="text-xs text-gray-500">{formatTarih(t.tarih)}</span>
@@ -782,8 +985,72 @@ export default function HomePage() {
                 ×
               </button>
             </div>
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+            <div className="p-6 overflow-x-auto overflow-y-auto max-h-[calc(90vh-80px)]">
               {renderHaftaTakvimi(true)}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Gelin Listesi Modal */}
+      {gelinListeModal.open && (
+        <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 md:p-4" onClick={() => setGelinListeModal({ ...gelinListeModal, open: false })}>
+          <div className="bg-white rounded-t-3xl md:rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="px-4 md:px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-pink-50 to-purple-50 relative">
+              <div className="md:hidden w-12 h-1.5 bg-gray-300 rounded-full mx-auto absolute top-2 left-1/2 -translate-x-1/2"></div>
+              <div className="pt-2 md:pt-0">
+                <h2 className="text-lg md:text-xl font-bold text-gray-800 flex items-center gap-2">
+                  <span>👰</span> {gelinListeModal.title}
+                </h2>
+                <p className="text-sm text-gray-500">{gelinListeModal.gelinler.length} gelin</p>
+              </div>
+              <button 
+                onClick={() => setGelinListeModal({ ...gelinListeModal, open: false })} 
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-4 md:p-6 overflow-y-auto max-h-[calc(90vh-100px)]">
+              {gelinListeModal.gelinler.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <span className="text-5xl">🎉</span>
+                  <p className="mt-3">Bu dönemde gelin yok</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {gelinListeModal.gelinler.map((gelin) => (
+                    <div 
+                      key={gelin.id}
+                      onClick={() => { setSelectedGelin(gelin); setGelinListeModal({ ...gelinListeModal, open: false }); }}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition cursor-pointer"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="bg-pink-100 text-pink-600 w-12 h-12 rounded-xl flex flex-col items-center justify-center font-bold text-xs">
+                          <span>{formatTarih(gelin.tarih).split(' ')[0]}</span>
+                          <span className="text-[10px] font-normal">{formatTarih(gelin.tarih).split(' ')[1]}</span>
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-800">{gelin.isim}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-xs text-gray-500">{gelin.saat}</span>
+                            {gelin.makyaj && (
+                              <span className="text-xs bg-pink-100 text-pink-600 px-1.5 py-0.5 rounded">{gelin.makyaj}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        {gelin.ucret === -1 ? (
+                          <p className="text-gray-400 text-xs">İşlenmemiş</p>
+                        ) : (
+                          <p className="text-red-500 font-semibold text-sm">{gelin.kalan.toLocaleString('tr-TR')} ₺</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -798,29 +1065,6 @@ export default function HomePage() {
 }
 
 // Yardımcı Componentler
-function Card({ icon, title, value, subtitle, color }: { icon: string; title: string; value: string | number; subtitle: string; color: string }) {
-  const colors: Record<string, string> = {
-    pink: 'bg-pink-100 text-pink-600',
-    purple: 'bg-purple-100 text-purple-600',
-    blue: 'bg-blue-100 text-blue-600',
-    red: 'bg-red-100 text-red-600',
-  };
-  return (
-    <div className="bg-white p-3 md:p-4 rounded-2xl shadow-sm border border-gray-100">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-gray-500 text-xs">{title}</p>
-          <p className={`text-xl md:text-2xl font-bold mt-1 ${colors[color]?.split(' ')[1] || 'text-gray-800'}`}>{value}</p>
-          <p className="text-gray-400 text-xs">{subtitle}</p>
-        </div>
-        <div className={`w-9 h-9 md:w-10 md:h-10 ${colors[color]?.split(' ')[0] || 'bg-gray-100'} rounded-xl flex items-center justify-center`}>
-          <span className="text-lg md:text-xl">{icon}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function Panel({ icon, title, badge, action, link, children, onRefresh }: { 
   icon: string; title: string; badge?: number; action?: string; link?: string; children: React.ReactNode; onRefresh?: () => void;
 }) {
@@ -851,7 +1095,7 @@ function Panel({ icon, title, badge, action, link, children, onRefresh }: {
   );
 }
 
-function GelinRow({ gelin, showDate, onClick }: { gelin: any; showDate?: boolean; onClick: () => void }) {
+function GelinRow({ gelin, showDate, onClick }: { gelin: Gelin; showDate?: boolean; onClick: () => void }) {
   const formatTarih = (tarih: string) => new Date(tarih).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
   return (
     <div 
@@ -887,7 +1131,7 @@ function GelinRow({ gelin, showDate, onClick }: { gelin: any; showDate?: boolean
   );
 }
 
-function GelinModal({ gelin, onClose }: { gelin: any; onClose: () => void }) {
+function GelinModal({ gelin, onClose }: { gelin: Gelin; onClose: () => void }) {
   const makyajPersonel = getPersonelByIsim(gelin.makyaj);
   const turbanPersonel = gelin.turban && gelin.turban !== gelin.makyaj ? getPersonelByIsim(gelin.turban) : null;
   const formatTarih = (tarih: string) => new Date(tarih).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -897,7 +1141,6 @@ function GelinModal({ gelin, onClose }: { gelin: any; onClose: () => void }) {
     <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 md:p-4" onClick={onClose}>
       <div className="bg-white rounded-t-3xl md:rounded-2xl shadow-xl max-w-2xl w-full max-h-[95vh] md:max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="p-4 md:p-6">
-          {/* Mobilde üstte çizgi handle */}
           <div className="md:hidden w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-4"></div>
           <div className="flex items-center justify-between mb-4 md:mb-6">
             <h3 className="text-lg md:text-xl font-bold text-gray-800 flex items-center gap-2">
