@@ -75,6 +75,7 @@ export default function HomePage() {
   const [lastUpdate, setLastUpdate] = useState<string>("");
   const [selectedGelin, setSelectedGelin] = useState<Gelin | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [haftaModalOpen, setHaftaModalOpen] = useState(false);
   const router = useRouter();
 
   // İzin hakkı state'leri
@@ -342,6 +343,63 @@ export default function HomePage() {
   const formatTarihUzun = (tarih: string) => new Date(tarih).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
   const formatGun = (tarih: string) => gunIsimleri[new Date(tarih).getDay()];
 
+  // Hafta takvimi renderı (hem panel hem modal için)
+  const renderHaftaTakvimi = (isModal: boolean = false) => {
+    const gunAdlari = isModal 
+      ? ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar']
+      : ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+    
+    return (
+      <div className={`grid grid-cols-7 gap-2 ${isModal ? '' : 'min-w-[600px]'}`}>
+        {gunAdlari.map((gunAdi, index) => {
+          const tarih = new Date(haftaBasi);
+          tarih.setDate(haftaBasi.getDate() + index);
+          const tarihStr = tarih.toISOString().split('T')[0];
+          const gunGelinler = gelinler.filter(g => g.tarih === tarihStr);
+          const gunIzinliler = getIzinliler(tarihStr);
+          const isToday = tarihStr === bugun;
+
+          return (
+            <div 
+              key={gunAdi} 
+              className={`${isModal ? 'p-3 min-h-[200px]' : 'p-2'} rounded-xl ${isToday ? 'bg-pink-50 ring-2 ring-pink-300' : 'bg-gray-50'}`}
+            >
+              <div className={`text-center ${isModal ? 'text-sm' : 'text-xs'} font-medium ${isToday ? 'text-pink-600' : 'text-gray-500'}`}>
+                {gunAdi}
+                <div className={`${isModal ? 'text-2xl' : 'text-lg'} font-bold ${isToday ? 'text-pink-600' : 'text-gray-700'}`}>
+                  {tarih.getDate()}
+                </div>
+              </div>
+              <div className={`space-y-1 mt-2 ${isModal ? 'max-h-[400px]' : 'max-h-[250px]'} overflow-y-auto`}>
+                {gunIzinliler.map((izin, idx) => (
+                  <div key={idx} className={`bg-orange-100 text-orange-700 ${isModal ? 'p-2' : 'p-1'} rounded ${isModal ? 'text-sm' : 'text-xs'} text-center`}>
+                    {izin.personel?.isim} 🏖️
+                  </div>
+                ))}
+                {gunGelinler.map((g) => (
+                  <div 
+                    key={g.id} 
+                    onClick={() => { setSelectedGelin(g); if(isModal) setHaftaModalOpen(false); }}
+                    className={`bg-white ${isModal ? 'p-2' : 'p-1.5'} rounded shadow-sm ${isModal ? 'text-sm' : 'text-xs'} cursor-pointer hover:bg-gray-100`}
+                  >
+                    <p className="font-medium truncate">{g.isim}</p>
+                    <p className="text-gray-500">{g.saat}</p>
+                    {isModal && g.makyaj && (
+                      <p className="text-pink-500 text-xs mt-1">{g.makyaj}</p>
+                    )}
+                  </div>
+                ))}
+                {gunGelinler.length === 0 && gunIzinliler.length === 0 && (
+                  <div className={`text-center text-gray-400 ${isModal ? 'text-sm py-4' : 'text-xs py-2'}`}>-</div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -357,8 +415,8 @@ export default function HomePage() {
     <div className="min-h-screen bg-gray-50">
       <Sidebar user={user} />
 
-      <div className="md:md:ml-64 pt-14 md:pt-0 pb-20 md:pb-0 pt-14 md:pt-0 pb-20 md:pb-0">
-        <header className="bg-white border-b px-4 md:px-6 py-3 md:py-4 sticky top-14 md:top-0 z-30">
+      <div className="md:ml-64 pb-20 md:pb-0">
+        <header className="bg-white border-b px-4 md:px-6 py-3 md:py-4 sticky top-0 z-40">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-lg md:text-xl font-bold text-gray-800">Merhaba, {user?.email?.split('@')[0]}!</h1>
@@ -583,55 +641,30 @@ export default function HomePage() {
               </Panel>
 
               {/* Bu Haftanın Programı */}
-              <Panel 
-                icon="🗓️" 
-                title="Bu Haftanın Programı"
-                action={haftaIzinliler.length > 0 ? `${haftaIzinliler.length} izinli` : undefined}
+              <div 
+                className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden cursor-pointer hover:shadow-md transition"
+                onClick={() => setHaftaModalOpen(true)}
               >
-                <div className="overflow-x-auto">
-                  <div className="grid grid-cols-7 gap-2 min-w-[600px]">
-                    {['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'].map((gunAdi, index) => {
-                      const tarih = new Date(haftaBasi);
-                      tarih.setDate(haftaBasi.getDate() + index);
-                      const tarihStr = tarih.toISOString().split('T')[0];
-                      const gunGelinler = gelinler.filter(g => g.tarih === tarihStr);
-                      const gunIzinliler = getIzinliler(tarihStr);
-                      const isToday = tarihStr === bugun;
-
-                      return (
-                        <div key={gunAdi} className={`p-2 rounded-xl ${isToday ? 'bg-pink-50 ring-2 ring-pink-300' : 'bg-gray-50'}`}>
-                          <div className={`text-center text-xs font-medium ${isToday ? 'text-pink-600' : 'text-gray-500'}`}>
-                            {gunAdi}
-                            <div className={`text-lg font-bold ${isToday ? 'text-pink-600' : 'text-gray-700'}`}>
-                              {tarih.getDate()}
-                            </div>
-                          </div>
-                          <div className="space-y-1 mt-2 max-h-[250px] overflow-y-auto">
-                            {gunIzinliler.map((izin, idx) => (
-                              <div key={idx} className="bg-orange-100 text-orange-700 p-1 rounded text-xs text-center">
-                                {izin.personel?.isim} 🏖️
-                              </div>
-                            ))}
-                            {gunGelinler.map((g) => (
-                              <div 
-                                key={g.id} 
-                                onClick={() => setSelectedGelin(g)}
-                                className="bg-white p-1.5 rounded shadow-sm text-xs cursor-pointer hover:bg-gray-100"
-                              >
-                                <p className="font-medium truncate">{g.isim}</p>
-                                <p className="text-gray-500">{g.saat}</p>
-                              </div>
-                            ))}
-                            {gunGelinler.length === 0 && gunIzinliler.length === 0 && (
-                              <div className="text-center text-gray-400 text-xs py-2">-</div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
+                <div className="px-3 md:px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                  <h2 className="font-semibold text-gray-800 flex items-center gap-2 text-sm">
+                    <span>🗓️</span> Bu Haftanın Programı
+                    <span className="bg-pink-100 text-pink-600 text-xs px-2 py-0.5 rounded-full">{buHaftaGelinler.length}</span>
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    {haftaIzinliler.length > 0 && (
+                      <span className="text-xs text-orange-500 bg-orange-50 px-2 py-1 rounded-full hidden md:inline">
+                        {haftaIzinliler.length} izinli
+                      </span>
+                    )}
+                    <span className="text-gray-400 text-xs">Büyütmek için tıkla →</span>
                   </div>
                 </div>
-              </Panel>
+                <div className="p-3 md:p-4">
+                  <div className="overflow-x-auto">
+                    {renderHaftaTakvimi(false)}
+                  </div>
+                </div>
+              </div>
 
               {/* Yaklaşan Gelinler */}
               <Panel icon="📅" title="Yaklaşan Gelinler" link="/gelinler">
@@ -728,6 +761,33 @@ export default function HomePage() {
           </div>
         </main>
       </div>
+
+      {/* Hafta Programı Modal */}
+      {haftaModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setHaftaModalOpen(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-6xl max-h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-pink-50 to-purple-50">
+              <div>
+                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                  <span>🗓️</span> Bu Haftanın Programı
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  {formatTarih(haftaBasiStr)} - {formatTarih(haftaSonuStr)} • {buHaftaGelinler.length} gelin
+                </p>
+              </div>
+              <button 
+                onClick={() => setHaftaModalOpen(false)} 
+                className="text-gray-400 hover:text-gray-600 text-3xl font-light"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+              {renderHaftaTakvimi(true)}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Gelin Detay Modal */}
       {selectedGelin && (

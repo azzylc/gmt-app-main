@@ -180,7 +180,7 @@ function IzinHakkiEkleContent() {
     <div className="flex min-h-screen bg-neutral-warm">
       <Sidebar user={user} />
 
-      <main className="flex-1 p-4 lg:p-6 md:ml-64 pt-14 md:pt-0 pb-20 md:pb-0">
+      <main className="flex-1 p-4 lg:p-6 md:ml-64 pb-20 md:pb-0">
         <div className="mb-6 flex items-start justify-between">
           <div>
             <h1 className="text-xl font-bold text-gray-800">İzin Hakkı Ekle</h1>

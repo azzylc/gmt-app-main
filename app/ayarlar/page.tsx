@@ -380,7 +380,7 @@ export default function AyarlarPage() {
     <div className="min-h-screen bg-gray-50">
       <Sidebar user={user} />
       
-      <div className="md:ml-64 pt-14 md:pt-0 pb-20 md:pb-0">
+      <div className="md:ml-64 pb-20 md:pb-0">
         <header className="bg-white border-b px-6 py-4 sticky top-0 z-30">
           <div>
             <h1 className="text-xl font-bold text-gray-800">⚙️ Ayarlar</h1>

@@ -236,23 +236,6 @@ function SidebarContent({ user }: SidebarProps) {
   if (isMobile) {
     return (
       <>
-        <header className="fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 z-40">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-r from-pink-500 to-pink-600 rounded-lg flex items-center justify-center">
-              <span className="text-white text-xs font-bold">GYS</span>
-            </div>
-            <span className="font-semibold text-gray-800">GYS Studio</span>
-          </div>
-          <button
-            onClick={() => setIsMobileOpen(true)}
-            className="w-10 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-xl transition"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-        </header>
-
         {isMobileOpen && <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setIsMobileOpen(false)} />}
 
         <div
@@ -294,8 +277,6 @@ function SidebarContent({ user }: SidebarProps) {
             )
           )}
         </nav>
-
-        <div className="h-14" />
       </>
     );
   }
