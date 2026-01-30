@@ -103,19 +103,6 @@ export default function HomePage() {
     gelinler: []
   });
 
-  // Modal açıkken body scroll'u kilitle
-  useEffect(() => {
-    const isAnyModalOpen = selectedGelin !== null || haftaModalOpen || gelinListeModal.open;
-    if (isAnyModalOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [selectedGelin, haftaModalOpen, gelinListeModal.open]);
-
   // Attendance state'leri
   const [bugunAttendance, setBugunAttendance] = useState<AttendanceRecord[]>([]);
   const [personelDurumlar, setPersonelDurumlar] = useState<PersonelGunlukDurum[]>([]);
@@ -127,6 +114,20 @@ export default function HomePage() {
 
   // Duyurular state
   const [duyurular, setDuyurular] = useState<Duyuru[]>([]);
+  const [selectedDuyuru, setSelectedDuyuru] = useState<Duyuru | null>(null);
+
+  // Modal açıkken body scroll'u kilitle
+  useEffect(() => {
+    const isAnyModalOpen = selectedGelin !== null || haftaModalOpen || gelinListeModal.open || selectedDuyuru !== null;
+    if (isAnyModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [selectedGelin, haftaModalOpen, gelinListeModal.open, selectedDuyuru]);
 
   // Aylık hedef state
   const [aylikHedef, setAylikHedef] = useState<number>(0);
@@ -333,13 +334,13 @@ export default function HomePage() {
     setEksikIzinler(eksikler);
   }, [firebasePersoneller]);
 
-  // Firebase'den son 3 duyuruyu çek
+  // Firebase'den son 10 duyuruyu çek
   useEffect(() => {
     if (!user) return;
     const q = query(
       collection(db, "announcements"), 
       orderBy("createdAt", "desc"),
-      limit(3)
+      limit(10)
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({
@@ -561,20 +562,28 @@ export default function HomePage() {
                 <div className="flex items-center gap-2">
                   <span className="text-xl">📢</span>
                   <h3 className="font-semibold text-amber-800">Duyurular</h3>
+                  <span className="bg-amber-200 text-amber-800 text-xs px-2 py-0.5 rounded-full">{duyurular.length}</span>
                 </div>
                 <a href="/duyurular" className="text-amber-600 hover:text-amber-700 text-xs font-medium">
                   Tümünü gör →
                 </a>
               </div>
-              <div className="space-y-2">
-                {duyurular.slice(0, 3).map((d) => (
-                  <div key={d.id} className={`p-2.5 rounded-lg ${d.important ? 'bg-white/80 border border-amber-300' : 'bg-white/50'}`}>
+              <div className="space-y-2 max-h-[180px] overflow-y-auto">
+                {duyurular.map((d) => (
+                  <div 
+                    key={d.id} 
+                    onClick={() => setSelectedDuyuru(d)}
+                    className={`p-2.5 rounded-lg cursor-pointer hover:shadow-sm transition ${d.important ? 'bg-white/80 border border-amber-300' : 'bg-white/50 hover:bg-white/70'}`}
+                  >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-amber-900 truncate">{d.title}</p>
                         <p className="text-xs text-amber-700 mt-0.5 line-clamp-1">{d.content}</p>
                       </div>
-                      {d.important && <span className="text-xs">🔥</span>}
+                      <div className="flex items-center gap-1">
+                        {d.important && <span className="text-xs">🔥</span>}
+                        <span className="text-xs text-amber-500">→</span>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -964,6 +973,49 @@ export default function HomePage() {
           </div>
         </main>
       </div>
+
+      {/* Duyuru Detay Modal */}
+      {selectedDuyuru && (
+        <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 md:p-4" onClick={() => setSelectedDuyuru(null)}>
+          <div className="bg-white rounded-t-3xl md:rounded-2xl shadow-xl max-w-lg w-full max-h-[80vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="px-4 md:px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-amber-50 to-orange-50 relative">
+              <div className="md:hidden w-12 h-1.5 bg-gray-300 rounded-full mx-auto absolute top-2 left-1/2 -translate-x-1/2"></div>
+              <div className="pt-2 md:pt-0 flex items-center gap-2">
+                <span className="text-xl">📢</span>
+                <h2 className="text-lg font-bold text-amber-900">Duyuru Detayı</h2>
+                {selectedDuyuru.important && <span className="text-sm">🔥</span>}
+              </div>
+              <button 
+                onClick={() => setSelectedDuyuru(null)} 
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-4 md:p-6 overflow-y-auto max-h-[calc(80vh-80px)]">
+              <h3 className="text-xl font-bold text-gray-800 mb-2">{selectedDuyuru.title}</h3>
+              <div className="flex items-center gap-2 text-xs text-gray-500 mb-4 flex-wrap">
+                <span>👤 {selectedDuyuru.author}</span>
+                <span>•</span>
+                <span>
+                  {selectedDuyuru.createdAt?.toDate?.() 
+                    ? selectedDuyuru.createdAt.toDate().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                    : ''}
+                </span>
+                {selectedDuyuru.group && selectedDuyuru.group !== "Tümü" && (
+                  <>
+                    <span>•</span>
+                    <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded">{selectedDuyuru.group}</span>
+                  </>
+                )}
+              </div>
+              <div className="prose prose-sm max-w-none">
+                <p className="text-gray-700 whitespace-pre-wrap">{selectedDuyuru.content}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hafta Programı Modal */}
       {haftaModalOpen && (

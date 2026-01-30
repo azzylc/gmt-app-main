@@ -63,6 +63,10 @@ export default function VardiyaPlaniPage() {
   const [girisOnerisi, setGirisOnerisi] = useState<string | null>(null);
   const [cikisOnerisi, setCikisOnerisi] = useState<string | null>(null);
 
+  // Konum
+  const [konumlar, setKonumlar] = useState<{id: string; ad: string; karekod: string}[]>([]);
+  const [seciliKonum, setSeciliKonum] = useState<string>("");
+
   // Hafta numarası hesapla
   function getHaftaNumarasi(date: Date): number {
     const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -126,17 +130,39 @@ export default function VardiyaPlaniPage() {
     if (!user) return;
     const q = query(collection(db, "personnel"), orderBy("ad", "asc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => {
+        const grupEtiketleri = doc.data().grupEtiketleri;
+        return {
+          id: doc.id,
+          ad: doc.data().ad || "",
+          soyad: doc.data().soyad || "",
+          sicilNo: doc.data().sicilNo || "",
+          aktif: doc.data().aktif !== false,
+          grupEtiketleri: Array.isArray(grupEtiketleri) ? grupEtiketleri : (grupEtiketleri ? [grupEtiketleri] : []),
+          yonetici: doc.data().yonetici === true,
+          calismaSaati: doc.data().calismaSaati || "her gün 9:00-18:00"
+        };
+      });
+      setPersoneller(data.filter(p => p.aktif));
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  // Konumları çek
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, "locations"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({
         id: doc.id,
-        ad: doc.data().ad || "",
-        soyad: doc.data().soyad || "",
-        sicilNo: doc.data().sicilNo || "",
-        aktif: doc.data().aktif !== false,
-        grupEtiketleri: doc.data().grupEtiketleri || [],
-        yonetici: doc.data().yonetici === true,
-        calismaSaati: doc.data().calismaSaati || "her gün 9:00-18:00"
+        ad: doc.data().ad || doc.data().name || "",
+        karekod: doc.data().karekod || doc.data().code || ""
       }));
-      setPersoneller(data.filter(p => p.aktif));
+      setKonumlar(data);
+      // Varsayılan konum seç
+      if (data.length > 0 && !seciliKonum) {
+        setSeciliKonum(data[0].id);
+      }
     });
     return () => unsubscribe();
   }, [user]);
@@ -167,7 +193,9 @@ export default function VardiyaPlaniPage() {
     try {
       // Filtrelenmiş personeller
       const filtrelenmis = personeller.filter(p => {
-        if (!yoneticileriGoster && p.yonetici) return false;
+        // Kurucu filtresi (küçük/büyük harf fark etmez)
+        const isKurucu = (p.grupEtiketleri || []).some(g => g.toLowerCase() === "kurucu");
+        if (!yoneticileriGoster && isKurucu) return false;
         if (seciliGrup !== "tumu" && !(p.grupEtiketleri || []).includes(seciliGrup)) return false;
         return true;
       });
@@ -177,11 +205,9 @@ export default function VardiyaPlaniPage() {
       try {
         // "izinler" collection'ından
         const izinlerSnap = await getDocs(collection(db, "izinler"));
-        console.log("İzinler count:", izinlerSnap.size);
         
         izinlerSnap.forEach(docSnap => {
           const d = docSnap.data();
-          console.log("İzin data:", d);
           
           // Durum kontrolü (büyük/küçük harf fark etmez)
           const durum = (d.durum || "").toLowerCase();
@@ -208,7 +234,6 @@ export default function VardiyaPlaniPage() {
               // Haftanın günleri içinde mi kontrol et
               if (haftaGunleri.some(g => formatTarihKey(g) === tarihKey)) {
                 const key = `${personelId}-${tarihKey}`;
-                console.log("İzin eklendi:", key, d.izinTuru);
                 izinMap.set(key, d.izinTuru || "Yıllık İzin");
               }
             }
@@ -278,11 +303,33 @@ export default function VardiyaPlaniPage() {
   // Vardiya kaydet
   const handleKaydet = async () => {
     if (!editModal) return;
+    
+    // Giriş-çıkış için validasyonlar
+    if (islemTipi === "giriscikis") {
+      // Konum zorunlu
+      if (!seciliKonum) {
+        alert("Lütfen konum seçiniz!");
+        return;
+      }
+      
+      // Saat formatı kontrolü (HH:MM)
+      const saatRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+      if (!saatRegex.test(girisSaati)) {
+        alert("Giriş saati geçersiz! Lütfen saat ve dakikayı tam giriniz. (Örn: 09:00)");
+        return;
+      }
+      if (!saatRegex.test(cikisSaati)) {
+        alert("Çıkış saati geçersiz! Lütfen saat ve dakikayı tam giriniz. (Örn: 18:00)");
+        return;
+      }
+    }
+    
     setSaving(true);
 
     try {
       const docId = `${editModal.personelId}_${editModal.tarih}`;
       const docRef = doc(db, "vardiyaPlan", docId);
+      const konum = konumlar.find(k => k.id === seciliKonum);
 
       if (islemTipi === "haftaTatili") {
         await setDoc(docRef, {
@@ -292,6 +339,8 @@ export default function VardiyaPlaniPage() {
           haftaTatili: true,
           giris: null,
           cikis: null,
+          konumId: null,
+          konumAdi: null,
           guncellemeZamani: Timestamp.now(),
           guncelleyenEmail: user.email
         });
@@ -303,6 +352,8 @@ export default function VardiyaPlaniPage() {
           giris: girisSaati,
           cikis: cikisSaati,
           haftaTatili: false,
+          konumId: seciliKonum,
+          konumAdi: konum?.karekod || konum?.ad || "",
           guncellemeZamani: Timestamp.now(),
           guncelleyenEmail: user.email
         });
@@ -652,6 +703,20 @@ export default function VardiyaPlaniPage() {
             {/* Giriş & Çıkış Saatleri */}
             {islemTipi === "giriscikis" && (
               <div className="mb-6 space-y-4">
+                {/* Konum Seçimi */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">📍 Konum</label>
+                  <select
+                    value={seciliKonum}
+                    onChange={(e) => setSeciliKonum(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
+                  >
+                    <option value="">Konum Seçiniz</option>
+                    {konumlar.map(k => (
+                      <option key={k.id} value={k.id}>{k.karekod || k.ad}</option>
+                    ))}
+                  </select>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-green-700 mb-2">🟢 Giriş Saati</label>
                   <div className="flex gap-2">

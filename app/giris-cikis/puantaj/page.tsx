@@ -65,6 +65,10 @@ export default function PuantajPage() {
   // Hover state for delete
   const [hoverCell, setHoverCell] = useState<string | null>(null);
 
+  // Konum
+  const [konumlar, setKonumlar] = useState<{id: string; ad: string; karekod: string}[]>([]);
+  const [seciliKonum, setSeciliKonum] = useState<string>("");
+
   // Filtreler
   const [seciliGrup, setSeciliGrup] = useState<string>("tumu");
   const [yoneticileriGoster, setYoneticileriGoster] = useState(false);
@@ -89,16 +93,38 @@ export default function PuantajPage() {
     if (!user) return;
     const q = query(collection(db, "personnel"), orderBy("ad", "asc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => {
+        const grupEtiketleri = doc.data().grupEtiketleri;
+        return {
+          id: doc.id,
+          ad: doc.data().ad || "",
+          soyad: doc.data().soyad || "",
+          sicilNo: doc.data().sicilNo || "",
+          aktif: doc.data().aktif !== false,
+          grupEtiketleri: Array.isArray(grupEtiketleri) ? grupEtiketleri : (grupEtiketleri ? [grupEtiketleri] : []),
+          yonetici: doc.data().yonetici === true
+        };
+      });
+      setPersoneller(data.filter(p => p.aktif));
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  // Konumları çek
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, "locations"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({
         id: doc.id,
-        ad: doc.data().ad || "",
-        soyad: doc.data().soyad || "",
-        sicilNo: doc.data().sicilNo || "",
-        aktif: doc.data().aktif !== false,
-        grupEtiketleri: doc.data().grupEtiketleri || [],
-        yonetici: doc.data().yonetici === true
+        ad: doc.data().ad || doc.data().name || "",
+        karekod: doc.data().karekod || doc.data().code || ""
       }));
-      setPersoneller(data.filter(p => p.aktif));
+      setKonumlar(data);
+      // Varsayılan konum seç (ilk konum)
+      if (data.length > 0 && !seciliKonum) {
+        setSeciliKonum(data[0].id);
+      }
     });
     return () => unsubscribe();
   }, [user]);
@@ -109,7 +135,7 @@ export default function PuantajPage() {
   // Filtrelenmiş personeller
   const filtrelenmisPersoneller = personeller.filter(p => {
     // Kurucu filtresi
-    if (!yoneticileriGoster && p.yonetici) return false;
+    if (!yoneticileriGoster && (p.grupEtiketleri || []).some(g => g.toLowerCase() === "kurucu")) return false;
     // Grup filtresi (array içinde ara)
     if (seciliGrup !== "tumu" && !(p.grupEtiketleri || []).includes(seciliGrup)) return false;
     return true;
@@ -177,11 +203,9 @@ export default function PuantajPage() {
       try {
         // "izinler" collection'ından
         const izinSnap = await getDocs(collection(db, "izinler"));
-        console.log("İzinler count:", izinSnap.size);
         
         izinSnap.forEach(docSnap => {
           const d = docSnap.data();
-          console.log("İzin data:", d);
           
           // Durum kontrolü (büyük/küçük harf fark etmez)
           const durum = (d.durum || "").toLowerCase();
@@ -207,7 +231,6 @@ export default function PuantajPage() {
               if (date.getMonth() === seciliAy && date.getFullYear() === seciliYil) {
                 const gun = date.getDate();
                 const key = `${personelId}-${gun}`;
-                console.log("İzin eklendi:", key, d.izinTuru);
                 izinMap.set(key, d.izinTuru || "Yıllık İzin");
               }
             }
@@ -452,6 +475,26 @@ export default function PuantajPage() {
   const handleKaydet = async () => {
     if (!islemModal) return;
     
+    // Giriş-çıkış için validasyonlar
+    if (islemTipi === "giriscikis") {
+      // Konum zorunlu
+      if (!seciliKonum) {
+        alert("Lütfen konum seçiniz!");
+        return;
+      }
+      
+      // Saat formatı kontrolü (HH:MM)
+      const saatRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+      if (!saatRegex.test(girisSaati)) {
+        alert("Giriş saati geçersiz! Lütfen saat ve dakikayı tam giriniz. (Örn: 09:00)");
+        return;
+      }
+      if (!saatRegex.test(cikisSaati)) {
+        alert("Çıkış saati geçersiz! Lütfen saat ve dakikayı tam giriniz. (Örn: 18:00)");
+        return;
+      }
+    }
+    
     setSaving(true);
     
     try {
@@ -518,6 +561,7 @@ export default function PuantajPage() {
         });
       } else {
         // Giriş ve Çıkış kaydı - ikisini de ekle
+        const konum = konumlar.find(k => k.id === seciliKonum);
         
         // Giriş kaydı
         if (girisSaati) {
@@ -532,8 +576,8 @@ export default function PuantajPage() {
             sicilNo: "",
             tip: "giris",
             tarih: Timestamp.fromDate(girisTarih),
-            konumId: "",
-            konumAdi: "Puantaj",
+            konumId: seciliKonum,
+            konumAdi: konum?.karekod || konum?.ad || "Puantaj",
             kayitOrtami: "Puantaj",
             manuelKayit: true,
             mazeretNotu: "",
@@ -548,7 +592,7 @@ export default function PuantajPage() {
             oncekiDeger: "",
             sonrakiDeger: "Giriş",
             kullaniciAdi: islemModal.personelAd,
-            konum: "Puantaj",
+            konum: konum?.karekod || konum?.ad || "Puantaj",
             girisCikisTarih: Timestamp.fromDate(girisTarih)
           });
         }
@@ -566,8 +610,8 @@ export default function PuantajPage() {
             sicilNo: "",
             tip: "cikis",
             tarih: Timestamp.fromDate(cikisTarih),
-            konumId: "",
-            konumAdi: "Puantaj",
+            konumId: seciliKonum,
+            konumAdi: konum?.karekod || konum?.ad || "Puantaj",
             kayitOrtami: "Puantaj",
             manuelKayit: true,
             mazeretNotu: "",
@@ -582,7 +626,7 @@ export default function PuantajPage() {
             oncekiDeger: "",
             sonrakiDeger: "Çıkış",
             kullaniciAdi: islemModal.personelAd,
-            konum: "Puantaj",
+            konum: konum?.karekod || konum?.ad || "Puantaj",
             girisCikisTarih: Timestamp.fromDate(cikisTarih)
           });
         }
@@ -642,7 +686,7 @@ export default function PuantajPage() {
     .filter(personel => {
       const p = personeller.find(per => per.id === personel.personelId);
       if (!p) return true;
-      if (!yoneticileriGoster && p.yonetici) return false;
+      if (!yoneticileriGoster && (p.grupEtiketleri || []).some(g => g.toLowerCase() === "kurucu")) return false;
       if (seciliGrup !== "tumu" && !(p.grupEtiketleri || []).includes(seciliGrup)) return false;
       return true;
     })
@@ -670,7 +714,7 @@ export default function PuantajPage() {
     const filtrelenmis = puantajData.filter(personel => {
       const p = personeller.find(per => per.id === personel.personelId);
       if (!p) return true;
-      if (!yoneticileriGoster && p.yonetici) return false;
+      if (!yoneticileriGoster && (p.grupEtiketleri || []).some(g => g.toLowerCase() === "kurucu")) return false;
       if (seciliGrup !== "tumu" && !(p.grupEtiketleri || []).includes(seciliGrup)) return false;
       return true;
     });
@@ -827,7 +871,7 @@ export default function PuantajPage() {
                         const p = personeller.find(per => per.id === personel.personelId);
                         if (!p) return true;
                         // Kurucu filtresi
-                        if (!yoneticileriGoster && p.yonetici) return false;
+                        if (!yoneticileriGoster && (p.grupEtiketleri || []).some(g => g.toLowerCase() === "kurucu")) return false;
                         // Grup filtresi (array içinde ara)
                         if (seciliGrup !== "tumu" && !(p.grupEtiketleri || []).includes(seciliGrup)) return false;
                         return true;
@@ -1113,6 +1157,20 @@ export default function PuantajPage() {
             {/* Giriş & Çıkış Saatleri */}
             {islemTipi === "giriscikis" && (
               <div className="mb-6 space-y-4">
+                {/* Konum Seçimi */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">📍 Konum</label>
+                  <select
+                    value={seciliKonum}
+                    onChange={(e) => setSeciliKonum(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
+                  >
+                    <option value="">Konum Seçiniz</option>
+                    {konumlar.map(k => (
+                      <option key={k.id} value={k.id}>{k.karekod || k.ad}</option>
+                    ))}
+                  </select>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-green-700 mb-2">🟢 Giriş Saati</label>
                   <div className="flex gap-2">
