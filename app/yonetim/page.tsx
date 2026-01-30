@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { auth, db } from "../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
@@ -43,7 +43,11 @@ export default function YonetimPage() {
   const [selectedAy, setSelectedAy] = useState("");
   const [hedefInput, setHedefInput] = useState("");
   const [saving, setSaving] = useState(false);
+  const [selectedYil, setSelectedYil] = useState(new Date().getFullYear()); // Yıl seçici
   const router = useRouter();
+  
+  // Bugünkü ay satırı için ref
+  const bugunAyRef = useRef<HTMLTableRowElement>(null);
 
   const bugun = new Date().toISOString().split('T')[0];
   const buAy = new Date().toISOString().slice(0, 7);
@@ -106,6 +110,19 @@ export default function YonetimPage() {
     });
     return () => unsubscribe();
   }, [user]);
+
+  // Sayfa yüklendiğinde bugünkü aya scroll yap
+  useEffect(() => {
+    if (!loading && bugunAyRef.current) {
+      // Kısa bir gecikme ile scroll yap (DOM render olsun diye)
+      setTimeout(() => {
+        bugunAyRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+      }, 300);
+    }
+  }, [loading, hedefler, gelinler]);
 
   const fetchGelinler = async () => {
     try {
@@ -176,19 +193,21 @@ export default function YonetimPage() {
   // Bu ayın verileri
   const buAyVerileri = getAyVerileri(buAy);
 
-  // Bu ay + önümüzdeki 11 ay (toplam 12 ay) - hedef belirleme için
-  const ayListesi = Array.from({ length: 12 }, (_, i) => {
-    const d = new Date();
-    d.setDate(1); // Ayın 1'ine set et (ay geçişlerinde bug önleme)
-    d.setMonth(d.getMonth() + i);
-    return d.toISOString().slice(0, 7);
+  // Yıl listesi: geçmiş 5 + şimdiki + önümüzdeki 5 = 11 yıl
+  const yilListesi = Array.from({ length: 11 }, (_, i) => {
+    return new Date().getFullYear() - 5 + i;
   });
 
-  // Son 6 ay (bu ay dahil) - tablo için
-  const son6Ay = Array.from({ length: 6 }, (_, i) => {
+  // Seçilen yılın 12 ayı (hedef belirleme için)
+  const ayListesi = Array.from({ length: 12 }, (_, i) => {
+    return `${selectedYil}-${String(i + 1).padStart(2, '0')}`;
+  });
+
+  // Bugünden itibaren önümüzdeki 12 ay + geçmişten 6 ay (scroll için)
+  const tumAylar = Array.from({ length: 18 }, (_, i) => {
     const d = new Date();
     d.setDate(1); // Ayın 1'ine set et
-    d.setMonth(d.getMonth() - (5 - i));
+    d.setMonth(d.getMonth() - 6 + i); // 6 ay geriden başla, 12 ay ileriye git
     return d.toISOString().slice(0, 7);
   });
 
@@ -297,9 +316,22 @@ export default function YonetimPage() {
           <div className="grid grid-cols-2 gap-6">
             {/* Sol: Hedef Belirleme */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <span>🎯</span> Aylık Hedef Belirleme
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                  <span>🎯</span> Aylık Hedef Belirleme
+                </h2>
+                <select
+                  value={selectedYil}
+                  onChange={(e) => setSelectedYil(Number(e.target.value))}
+                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                >
+                  {yilListesi.map(yil => (
+                    <option key={yil} value={yil}>
+                      {yil}
+                    </option>
+                  ))}
+                </select>
+              </div>
               
               <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
                 {ayListesi.map(ay => {
@@ -417,64 +449,76 @@ export default function YonetimPage() {
               <span>📊</span> Aylık Finansal Özet
             </h2>
             
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ay</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Gelin</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Hedef</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Toplam Ücret</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Kapora</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Kalan</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {son6Ay.map(ay => {
-                    const veri = getAyVerileri(ay);
-                    const isBuAy = ay === buAy;
-                    return (
-                      <tr key={ay} className={isBuAy ? 'bg-pink-50' : 'hover:bg-gray-50'}>
-                        <td className="px-4 py-3">
-                          <span className={`font-medium ${isBuAy ? 'text-pink-600' : 'text-gray-700'}`}>
-                            {formatAy(ay)}
+            {/* Header - SCROLL DIŞINDA */}
+            <div className="flex bg-gray-50 pl-6 pr-3 py-3 border-b border-gray-200 rounded-t-lg mb-0">
+              <div className="w-[15%] text-left text-xs font-medium text-gray-500 uppercase">Ay</div>
+              <div className="w-[10%] text-center text-xs font-medium text-gray-500 uppercase">Gelin</div>
+              <div className="w-[15%] text-center text-xs font-medium text-gray-500 uppercase">Hedef</div>
+              <div className="w-[20%] text-right text-xs font-medium text-gray-500 uppercase">Toplam Ücret</div>
+              <div className="w-[20%] text-right text-xs font-medium text-gray-500 uppercase">Kapora</div>
+              <div className="w-[20%] text-right text-xs font-medium text-gray-500 uppercase">Kalan</div>
+            </div>
+
+            {/* Body - SADECE BU KISIM SCROLL */}
+            <div className="max-h-[600px] overflow-y-scroll divide-y divide-gray-200">
+              {tumAylar.map(ay => {
+                const veri = getAyVerileri(ay);
+                const isBuAy = ay === buAy;
+                return (
+                  <div
+                    key={ay}
+                    ref={isBuAy ? bugunAyRef : null}
+                    className={`flex px-6 py-3 ${isBuAy ? 'bg-pink-50' : 'hover:bg-gray-50'}`}
+                  >
+                    {/* Ay */}
+                    <div className="w-[15%] text-left">
+                      <span className={`font-medium ${isBuAy ? 'text-pink-600' : 'text-gray-700'}`}>
+                        {formatAy(ay)}
+                      </span>
+                    </div>
+                    
+                    {/* Gelin */}
+                    <div className="w-[10%] text-center">
+                      <span className={`font-bold ${isBuAy ? 'text-pink-600' : 'text-gray-800'}`}>
+                        {veri.toplamGelin}
+                      </span>
+                    </div>
+                    
+                    {/* Hedef */}
+                    <div className="w-[15%] text-center">
+                      {veri.hedef > 0 ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <span className="text-gray-600">{veri.hedef}</span>
+                          <span className={`text-xs px-1.5 py-0.5 rounded whitespace-nowrap ${
+                            veri.toplamGelin >= veri.hedef 
+                              ? 'bg-green-100 text-green-700' 
+                              : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            %{Math.round((veri.toplamGelin / veri.hedef) * 100)}
                           </span>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`font-bold ${isBuAy ? 'text-pink-600' : 'text-gray-800'}`}>
-                            {veri.toplamGelin}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          {veri.hedef > 0 ? (
-                            <div className="flex items-center justify-center gap-2">
-                              <span className="text-gray-600">{veri.hedef}</span>
-                              <span className={`text-xs px-1.5 py-0.5 rounded ${
-                                veri.toplamGelin >= veri.hedef 
-                                  ? 'bg-green-100 text-green-700' 
-                                  : 'bg-gray-100 text-gray-600'
-                              }`}>
-                                %{Math.round((veri.toplamGelin / veri.hedef) * 100)}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-gray-400">-</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-right font-medium text-gray-800">
-                          {veri.toplamUcret.toLocaleString('tr-TR')} ₺
-                        </td>
-                        <td className="px-4 py-3 text-right font-medium text-green-600">
-                          {veri.toplamKapora.toLocaleString('tr-TR')} ₺
-                        </td>
-                        <td className="px-4 py-3 text-right font-medium text-red-600">
-                          {veri.toplamKalan.toLocaleString('tr-TR')} ₺
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </div>
+                    
+                    {/* Toplam Ücret */}
+                    <div className="w-[20%] text-right font-medium text-gray-800">
+                      {veri.toplamUcret.toLocaleString('tr-TR')} ₺
+                    </div>
+                    
+                    {/* Kapora */}
+                    <div className="w-[20%] text-right font-medium text-green-600">
+                      {veri.toplamKapora.toLocaleString('tr-TR')} ₺
+                    </div>
+                    
+                    {/* Kalan */}
+                    <div className="w-[20%] text-right font-medium text-red-600">
+                      {veri.toplamKalan.toLocaleString('tr-TR')} ₺
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </main>

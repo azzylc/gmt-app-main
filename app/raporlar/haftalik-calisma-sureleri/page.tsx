@@ -6,6 +6,7 @@ import { collection, query, onSnapshot, orderBy, where, Timestamp, getDocs } fro
 import { useRouter } from "next/navigation";
 import Sidebar from "../../components/Sidebar";
 import { resmiTatiller } from "../../lib/data";
+import { izinMapOlustur } from "../../lib/izinHelper";
 
 interface Personel {
   id: string;
@@ -167,21 +168,10 @@ export default function HaftalikCalismaSureleriPage() {
       kayitlar.get(key)!.push({ ...d, tarihDate: tarih });
     });
 
-    // İzinleri çek
-    const izinSnap = await getDocs(collection(db, "izinler"));
-    const izinMap = new Map<string, string>();
-    
-    izinSnap.forEach(doc => {
-      const d = doc.data();
-      if (d.durum === "onaylandi" || d.onayDurumu === "onaylandi") {
-        const start = new Date(d.baslangicTarihi || d.baslangic);
-        const end = new Date(d.bitisTarihi || d.bitis);
-        
-        for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
-          izinMap.set(`${d.personelId}-${date.toISOString().split('T')[0]}`, d.izinTuru || d.tur || "Yıllık İzin");
-        }
-      }
-    });
+    // İzinleri çek (hem izinler hem vardiyaPlan'daki hafta tatilleri)
+    const haftaSonu = new Date(haftaBaslangic);
+    haftaSonu.setDate(haftaBaslangic.getDate() + 6);
+    const izinMap = await izinMapOlustur(haftaBaslangic, haftaSonu, "full");
 
     // Her personel için haftalık veri oluştur
     const results: PersonelHaftalik[] = [];

@@ -85,6 +85,17 @@ export default function IzinEkle() {
     return diffDays;
   };
 
+  // Otomatik açıklama doldur
+  useEffect(() => {
+    if (baslangic && bitis && izinTuru) {
+      const gunSayisi = hesaplaGunSayisi();
+      if (gunSayisi > 0) {
+        const aciklamaMetni = `${gunSayisi} günlük ${izinTuru.toLowerCase()}`;
+        setAciklama(aciklamaMetni);
+      }
+    }
+  }, [baslangic, bitis, izinTuru]);
+
   const handleSave = async (action: "back" | "new") => {
     // Validasyon
     if (!selectedPersonel) {

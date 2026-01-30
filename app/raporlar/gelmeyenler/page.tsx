@@ -6,6 +6,7 @@ import { collection, query, onSnapshot, orderBy, where, Timestamp, getDocs } fro
 import { useRouter } from "next/navigation";
 import Sidebar from "../../components/Sidebar";
 import { resmiTatiller } from "../../lib/data";
+import { izinMapOlustur } from "../../lib/izinHelper";
 
 interface Personel {
   id: string;
@@ -128,23 +129,15 @@ export default function GelmeyenlerPage() {
         }
       });
 
-      // İzinleri çek
+      // İzinleri çek (hem izinler hem vardiyaPlan'daki hafta tatilleri)
       const izinMap = new Map<string, string>();
       try {
-        const izinSnapshot = await getDocs(collection(db, "izinler"));
-        izinSnapshot.forEach(doc => {
-          const d = doc.data();
-          if (d.durum === "onaylandi" || d.onayDurumu === "onaylandi") {
-            const start = new Date(d.baslangicTarihi || d.baslangic);
-            const end = new Date(d.bitisTarihi || d.bitis);
-            
-            if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-              for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
-                const dateStr = date.toISOString().split('T')[0];
-                izinMap.set(`${d.personelId}-${dateStr}`, d.izinTuru || d.tur || "Yıllık İzin");
-              }
-            }
-          }
+        const baslangicDate = new Date(baslangic);
+        const bitisDate = new Date(bitis);
+        const tempMap = await izinMapOlustur(baslangicDate, bitisDate, "full");
+        // Map'i kopyala (izinMapOlustur'dan gelen map'i kullan)
+        tempMap.forEach((value, key) => {
+          izinMap.set(key, value);
         });
       } catch (e) {
         console.log("İzin verisi çekilemedi:", e);

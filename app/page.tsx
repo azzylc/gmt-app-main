@@ -5,7 +5,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { collection, query, onSnapshot, addDoc, doc, updateDoc, increment, orderBy, limit, where, Timestamp } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import Sidebar from "./components/Sidebar";
-import { personelListesi, getPersonelByIsim, getYaklasanDogumGunleri, getIzinliler, getIzinlerAralik, getYaklasanTatiller } from "./lib/data";
+import { personelListesi, getPersonelByIsim, getYaklasanDogumGunleri, getYaklasanTatiller } from "./lib/data";
 
 interface Gelin {
   id: string;
@@ -60,6 +60,17 @@ interface Duyuru {
   group: string;
   author: string;
   createdAt: any;
+}
+
+interface IzinKaydi {
+  id: string;
+  personelId: string;
+  personelAd: string;
+  baslangicTarihi: string;
+  bitisTarihi: string;
+  izinTuru: string;
+  durum: string;
+  aciklama?: string;
 }
 
 interface AttendanceRecord {
@@ -131,6 +142,12 @@ export default function HomePage() {
 
   // Aylık hedef state
   const [aylikHedef, setAylikHedef] = useState<number>(0);
+
+  // Firebase'den çekilen izinler
+  const [izinlerFirebase, setIzinlerFirebase] = useState<IzinKaydi[]>([]);
+  
+  // Vardiya planından hafta tatilleri
+  const [haftaTatilleri, setHaftaTatilleri] = useState<IzinKaydi[]>([]);
 
   // Sakin günler filtre state
   const [sakinGunFiltre, setSakinGunFiltre] = useState<number>(0);
@@ -291,6 +308,79 @@ export default function HomePage() {
     return () => unsubscribe();
   }, [user]);
 
+  // Firebase'den izinleri çek
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, "izinler"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      console.log("🔥 TOPLAM İZİN SAYISI:", snapshot.size);
+      const list: IzinKaydi[] = [];
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        console.log("📋 İzin verisi:", {
+          id: docSnap.id,
+          personelAd: data.personelAd,
+          durum: data.durum,
+          baslangic: data.baslangic,
+          bitis: data.bitis,
+          izinTuru: data.izinTuru,
+          ONAYLANDI_MI: (data.durum === "onaylandi" || data.durum === "Onaylandı"),
+          tumVeri: data
+        });
+        // Sadece onaylanmış izinleri al
+        if (data.durum === "onaylandi" || data.durum === "Onaylandı") {
+          list.push({
+            id: docSnap.id,
+            personelId: data.personelId || "",
+            personelAd: data.personelAd || "",
+            baslangicTarihi: data.baslangic || "", // Firebase'de "baslangic"
+            bitisTarihi: data.bitis || "", // Firebase'de "bitis"
+            izinTuru: data.izinTuru || "",
+            durum: data.durum || "",
+            aciklama: data.aciklama || "",
+          });
+        } else {
+          console.warn("⚠️ Bu izin ATLANDI - durum:", data.durum, "personel:", data.personelAd);
+        }
+      });
+      console.log("✅ Toplam onaylanmış izin:", list.length, list);
+      setIzinlerFirebase(list);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  // Vardiya planından hafta tatillerini çek
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, "vardiyaPlan"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list: IzinKaydi[] = [];
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        // Sadece hafta tatili olanları al
+        if (data.haftaTatili === true) {
+          console.log("🏖️ Hafta tatili bulundu:", {
+            personelAd: data.personelAd,
+            tarih: data.tarih
+          });
+          list.push({
+            id: docSnap.id,
+            personelId: data.personelId || "",
+            personelAd: data.personelAd || "",
+            baslangicTarihi: data.tarih || "", // Tek günlük
+            bitisTarihi: data.tarih || "", // Tek günlük
+            izinTuru: "Haftalık İzin",
+            durum: "Onaylandı",
+            aciklama: "Vardiya planından hafta tatili",
+          });
+        }
+      });
+      console.log("🏖️ Toplam hafta tatili:", list.length, list);
+      setHaftaTatilleri(list);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
   // Çalışma yılı hesapla
   const hesaplaCalismaYili = (iseBaslama: string) => {
     if (!iseBaslama) return 0;
@@ -419,9 +509,38 @@ export default function HomePage() {
   const buAyGelinler = gelinler.filter(g => g.tarih.startsWith(buAyStr));
   const yaklasakGelinler = gelinler.filter(g => g.tarih >= bugun).slice(0, 10);
 
-  // Bugün izinli olanlar
-  const bugunIzinliler = getIzinliler(bugun);
-  const haftaIzinliler = getIzinlerAralik(haftaBasiStr, haftaSonuStr);
+  // Tüm izinleri birleştir (hem izinler hem vardiya planından hafta tatilleri)
+  const tumIzinler = [...izinlerFirebase, ...haftaTatilleri];
+  console.log("📊 Toplam tüm izinler (izinler + hafta tatili):", tumIzinler.length);
+
+  // Bugün izinli olanlar (Firebase'den)
+  const bugunIzinliler = tumIzinler.filter(izin => {
+    const sonuc = izin.baslangicTarihi <= bugun && izin.bitisTarihi >= bugun;
+    if (sonuc) {
+      console.log("Bugün izinli:", {
+        personel: izin.personelAd,
+        baslangic: izin.baslangicTarihi,
+        bitis: izin.bitisTarihi,
+        bugun: bugun,
+        kontrolBaslangic: izin.baslangicTarihi <= bugun,
+        kontrolBitis: izin.bitisTarihi >= bugun
+      });
+    }
+    return sonuc;
+  }).map(izin => ({
+    ...izin,
+    personel: getPersonelByIsim(izin.personelAd?.split(' ')[0] || '')
+  }));
+  
+  console.log("Bugün izinli toplam:", bugunIzinliler.length, bugunIzinliler);
+  
+  // Hafta izinliler (Firebase'den)
+  const haftaIzinliler = tumIzinler.filter(izin =>
+    izin.baslangicTarihi <= haftaSonuStr && izin.bitisTarihi >= haftaBasiStr
+  ).map(izin => ({
+    ...izin,
+    personel: getPersonelByIsim(izin.personelAd?.split(' ')[0] || '')
+  }));
 
   // Attendance bazlı hesaplamalar
   const bugunGelenler = personelDurumlar.filter(p => p.girisSaati !== null);
@@ -470,7 +589,13 @@ export default function HomePage() {
           tarih.setDate(haftaBasi.getDate() + index);
           const tarihStr = tarih.toISOString().split('T')[0];
           const gunGelinler = gelinler.filter(g => g.tarih === tarihStr);
-          const gunIzinliler = getIzinliler(tarihStr);
+          // Firebase'den izinlileri filtrele
+          const gunIzinliler = izinlerFirebase.filter(izin =>
+            izin.baslangicTarihi <= tarihStr && izin.bitisTarihi >= tarihStr
+          ).map(izin => ({
+            ...izin,
+            personel: getPersonelByIsim(izin.personelAd?.split(' ')[0] || '')
+          }));
           const isToday = tarihStr === bugun;
 
           return (
@@ -881,16 +1006,21 @@ export default function HomePage() {
                     })}
                   </div>
                 )}
+                
+                {/* İzinli Olanlar - Altında */}
                 {bugunIzinliler.length > 0 && (
-                  <div className="mt-3 pt-3 border-t">
+                  <div className="mt-3 pt-3 border-t border-gray-200">
                     <p className="text-xs text-gray-500 mb-2">İzinli ({bugunIzinliler.length})</p>
-                    {bugunIzinliler.map((izin) => (
-                      <div key={izin.id} className="flex items-center gap-2 p-2 bg-orange-50 rounded-lg mb-1">
-                        <span>{izin.personel?.emoji}</span>
-                        <span className="text-sm text-orange-700">{izin.personel?.isim}</span>
-                        <span className="text-xs text-orange-500 ml-auto">🏖️</span>
-                      </div>
-                    ))}
+                    <div className="space-y-2">
+                      {bugunIzinliler.map((izin) => {
+                        return (
+                          <div key={izin.id} className="flex items-center justify-between p-2 bg-orange-50 rounded-lg border border-orange-200">
+                            <span className="text-sm font-medium text-orange-800">{izin.personelAd}</span>
+                            <span className="text-xs text-orange-600">{izin.izinTuru}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </Panel>

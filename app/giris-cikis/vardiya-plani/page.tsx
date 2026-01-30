@@ -6,6 +6,7 @@ import { collection, query, orderBy, onSnapshot, doc, setDoc, deleteDoc, Timesta
 import { auth, db } from "../../lib/firebase";
 import Sidebar from "../../components/Sidebar";
 import { resmiTatiller } from "../../lib/data";
+import { tarihAraligiIzinleriGetir } from "../../lib/izinHelper";
 
 interface Personel {
   id: string;
@@ -200,41 +201,30 @@ export default function VardiyaPlaniPage() {
         return true;
       });
 
-      // İzinleri çek
+      // İzinleri çek (hem izinler hem vardiyaPlan'daki hafta tatilleri)
       const izinMap = new Map<string, string>();
       try {
-        // "izinler" collection'ından
-        const izinlerSnap = await getDocs(collection(db, "izinler"));
+        // Haftanın ilk ve son günü
+        const haftaBaslangic = haftaGunleri[0];
+        const haftaSonu = haftaGunleri[haftaGunleri.length - 1];
         
-        izinlerSnap.forEach(docSnap => {
-          const d = docSnap.data();
-          
-          // Durum kontrolü (büyük/küçük harf fark etmez)
-          const durum = (d.durum || "").toLowerCase();
-          if (durum !== "onaylandı" && durum !== "onaylandi") {
-            console.log("Onaylı değil, atlanıyor:", d.durum);
-            return;
-          }
-          
-          const personelId = d.personelId;
-          if (!personelId) {
-            console.log("personelId yok");
-            return;
-          }
-          
-          // Tarihler string formatında: "2026-02-03"
-          const start = new Date(d.baslangic);
-          const end = new Date(d.bitis);
-          
-          console.log("Parsed dates:", start, end, "personelId:", personelId);
+        // Tüm izinleri getir
+        const haftaBasStr = formatTarihKey(haftaBaslangic);
+        const haftaSonStr = formatTarihKey(haftaSonu);
+        const izinler = await tarihAraligiIzinleriGetir(haftaBasStr, haftaSonStr);
+        
+        // Her izin için map'e ekle
+        izinler.forEach(izin => {
+          const start = new Date(izin.baslangicTarihi);
+          const end = new Date(izin.bitisTarihi);
           
           if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
             for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
               const tarihKey = formatTarihKey(date);
               // Haftanın günleri içinde mi kontrol et
               if (haftaGunleri.some(g => formatTarihKey(g) === tarihKey)) {
-                const key = `${personelId}-${tarihKey}`;
-                izinMap.set(key, d.izinTuru || "Yıllık İzin");
+                const key = `${izin.personelId}-${tarihKey}`;
+                izinMap.set(key, izin.izinTuru);
               }
             }
           }

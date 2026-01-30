@@ -6,6 +6,7 @@ import { collection, query, onSnapshot, orderBy, where, Timestamp, getDocs, addD
 import { useRouter } from "next/navigation";
 import Sidebar from "../../components/Sidebar";
 import { resmiTatiller } from "../../lib/data";
+import { izinMapOlustur } from "../../lib/izinHelper";
 
 interface Personel {
   id: string;
@@ -198,48 +199,22 @@ export default function PuantajPage() {
         kayitlar.get(key)!.push({ id: docSnap.id, ...d, tarihDate: tarih });
       });
 
-      // İzinleri çek
+      // İzinleri çek (hem izinler hem vardiyaPlan'daki hafta tatilleri)
       const izinMap = new Map<string, string>();
       try {
-        // "izinler" collection'ından
-        const izinSnap = await getDocs(collection(db, "izinler"));
+        // Ayın başı ve sonu
+        const ayBaslangic = new Date(seciliYil, seciliAy, 1);
+        const aySonu = new Date(seciliYil, seciliAy + 1, 0);
         
-        izinSnap.forEach(docSnap => {
-          const d = docSnap.data();
-          
-          // Durum kontrolü (büyük/küçük harf fark etmez)
-          const durum = (d.durum || "").toLowerCase();
-          if (durum !== "onaylandı" && durum !== "onaylandi") {
-            console.log("Onaylı değil, atlanıyor:", d.durum);
-            return;
-          }
-          
-          const personelId = d.personelId;
-          if (!personelId) {
-            console.log("personelId yok");
-            return;
-          }
-          
-          // Tarihler string formatında: "2026-02-03"
-          const start = new Date(d.baslangic);
-          const end = new Date(d.bitis);
-          
-          console.log("Parsed dates:", start, end, "personelId:", personelId);
-          
-          if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-            for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
-              if (date.getMonth() === seciliAy && date.getFullYear() === seciliYil) {
-                const gun = date.getDate();
-                const key = `${personelId}-${gun}`;
-                izinMap.set(key, d.izinTuru || "Yıllık İzin");
-              }
-            }
-          }
+        const tempMap = await izinMapOlustur(ayBaslangic, aySonu, "gun");
+        // Map'i kopyala
+        tempMap.forEach((value, key) => {
+          izinMap.set(key, value);
         });
         
-        console.log("Final izin map size:", izinMap.size);
+        console.log("Final izinMap size:", izinMap.size);
       } catch (e) {
-        console.error("İzin verisi çekilemedi:", e);
+        console.error("İzinleri çekerken hata:", e);
       }
 
       // Her personel için puantaj oluştur
