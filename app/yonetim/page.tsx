@@ -48,6 +48,9 @@ export default function YonetimPage() {
   
   // Bugünkü ay satırı için ref
   const bugunAyRef = useRef<HTMLTableRowElement>(null);
+  
+  // Scroll sadece bir kez olsun diye flag
+  const hasScrolled = useRef(false);
 
   const bugun = new Date().toISOString().split('T')[0];
   const buAy = new Date().toISOString().slice(0, 7);
@@ -111,18 +114,21 @@ export default function YonetimPage() {
     return () => unsubscribe();
   }, [user]);
 
-  // Sayfa yüklendiğinde bugünkü aya scroll yap
+  // Sayfa yüklendiğinde bugünkü aya scroll yap (SADECE BİR KEZ)
   useEffect(() => {
-    if (!loading && bugunAyRef.current) {
+    if (!loading && bugunAyRef.current && !hasScrolled.current) {
       // Kısa bir gecikme ile scroll yap (DOM render olsun diye)
       setTimeout(() => {
-        bugunAyRef.current?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start'
-        });
+        if (bugunAyRef.current) {
+          bugunAyRef.current.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+          });
+          hasScrolled.current = true; // Flag'i set et
+        }
       }, 300);
     }
-  }, [loading, hedefler, gelinler]);
+  }, [loading]);
 
   const fetchGelinler = async () => {
     try {
@@ -519,6 +525,79 @@ export default function YonetimPage() {
                   </div>
                 );
               })}
+            </div>
+          </div>
+
+          {/* Sosyal Medya Bölümü */}
+          <div className="mt-6 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+              <span>📱</span> Sosyal Medya
+            </h2>
+
+            {/* Haftalık Program */}
+            <div className="mb-8">
+              <h3 className="text-md font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                <span>📅</span> Haftalık Program
+              </h3>
+              <div className="grid grid-cols-7 gap-3">
+                {['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'].map((gun, idx) => (
+                  <div key={gun} className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition">
+                    <p className="font-medium text-gray-700 text-sm mb-2">{gun}</p>
+                    <div className="space-y-2">
+                      <div className="text-xs text-gray-500 bg-white rounded p-2 border border-gray-200">
+                        <p className="font-medium text-gray-600">Instagram</p>
+                        <p className="text-gray-400">Post zamanı</p>
+                      </div>
+                      <div className="text-xs text-gray-500 bg-white rounded p-2 border border-gray-200">
+                        <p className="font-medium text-gray-600">TikTok</p>
+                        <p className="text-gray-400">Video paylaşımı</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Referanslar */}
+            <div>
+              <h3 className="text-md font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                <span>⭐</span> Referanslar
+              </h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-gradient-to-br from-pink-50 to-purple-50 rounded-xl p-5 border border-pink-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-2xl">📸</span>
+                    <span className="text-xs text-gray-500">Bu Ay</span>
+                  </div>
+                  <p className="text-3xl font-bold text-pink-600">0</p>
+                  <p className="text-sm text-gray-600 mt-1">Instagram'dan Gelen</p>
+                </div>
+
+                <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-5 border border-blue-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-2xl">🎵</span>
+                    <span className="text-xs text-gray-500">Bu Ay</span>
+                  </div>
+                  <p className="text-3xl font-bold text-blue-600">0</p>
+                  <p className="text-sm text-gray-600 mt-1">TikTok'tan Gelen</p>
+                </div>
+
+                <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-5 border border-green-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-2xl">👥</span>
+                    <span className="text-xs text-gray-500">Bu Ay</span>
+                  </div>
+                  <p className="text-3xl font-bold text-green-600">0</p>
+                  <p className="text-sm text-gray-600 mt-1">Tavsiye ile Gelen</p>
+                </div>
+              </div>
+
+              <div className="mt-4 bg-gray-50 rounded-xl p-4">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-gray-700">Toplam Referans Gelini</span>
+                  <span className="text-2xl font-bold text-purple-600">0</span>
+                </div>
+              </div>
             </div>
           </div>
         </main>

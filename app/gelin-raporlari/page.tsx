@@ -4,7 +4,7 @@ import { auth } from "../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Sidebar from "../components/Sidebar";
-import { personelListesi } from "../lib/data";
+import { usePersoneller } from "../hooks/usePersoneller";
 
 interface GelinRapor {
   id: string;
@@ -29,6 +29,9 @@ export default function GelinRaporlariPage() {
   const [selectedPersonel, setSelectedPersonel] = useState<string>("hepsi");
   const [selectedAy, setSelectedAy] = useState<string>("hepsi");
   const router = useRouter();
+
+  // Personeller (Firebase'den)
+  const { personeller } = usePersoneller();
 
   const aylar = [
     { value: "01", label: "Ocak" }, { value: "02", label: "Şubat" }, { value: "03", label: "Mart" },
@@ -189,7 +192,7 @@ export default function GelinRaporlariPage() {
                   >
                     👥 Hepsi
                   </button>
-                  {personelListesi.map(p => (
+                  {personeller.map(p => (
                     <button
                       key={p.id}
                       onClick={() => setSelectedPersonel(p.isim)}
@@ -240,7 +243,7 @@ export default function GelinRaporlariPage() {
 
           {/* Personel İstatistikleri */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-            {personelListesi.map(personel => {
+            {personeller.map(personel => {
               const stats = getPersonelStats(personel.isim);
               return (
                 <div key={personel.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">

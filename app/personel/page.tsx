@@ -33,6 +33,7 @@ interface Personel {
   iseBaslama: string;
   istenAyrilma: string;
   kullaniciTuru: string;
+  yoneticiId?: string; // YENİ: Yöneticinin ID'si
   grup: string; // Grup etiketi (kurucu, yönetici, vb.)
   grupEtiketleri: string[];
   yetkiliGruplar: string[];
@@ -76,6 +77,7 @@ function PersonelPageContent() {
   const [selectedPersonel, setSelectedPersonel] = useState<Personel | null>(null);
   const [activeTab, setActiveTab] = useState(0);
   const [fotoPreview, setFotoPreview] = useState("");
+  const [yonetilenPersoneller, setYonetilenPersoneller] = useState<string[]>([]); // YENİ: Bu kişinin yönettiği personeller
   const router = useRouter();
   const searchParams = useSearchParams();
   const grupFilter = searchParams.get("grup") || "";
@@ -116,6 +118,7 @@ function PersonelPageContent() {
     iseBaslama: "",
     istenAyrilma: "",
     kullaniciTuru: "Personel",
+    yoneticiId: "", // YENİ: Yönetici ID
     grup: "", // Grup etiketi
     grupEtiketleri: [],
     yetkiliGruplar: [],
@@ -203,12 +206,43 @@ function PersonelPageContent() {
       if (editingPersonel) {
         const { id, ...dataToUpdate } = formData;
         await updateDoc(doc(db, "personnel", editingPersonel.id), dataToUpdate);
+        
+        // Yönetici veya Kurucu ise, yönettiği personelleri güncelle
+        if (formData.kullaniciTuru === "Yönetici" || formData.kullaniciTuru === "Kurucu") {
+          // Eski yönetilenleri bul (şu an bu kişinin yöneticisi olanlar)
+          const eskiYonetilenler = personeller
+            .filter(p => p.yoneticiId === editingPersonel.id)
+            .map(p => p.id);
+          
+          // Artık yönetilmeyenler (eski - yeni)
+          const kaldirilacaklar = eskiYonetilenler.filter(id => !yonetilenPersoneller.includes(id));
+          
+          // Yeni eklenenler (yeni - eski)
+          const eklenecekler = yonetilenPersoneller.filter(id => !eskiYonetilenler.includes(id));
+          
+          // Kaldırılacakların yoneticiId'sini temizle
+          for (const personelId of kaldirilacaklar) {
+            await updateDoc(doc(db, "personnel", personelId), { yoneticiId: "" });
+          }
+          
+          // Ekleneceklerin yoneticiId'sini set et
+          for (const personelId of eklenecekler) {
+            await updateDoc(doc(db, "personnel", personelId), { yoneticiId: editingPersonel.id });
+          }
+        }
       } else {
         const { id, ...dataToAdd } = formData;
-        await addDoc(collection(db, "personnel"), {
+        const docRef = await addDoc(collection(db, "personnel"), {
           ...dataToAdd,
           createdAt: serverTimestamp()
         });
+        
+        // Yeni eklenen personel Yönetici veya Kurucu ise, yönettiği personelleri set et
+        if ((formData.kullaniciTuru === "Yönetici" || formData.kullaniciTuru === "Kurucu") && yonetilenPersoneller.length > 0) {
+          for (const personelId of yonetilenPersoneller) {
+            await updateDoc(doc(db, "personnel", personelId), { yoneticiId: docRef.id });
+          }
+        }
       }
 
       if (action === 'close') {
@@ -263,6 +297,13 @@ function PersonelPageContent() {
     setEditingPersonel(personel);
     setFormData(personel);
     setFotoPreview(personel.foto);
+    
+    // Bu personelin yönettiği kişileri bul
+    const yonetilenler = personeller
+      .filter(p => p.yoneticiId === personel.id)
+      .map(p => p.id);
+    setYonetilenPersoneller(yonetilenler);
+    
     setActiveTab(0);
     setShowModal(true);
   };
@@ -281,6 +322,7 @@ function PersonelPageContent() {
       iseBaslama: "",
       istenAyrilma: "",
       kullaniciTuru: "Personel",
+      yoneticiId: "", // YENİ: Yönetici ID
       grup: "", // Grup etiketi
       grupEtiketleri: [],
       yetkiliGruplar: [],
@@ -296,6 +338,7 @@ function PersonelPageContent() {
       }
     });
     setFotoPreview("");
+    setYonetilenPersoneller([]); // YENİ: Yönetilen personelleri temizle
   };
 
   const toggleGrup = (grup: string) => {
@@ -307,10 +350,11 @@ function PersonelPageContent() {
   };
 
   const toggleYetkiliGrup = (grup: string) => {
-    if (formData.yetkiliGruplar.includes(grup)) {
-      setFormData({ ...formData, yetkiliGruplar: formData.yetkiliGruplar.filter(g => g !== grup) });
+    const yetkiliGruplar = formData.yetkiliGruplar || [];
+    if (yetkiliGruplar.includes(grup)) {
+      setFormData({ ...formData, yetkiliGruplar: yetkiliGruplar.filter(g => g !== grup) });
     } else {
-      setFormData({ ...formData, yetkiliGruplar: [...formData.yetkiliGruplar, grup] });
+      setFormData({ ...formData, yetkiliGruplar: [...yetkiliGruplar, grup] });
     }
   };
 
@@ -804,21 +848,6 @@ function PersonelPageContent() {
               {activeTab === 3 && (
                 <div className="space-y-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Grup Etiketi *</label>
-                    <select 
-                      value={formData.grup} 
-                      onChange={(e) => setFormData({ ...formData, grup: e.target.value })} 
-                      className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 bg-white"
-                    >
-                      <option value="">Seçiniz</option>
-                      {grupEtiketleri.map(g => (
-                        <option key={g.id} value={g.grupAdi}>{g.grupAdi}</option>
-                      ))}
-                    </select>
-                    <p className="text-xs text-gray-500 mt-1">Personelin ait olduğu grup (kurucu, yönetici, vb.)</p>
-                  </div>
-
-                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Kullanıcı Türü *</label>
                     <select 
                       value={formData.kullaniciTuru} 
@@ -827,31 +856,59 @@ function PersonelPageContent() {
                     >
                       {kullaniciTurleri.map(kt => <option key={kt} value={kt}>{kt}</option>)}
                     </select>
+                    <p className="text-xs text-gray-500 mt-1">Personelin sistem içindeki rolü (Personel, Yönetici, Kurucu)</p>
                   </div>
 
-                  {formData.kullaniciTuru === "Yönetici" && (
+                  {/* Yönetici Türündeki Kullanıcıların Sorumlu Olduğu Kişiler */}
+                  {(formData.kullaniciTuru === "Yönetici" || formData.kullaniciTuru === "Kurucu") && (
                     <div>
-                      <p className="text-sm text-gray-600 mb-4">Yönetici Türündeki Kullanıcıların Sorumlu Olduğu Grup Etiketleri:</p>
-                      <div className="flex flex-wrap gap-3">
-                        {grupEtiketleri.map(grup => {
-                          const stiller = getRenkStilleri(grup.renk);
-                          const isSelected = formData.yetkiliGruplar.includes(grup.grupAdi);
-                          return (
-                            <button
-                              key={grup.id}
-                              type="button"
-                              onClick={() => toggleYetkiliGrup(grup.grupAdi)}
-                              className={`px-4 py-2 rounded-lg border-2 transition flex items-center gap-2 ${
-                                isSelected
-                                  ? `${stiller.bg} text-white border-transparent font-semibold`
-                                  : 'border-gray-200 hover:border-gray-300 text-gray-700'
-                              }`}
-                            >
-                              <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white' : stiller.bg}`}></span>
-                              {grup.grupAdi}
-                            </button>
-                          );
-                        })}
+                      <label className="block text-sm font-medium text-gray-700 mb-3">
+                        Yönetici Türündeki Kullanıcıların Sorumlu Olduğu Kişiler:
+                      </label>
+                      <p className="text-xs text-gray-500 mb-3">Bu kişinin yöneteceği personelleri seçin</p>
+                      <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-xl p-3 bg-gray-50">
+                        {personeller
+                          .filter(p => 
+                            p.aktif && 
+                            p.id !== formData.id && 
+                            p.kullaniciTuru !== "Kurucu" // Kurucuların yöneticisi olamaz
+                          )
+                          .length === 0 ? (
+                            <p className="text-sm text-gray-500 text-center py-4">Yönetilebilecek personel yok</p>
+                          ) : (
+                            <div className="space-y-2">
+                              {personeller
+                                .filter(p => 
+                                  p.aktif && 
+                                  p.id !== formData.id && 
+                                  p.kullaniciTuru !== "Kurucu"
+                                )
+                                .map(p => (
+                                  <label
+                                    key={p.id}
+                                    className="flex items-center gap-3 p-2 hover:bg-white rounded-lg cursor-pointer transition"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={yonetilenPersoneller.includes(p.id)}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setYonetilenPersoneller([...yonetilenPersoneller, p.id]);
+                                        } else {
+                                          setYonetilenPersoneller(yonetilenPersoneller.filter(id => id !== p.id));
+                                        }
+                                      }}
+                                      className="w-4 h-4 text-pink-500 border-gray-300 rounded focus:ring-pink-500"
+                                    />
+                                    <span className="text-sm text-gray-700">
+                                      {p.ad} {p.soyad} <span className="text-gray-400">({p.kullaniciTuru})</span>
+                                    </span>
+                                  </label>
+                                ))
+                              }
+                            </div>
+                          )
+                        }
                       </div>
                     </div>
                   )}
@@ -931,6 +988,19 @@ function PersonelPageContent() {
                   <p className="font-semibold text-gray-800 text-sm">{selectedPersonel.email || 'Belirtilmemiş'}</p>
                 </div>
               </div>
+
+              {/* Yönetici Bilgisi */}
+              {selectedPersonel.yoneticiId && (
+                <div className="p-4 bg-pink-50 rounded-xl border border-pink-200">
+                  <p className="text-sm text-pink-600 mb-2">👔 Yöneticisi</p>
+                  <p className="font-semibold text-gray-800">
+                    {(() => {
+                      const yonetici = personeller.find(p => p.id === selectedPersonel.yoneticiId);
+                      return yonetici ? `${yonetici.ad} ${yonetici.soyad}` : 'Yönetici bulunamadı';
+                    })()}
+                  </p>
+                </div>
+              )}
 
               <div className="grid grid-cols-3 gap-3">
                 <div className="p-4 bg-yellow-50 rounded-xl">

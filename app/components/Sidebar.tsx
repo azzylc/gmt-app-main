@@ -61,8 +61,17 @@ function SidebarContent({ user }: SidebarProps) {
   }, [user?.email]);
 
   const isKurucu = kullaniciGruplar.some(g => g.toLowerCase() === "kurucu");
+  const isYonetici = kullaniciGruplar.some(g => g.toLowerCase() === "yönetici" || g.toLowerCase() === "kurucu") || 
+                     personelData?.kullaniciTuru === "Yönetici" || 
+                     personelData?.kullaniciTuru === "Kurucu";
 
   const menuItems = [
+    {
+      id: "genel-bakis",
+      label: "Genel Bakış",
+      icon: "📊",
+      path: "/",
+    },
     {
       id: "qr-giris",
       label: "Giriş-Çıkış",
@@ -81,12 +90,6 @@ function SidebarContent({ user }: SidebarProps) {
         { label: "Toplu İşlem Ekle", path: "/giris-cikis/toplu-islem-ekle" },
         { label: "Değişiklik Kayıtları", path: "/giris-cikis/degisiklik-kayitlari" },
       ],
-    },
-    {
-      id: "genel-bakis",
-      label: "Genel Bakış",
-      icon: "📊",
-      path: "/",
     },
     {
       id: "duyurular",
@@ -156,6 +159,12 @@ function SidebarContent({ user }: SidebarProps) {
         { label: "Gelin Raporları", path: "/gelin-raporlari" },
       ],
     },
+    ...(isYonetici ? [{
+      id: "yonetici-dashboard",
+      label: "Ekip Yönetimi",
+      icon: "👔",
+      path: "/yonetici-dashboard",
+    }] : []),
     ...(isKurucu ? [{
       id: "yonetim",
       label: "Yönetim Paneli",

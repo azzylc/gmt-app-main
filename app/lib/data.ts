@@ -1,150 +1,3 @@
-// Personel bilgileri
-export interface Personel {
-  id: string;
-  isim: string;
-  kisaltma: string;
-  emoji: string;
-  renk: string;
-  dogumGunu: string;
-  telefon: string;
-  instagram: string;
-  rol: string;
-  calismaBaslangic: string;
-  calismaSaatleri: string;
-}
-
-export const personelListesi: Personel[] = [
-  { 
-    id: "saliha",
-    isim: "Saliha", 
-    kisaltma: "SA",
-    emoji: "👩‍🦰", 
-    renk: "from-red-100 to-red-200",
-    dogumGunu: "1995-03-15",
-    telefon: "0532 xxx xx xx",
-    instagram: "@saliha_makeup",
-    rol: "Makyaj & Türban",
-    calismaBaslangic: "2023-01-01",
-    calismaSaatleri: "09:00 - 18:00"
-  },
-  { 
-    id: "selen",
-    isim: "Selen", 
-    kisaltma: "SE",
-    emoji: "👩‍🦱", 
-    renk: "from-blue-100 to-blue-200",
-    dogumGunu: "1998-07-22",
-    telefon: "0533 xxx xx xx",
-    instagram: "@selen_beauty",
-    rol: "Makyaj & Türban",
-    calismaBaslangic: "2023-06-01",
-    calismaSaatleri: "09:00 - 18:00"
-  },
-  { 
-    id: "tansu",
-    isim: "Tansu", 
-    kisaltma: "T",
-    emoji: "👩", 
-    renk: "from-green-100 to-green-200",
-    dogumGunu: "1996-11-08",
-    telefon: "0534 xxx xx xx",
-    instagram: "@tansu_style",
-    rol: "Türban",
-    calismaBaslangic: "2024-01-01",
-    calismaSaatleri: "09:00 - 18:00"
-  },
-  { 
-    id: "kubra",
-    isim: "Kübra", 
-    kisaltma: "K",
-    emoji: "👩‍🦳", 
-    renk: "from-purple-100 to-purple-200",
-    dogumGunu: "1997-05-30",
-    telefon: "0535 xxx xx xx",
-    instagram: "@kubra_makeup",
-    rol: "Makyaj & Türban",
-    calismaBaslangic: "2023-03-01",
-    calismaSaatleri: "09:00 - 18:00"
-  },
-  { 
-    id: "rumeysa",
-    isim: "Rümeysa", 
-    kisaltma: "R",
-    emoji: "🧕", 
-    renk: "from-pink-100 to-pink-200",
-    dogumGunu: "1999-09-12",
-    telefon: "0536 xxx xx xx",
-    instagram: "@rumeysa_beauty",
-    rol: "Makyaj & Türban",
-    calismaBaslangic: "2024-06-01",
-    calismaSaatleri: "09:00 - 18:00"
-  },
-  { 
-    id: "bahar",
-    isim: "Bahar", 
-    kisaltma: "B",
-    emoji: "👧", 
-    renk: "from-yellow-100 to-yellow-200",
-    dogumGunu: "2000-04-18",
-    telefon: "0537 xxx xx xx",
-    instagram: "@bahar_style",
-    rol: "Türban",
-    calismaBaslangic: "2024-09-01",
-    calismaSaatleri: "09:00 - 18:00"
-  },
-  { 
-    id: "zehra",
-    isim: "Zehra", 
-    kisaltma: "Z",
-    emoji: "👩‍🔬", 
-    renk: "from-teal-100 to-teal-200",
-    dogumGunu: "1998-12-25",
-    telefon: "0538 xxx xx xx",
-    instagram: "@zehra_makeup",
-    rol: "Makyaj",
-    calismaBaslangic: "2025-01-01",
-    calismaSaatleri: "09:00 - 18:00"
-  },
-];
-
-// Personel bul
-export const getPersonelByIsim = (isim: string): Personel | undefined => {
-  return personelListesi.find(p => p.isim === isim);
-};
-
-export const getPersonelById = (id: string): Personel | undefined => {
-  return personelListesi.find(p => p.id === id);
-};
-
-// Yaklaşan doğum günleri (30 gün içinde)
-export const getYaklasanDogumGunleri = () => {
-  const bugun = new Date();
-  const otuzGunSonra = new Date();
-  otuzGunSonra.setDate(bugun.getDate() + 30);
-  
-  return personelListesi.filter(p => {
-    const dogumGunu = new Date(p.dogumGunu);
-    const buYilDogumGunu = new Date(bugun.getFullYear(), dogumGunu.getMonth(), dogumGunu.getDate());
-    
-    if (buYilDogumGunu < bugun) {
-      buYilDogumGunu.setFullYear(bugun.getFullYear() + 1);
-    }
-    
-    return buYilDogumGunu >= bugun && buYilDogumGunu <= otuzGunSonra;
-  }).map(p => {
-    const dogumGunu = new Date(p.dogumGunu);
-    const buYilDogumGunu = new Date(bugun.getFullYear(), dogumGunu.getMonth(), dogumGunu.getDate());
-    if (buYilDogumGunu < bugun) {
-      buYilDogumGunu.setFullYear(bugun.getFullYear() + 1);
-    }
-    return {
-      ...p,
-      yaklasanTarih: buYilDogumGunu.toISOString().split('T')[0],
-      kalanGun: Math.ceil((buYilDogumGunu.getTime() - bugun.getTime()) / (1000 * 60 * 60 * 24))
-    };
-  }).sort((a, b) => a.kalanGun - b.kalanGun);
-};
-
 // İzin tipleri
 export type IzinTuru = 'yillik' | 'mazeret' | 'hastalik' | 'ucretsiz' | 'diger';
 
@@ -158,60 +11,6 @@ export interface Izin {
   onayDurumu: 'beklemede' | 'onaylandi' | 'reddedildi';
   olusturmaTarihi: string;
 }
-
-// Örnek izin verileri
-export const izinler: Izin[] = [
-  { 
-    id: "1",
-    personelId: "saliha", 
-    baslangic: "2026-02-01", 
-    bitis: "2026-02-03", 
-    tur: "yillik", 
-    aciklama: "Yıllık izin",
-    onayDurumu: "onaylandi",
-    olusturmaTarihi: "2026-01-20"
-  },
-  { 
-    id: "2",
-    personelId: "tansu", 
-    baslangic: "2026-01-30", 
-    bitis: "2026-01-30", 
-    tur: "mazeret", 
-    aciklama: "Doktor randevusu",
-    onayDurumu: "onaylandi",
-    olusturmaTarihi: "2026-01-25"
-  },
-  { 
-    id: "3",
-    personelId: "zehra", 
-    baslangic: "2026-02-10", 
-    bitis: "2026-02-14", 
-    tur: "yillik", 
-    aciklama: "Tatil",
-    onayDurumu: "beklemede",
-    olusturmaTarihi: "2026-01-28"
-  },
-];
-
-// Belirli tarihte izinli personelleri getir
-export const getIzinliler = (tarih: string) => {
-  return izinler
-    .filter(izin => izin.baslangic <= tarih && izin.bitis >= tarih && izin.onayDurumu === 'onaylandi')
-    .map(izin => ({
-      ...izin,
-      personel: getPersonelById(izin.personelId)
-    }));
-};
-
-// Tarih aralığındaki izinleri getir
-export const getIzinlerAralik = (baslangic: string, bitis: string) => {
-  return izinler
-    .filter(izin => izin.baslangic <= bitis && izin.bitis >= baslangic)
-    .map(izin => ({
-      ...izin,
-      personel: getPersonelById(izin.personelId)
-    }));
-};
 
 // Duyuru
 export interface Duyuru {
@@ -263,6 +62,65 @@ export const duyurular: Duyuru[] = [
     okundu: true
   },
 ];
+
+// Resmi tatiller
+export interface ResmiTatil {
+  tarih: string;
+  isim: string;
+  sure: number; // gün sayısı
+}
+
+/**
+ * Yaklaşan doğum günlerini hesapla (Firebase personel verisi gerekli)
+ */
+interface PersonelDogumGunu {
+  id: string;
+  isim: string;
+  emoji: string;
+  yaklasanTarih: string;
+  kalanGun: number;
+}
+
+interface PersonelWithBirthday {
+  id: string;
+  ad: string;
+  soyad: string;
+  dogumTarihi?: string;
+  emoji?: string;
+  aktif: boolean;
+}
+
+export function getYaklasanDogumGunleri(personeller: PersonelWithBirthday[]): PersonelDogumGunu[] {
+  const bugun = new Date();
+  bugun.setHours(0, 0, 0, 0);
+  
+  return personeller
+    .filter(p => p.dogumTarihi && p.aktif)
+    .map(p => {
+      const dogumTarihi = new Date(p.dogumTarihi!);
+      const buYil = bugun.getFullYear();
+      
+      // Bu yıl doğum günü
+      let yaklasanDogumGunu = new Date(buYil, dogumTarihi.getMonth(), dogumTarihi.getDate());
+      
+      // Eğer geçmişse gelecek yıl
+      if (yaklasanDogumGunu < bugun) {
+        yaklasanDogumGunu = new Date(buYil + 1, dogumTarihi.getMonth(), dogumTarihi.getDate());
+      }
+      
+      const kalanGun = Math.floor((yaklasanDogumGunu.getTime() - bugun.getTime()) / (1000 * 60 * 60 * 24));
+      
+      return {
+        id: p.id,
+        isim: `${p.ad} ${p.soyad}`,
+        emoji: p.emoji || '🎂',
+        yaklasanTarih: yaklasanDogumGunu.toISOString().split('T')[0],
+        kalanGun
+      };
+    })
+    .filter(p => p.kalanGun <= 30) // 30 gün içindekiler
+    .sort((a, b) => a.kalanGun - b.kalanGun);
+}
 
 // Resmi tatiller
 export interface ResmiTatil {

@@ -71,8 +71,8 @@ export default function HaftalikCalismaSureleriPage() {
       weekEnd.setDate(weekStart.getDate() + 6);
       
       const weekNum = getWeekNumber(weekStart);
-      const startStr = weekStart.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
-      const endStr = weekEnd.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' });
+      const startStr = weekStart.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
+      const endStr = weekEnd.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
       
       weeks.push({
         value: weekStart.toISOString().split('T')[0],

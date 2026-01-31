@@ -4,7 +4,7 @@ import { auth } from "../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Sidebar from "../components/Sidebar";
-import { personelListesi } from "../lib/data";
+import { usePersoneller } from "../hooks/usePersoneller";
 
 interface Gelin {
   id: string;
@@ -26,6 +26,9 @@ export default function RaporlarPage() {
   const [loading, setLoading] = useState(true);
   const [selectedAy, setSelectedAy] = useState(new Date().toISOString().slice(0, 7));
   const router = useRouter();
+
+  // Personeller (Firebase'den)
+  const { personeller } = usePersoneller();
 
   const aylar = [
     { value: "2026-01", label: "Ocak 2026" }, { value: "2026-02", label: "Şubat 2026" },
@@ -60,7 +63,7 @@ export default function RaporlarPage() {
   const islenmemis = ayGelinler.filter(g => g.ucret === -1).length;
 
   // Personel bazlı rapor
-  const personelRapor = personelListesi.map(p => {
+  const personelRapor = personeller.map(p => {
     const makyaj = ayGelinler.filter(g => g.makyaj === p.isim).length;
     const turban = ayGelinler.filter(g => g.turban === p.isim && g.makyaj !== p.isim).length;
     return { ...p, makyaj, turban, toplam: makyaj + turban };

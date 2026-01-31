@@ -325,7 +325,31 @@ export default function GelinlerPage() {
                   <input 
                     type="date" 
                     value={formData.tarih} 
-                    onChange={(e) => setFormData({ ...formData, tarih: e.target.value })} 
+                    onChange={(e) => {
+                      const seciliTarih = new Date(e.target.value);
+                      const bugun = new Date();
+                      
+                      // 13 ay sonrasını hesapla
+                      const onUcAySonrasi = new Date();
+                      onUcAySonrasi.setMonth(onUcAySonrasi.getMonth() + 13);
+                      
+                      // Seçilen tarih 13 aydan uzaksa uyarı ver
+                      if (seciliTarih > onUcAySonrasi) {
+                        const onay = window.confirm(
+                          `⚠️ DİKKAT!\n\n` +
+                          `Seçilen tarih 13 aydan uzak: ${seciliTarih.toLocaleDateString('tr-TR')}\n\n` +
+                          `Tarih yanlış girilmiş olabilir. Yıl kısmını kontrol edin.\n\n` +
+                          `Devam etmek istiyor musunuz?`
+                        );
+                        
+                        if (!onay) {
+                          // Kullanıcı iptal derse tarihi güncelleme
+                          return;
+                        }
+                      }
+                      
+                      setFormData({ ...formData, tarih: e.target.value });
+                    }} 
                     className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500" 
                   />
                 </div>

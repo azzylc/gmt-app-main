@@ -5,7 +5,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Sidebar from "../components/Sidebar";
 import GelinModal from "../components/GelinModal";
-import { getIzinliler, resmiTatiller } from "../lib/data";
+import { resmiTatiller } from "../lib/data";
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 
 interface Personel {
@@ -233,7 +233,7 @@ export default function TakvimPage() {
                   const isValidDay = dayNumber > 0 && dayNumber <= daysInMonth;
                   const dateStr = isValidDay ? `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNumber).padStart(2, '0')}` : '';
                   const gunGelinler = isValidDay ? getGelinlerForDate(dateStr) : [];
-                  const gunIzinliler = isValidDay ? getIzinliler(dateStr) : [];
+                  const gunIzinliler = isValidDay ? [] : [];
                   const isToday = dateStr === bugun;
                   const isPast = dateStr < bugun;
                   const isWeekend = index % 7 >= 5;

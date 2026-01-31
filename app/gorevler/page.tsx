@@ -4,53 +4,60 @@ import { auth, db } from "../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Sidebar from "../components/Sidebar";
-import { 
-  collection, 
-  addDoc, 
-  deleteDoc, 
-  doc, 
-  onSnapshot, 
-  query, 
-  orderBy,
-  serverTimestamp
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  serverTimestamp,
+  Timestamp,
+  orderBy
 } from "firebase/firestore";
 
-interface Announcement {
+interface Gorev {
   id: string;
-  title: string;
-  content: string;
-  important: boolean;
-  group: string;
-  author: string;
-  createdAt: any;
+  baslik: string;
+  aciklama: string;
+  atayan: string; // "Sistem" veya user.uid
+  atayanAd: string;
+  atanan: string; // Personel ID
+  atananAd: string;
+  durum: "bekliyor" | "devam-ediyor" | "tamamlandi" | "iptal";
+  oncelik: "dusuk" | "normal" | "yuksek" | "acil";
+  olusturulmaTarihi: any;
+  tamamlanmaTarihi?: any;
+  gelinId?: string; // İlgili gelin
+  otomatikMi?: boolean; // Sistem tarafından oluşturuldu mu?
 }
 
-const GROUPS = [
-  { id: "genel", label: "Genel", color: "bg-blue-500", bgLight: "bg-blue-50", border: "border-blue-200" },
-  { id: "mg", label: "MG", color: "bg-purple-500", bgLight: "bg-purple-50", border: "border-purple-200" },
-  { id: "gys", label: "GYS", color: "bg-pink-500", bgLight: "bg-pink-50", border: "border-pink-200" },
-  { id: "tcb", label: "TCB", color: "bg-orange-500", bgLight: "bg-orange-50", border: "border-orange-200" },
-];
+interface Gelin {
+  id: string;
+  isim: string;
+  tarih: string;
+  saat: string;
+  makyaj: string;
+  yorumIstesinMi?: string;
+}
 
-export default function DuyurularPage() {
+export default function GorevlerPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [filteredAnnouncements, setFilteredAnnouncements] = useState<Announcement[]>([]);
-  const [activeFilter, setActiveFilter] = useState("tumu");
-  const [showModal, setShowModal] = useState(false);
-  const [newAnnouncement, setNewAnnouncement] = useState({ 
-    title: '', 
-    content: '', 
-    important: false,
-    group: 'genel'
-  });
+  const [gorevler, setGorevler] = useState<Gorev[]>([]);
+  const [gelinler, setGelinler] = useState<Gelin[]>([]);
+  const [filtreliGorevler, setFiltreliGorevler] = useState<Gorev[]>([]);
+  const [filtre, setFiltre] = useState<"hepsi" | "bekliyor" | "devam-ediyor" | "tamamlandi">("hepsi");
+  const [selectedGorev, setSelectedGorev] = useState<Gorev | null>(null);
   const router = useRouter();
 
+  // Auth kontrolü
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setUser(user);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
       } else {
         router.push("/login");
       }
@@ -59,89 +66,154 @@ export default function DuyurularPage() {
     return () => unsubscribe();
   }, [router]);
 
-  // Firestore'dan duyuruları dinle
+  // Gelinleri çek (Google Sheets'ten)
+  useEffect(() => {
+    const fetchGelinler = async () => {
+      try {
+        const response = await fetch("https://script.google.com/macros/s/AKfycbyr_9fBVzkVXf-Fx4s-DUjFTPhHlxm54oBGrrG3UGfNengHOp8rQbXKdX8pOk4reH8/exec");
+        const data = await response.json();
+        setGelinler(data.gelinler || []);
+      } catch (error) {
+        console.error("Gelinler yüklenemedi:", error);
+      }
+    };
+    fetchGelinler();
+  }, []);
+
+  // Görevleri dinle
   useEffect(() => {
     if (!user) return;
 
-    const q = query(collection(db, "announcements"), orderBy("createdAt", "desc"));
+    const q = query(
+      collection(db, "gorevler"),
+      where("atanan", "==", user.uid),
+      orderBy("olusturulmaTarihi", "desc")
+    );
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      } as Announcement));
-      setAnnouncements(data);
+      } as Gorev));
+      setGorevler(data);
     });
 
     return () => unsubscribe();
   }, [user]);
 
-  // Filtreleme
+  // Otomatik Görev Oluşturma Kontrolü
   useEffect(() => {
-    if (activeFilter === "tumu") {
-      setFilteredAnnouncements(announcements);
-    } else {
-      setFilteredAnnouncements(announcements.filter(a => a.group === activeFilter));
-    }
-  }, [activeFilter, announcements]);
+    if (!user || gelinler.length === 0 || gorevler.length === 0) return;
 
-  const handleAddAnnouncement = async () => {
-    if (!newAnnouncement.title || !newAnnouncement.content) {
-      alert("Lütfen başlık ve içerik girin!");
-      return;
-    }
+    const simdi = new Date();
 
-    try {
-      await addDoc(collection(db, "announcements"), {
-        title: newAnnouncement.title,
-        content: newAnnouncement.content,
-        important: newAnnouncement.important,
-        group: newAnnouncement.group,
-        author: user?.email?.split('@')[0] || 'Admin',
-        createdAt: serverTimestamp()
-      });
+    gelinler.forEach(async (gelin) => {
+      // Yorum istensin mi boşsa kontrol et
+      if (!gelin.yorumIstesinMi || gelin.yorumIstesinMi.trim() === "") {
+        const gelinTarih = new Date(gelin.tarih);
+        const gelinSaat = gelin.saat.split(":");
+        gelinTarih.setHours(parseInt(gelinSaat[0]), parseInt(gelinSaat[1]));
+        
+        // Bitiş saati: +4 saat (ortalama düğün süresi)
+        const bitisSaati = new Date(gelinTarih.getTime() + 4 * 60 * 60 * 1000);
+        
+        // Hatırlatma zamanı: Bitiş + 1 saat
+        const hatirlatmaZamani = new Date(bitisSaati.getTime() + 1 * 60 * 60 * 1000);
 
-      setShowModal(false);
-      setNewAnnouncement({ title: '', content: '', important: false, group: 'genel' });
-    } catch (error) {
-      console.error("Duyuru eklenirken hata:", error);
-      alert("Duyuru eklenemedi!");
-    }
-  };
+        // Şimdi hatırlatma zamanını geçti mi?
+        if (simdi >= hatirlatmaZamani) {
+          // Bu gelin için zaten görev oluşturulmuş mu kontrol et
+          const mevcutGorev = gorevler.find(g => 
+            g.gelinId === gelin.id && 
+            g.baslik.includes("yorum istensin mi")
+          );
 
-  const handleDeleteAnnouncement = async (id: string) => {
-    if (confirm("Bu duyuruyu silmek istediğinize emin misiniz?")) {
-      try {
-        await deleteDoc(doc(db, "announcements", id));
-      } catch (error) {
-        console.error("Duyuru silinirken hata:", error);
-        alert("Duyuru silinemedi!");
+          if (!mevcutGorev) {
+            // Yeni görev oluştur
+            const makyajPersonelId = gelin.makyaj; // TODO: Personel ID'ye çevir
+            
+            await addDoc(collection(db, "gorevler"), {
+              baslik: `${gelin.isim} - Yorum istensin mi alanını doldur`,
+              aciklama: `${gelin.isim} için "Yorum istensin mi" alanı boş bırakılmış. Lütfen takvimden bu alanı doldurun.`,
+              atayan: "Sistem",
+              atayanAd: "Sistem (Otomatik)",
+              atanan: makyajPersonelId, // Makyajı yapan kişiye atanacak
+              atananAd: gelin.makyaj,
+              durum: "bekliyor",
+              oncelik: "yuksek",
+              olusturulmaTarihi: serverTimestamp(),
+              gelinId: gelin.id,
+              otomatikMi: true
+            });
+
+            console.log(`Otomatik görev oluşturuldu: ${gelin.isim}`);
+          }
+        }
       }
+    });
+  }, [user, gelinler, gorevler]);
+
+  // Filtre uygula
+  useEffect(() => {
+    if (filtre === "hepsi") {
+      setFiltreliGorevler(gorevler);
+    } else {
+      setFiltreliGorevler(gorevler.filter(g => g.durum === filtre));
+    }
+  }, [gorevler, filtre]);
+
+  // Görev durumu değiştir
+  const handleDurumDegistir = async (gorevId: string, yeniDurum: Gorev["durum"]) => {
+    try {
+      const updateData: any = { durum: yeniDurum };
+      if (yeniDurum === "tamamlandi") {
+        updateData.tamamlanmaTarihi = serverTimestamp();
+      }
+      await updateDoc(doc(db, "gorevler", gorevId), updateData);
+    } catch (error) {
+      console.error("Durum güncellenemedi:", error);
     }
   };
 
-  const formatTarih = (timestamp: any) => {
-    if (!timestamp) return '';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleDateString('tr-TR', { 
-      day: 'numeric', 
-      month: 'long', 
-      year: 'numeric'
-    });
+  // Görev sil
+  const handleGorevSil = async (gorevId: string) => {
+    if (!confirm("Bu görevi silmek istediğinize emin misiniz?")) return;
+    try {
+      await deleteDoc(doc(db, "gorevler", gorevId));
+    } catch (error) {
+      console.error("Görev silinemedi:", error);
+    }
   };
 
-  const getGroupInfo = (groupId: string) => {
-    return GROUPS.find(g => g.id === groupId) || GROUPS[0];
+  const oncelikRenk = (oncelik: string) => {
+    switch (oncelik) {
+      case "acil": return "border-red-500 bg-red-50";
+      case "yuksek": return "border-orange-500 bg-orange-50";
+      case "normal": return "border-blue-500 bg-blue-50";
+      case "dusuk": return "border-gray-500 bg-gray-50";
+      default: return "border-gray-300 bg-white";
+    }
   };
 
-  const getGroupCounts = () => {
-    const counts: Record<string, number> = { tumu: announcements.length };
-    GROUPS.forEach(g => {
-      counts[g.id] = announcements.filter(a => a.group === g.id).length;
-    });
-    return counts;
+  const durumBadge = (durum: string) => {
+    switch (durum) {
+      case "bekliyor": return "bg-yellow-100 text-yellow-800";
+      case "devam-ediyor": return "bg-blue-100 text-blue-800";
+      case "tamamlandi": return "bg-green-100 text-green-800";
+      case "iptal": return "bg-gray-100 text-gray-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
   };
 
-  const counts = getGroupCounts();
+  const durumEmojiyon = (durum: string) => {
+    switch (durum) {
+      case "bekliyor": return "⏳";
+      case "devam-ediyor": return "🔄";
+      case "tamamlandi": return "✅";
+      case "iptal": return "❌";
+      default: return "📋";
+    }
+  };
 
   if (loading) {
     return (
@@ -152,194 +224,160 @@ export default function DuyurularPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex">
       <Sidebar user={user} />
-      
-      <div className="md:ml-64 pb-20 md:pb-0">
-        <header className="bg-white border-b px-6 py-4 sticky top-0 z-30">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-xl font-bold text-gray-800">📢 Duyurular</h1>
-              <p className="text-sm text-gray-500">Ekip için önemli duyurular</p>
-            </div>
-            <button
-              onClick={() => setShowModal(true)}
-              className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition"
-            >
-              ➕ Yeni Duyuru
-            </button>
-          </div>
-
-          {/* Grup Filtreleri */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={() => setActiveFilter("tumu")}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
-                activeFilter === "tumu"
-                  ? "bg-gray-800 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-            >
-              Tümü ({counts.tumu})
-            </button>
-            {GROUPS.map(group => (
-              <button
-                key={group.id}
-                onClick={() => setActiveFilter(group.id)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2 ${
-                  activeFilter === group.id
-                    ? `${group.color} text-white`
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-              >
-                <span className={`w-2 h-2 rounded-full ${activeFilter === group.id ? "bg-white" : group.color}`}></span>
-                {group.label} ({counts[group.id] || 0})
-              </button>
-            ))}
+      <div className="flex-1 md:ml-64">
+        <header className="bg-white shadow-sm sticky top-0 z-10 border-b border-gray-200">
+          <div className="px-4 md:px-6 py-4">
+            <h1 className="text-xl md:text-2xl font-bold text-gray-800">✅ Görevlerim</h1>
           </div>
         </header>
 
-        <main className="p-6">
-          {filteredAnnouncements.length === 0 ? (
-            <div className="bg-white rounded-2xl p-12 text-center text-gray-500 border border-gray-100">
-              <span className="text-5xl mb-4 block">📭</span>
-              <p className="text-lg font-medium">
-                {activeFilter === "tumu" ? "Henüz duyuru yok" : `${getGroupInfo(activeFilter).label} grubunda duyuru yok`}
-              </p>
-              <p className="text-sm text-gray-400 mt-2">Yeni duyuru eklemek için yukarıdaki butona tıklayın</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {filteredAnnouncements.map(announcement => {
-                const groupInfo = getGroupInfo(announcement.group);
-                return (
-                  <div 
-                    key={announcement.id}
-                    className={`bg-white rounded-2xl shadow-sm border overflow-hidden ${
-                      announcement.important 
-                        ? 'border-red-300 ring-2 ring-red-100' 
-                        : groupInfo.border
-                    }`}
-                  >
-                    <div className="p-6">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3 flex-wrap">
-                          {/* Grup Etiketi */}
-                          <span className={`${groupInfo.color} text-white text-xs font-bold px-3 py-1 rounded-full`}>
-                            {groupInfo.label}
+        <main className="p-4 md:p-6">
+          {/* Filtre Butonları */}
+          <div className="mb-6 flex flex-wrap gap-2">
+            <button
+              onClick={() => setFiltre("hepsi")}
+              className={`px-4 py-2 rounded-lg font-medium transition ${
+                filtre === "hepsi"
+                  ? "bg-pink-500 text-white"
+                  : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+              }`}
+            >
+              Hepsi ({gorevler.length})
+            </button>
+            <button
+              onClick={() => setFiltre("bekliyor")}
+              className={`px-4 py-2 rounded-lg font-medium transition ${
+                filtre === "bekliyor"
+                  ? "bg-pink-500 text-white"
+                  : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+              }`}
+            >
+              ⏳ Bekliyor ({gorevler.filter(g => g.durum === "bekliyor").length})
+            </button>
+            <button
+              onClick={() => setFiltre("devam-ediyor")}
+              className={`px-4 py-2 rounded-lg font-medium transition ${
+                filtre === "devam-ediyor"
+                  ? "bg-pink-500 text-white"
+                  : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+              }`}
+            >
+              🔄 Devam Ediyor ({gorevler.filter(g => g.durum === "devam-ediyor").length})
+            </button>
+            <button
+              onClick={() => setFiltre("tamamlandi")}
+              className={`px-4 py-2 rounded-lg font-medium transition ${
+                filtre === "tamamlandi"
+                  ? "bg-pink-500 text-white"
+                  : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+              }`}
+            >
+              ✅ Tamamlandı ({gorevler.filter(g => g.durum === "tamamlandi").length})
+            </button>
+          </div>
+
+          {/* Görev Listesi */}
+          <div className="space-y-4">
+            {filtreliGorevler.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-2xl shadow-sm border border-gray-100">
+                <span className="text-6xl">📋</span>
+                <p className="text-gray-500 mt-4">Henüz görev yok</p>
+              </div>
+            ) : (
+              filtreliGorevler.map((gorev) => (
+                <div
+                  key={gorev.id}
+                  className={`bg-white rounded-xl shadow-sm border-2 p-4 md:p-5 transition hover:shadow-md ${oncelikRenk(gorev.oncelik)}`}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      {/* Başlık + Otomatik Badge */}
+                      <div className="flex items-start gap-2 mb-2">
+                        <h3 className="text-lg font-semibold text-gray-800 flex-1">{gorev.baslik}</h3>
+                        {gorev.otomatikMi && (
+                          <span className="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full font-medium shrink-0">
+                            🤖 Otomatik
                           </span>
-                          {announcement.important && (
-                            <span className="bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full animate-pulse">
-                              🔥 ÖNEMLİ
-                            </span>
-                          )}
-                          <h3 className="text-lg font-semibold text-gray-800">{announcement.title}</h3>
-                        </div>
-                        <button
-                          onClick={() => handleDeleteAnnouncement(announcement.id)}
-                          className="text-gray-400 hover:text-red-500 transition text-lg"
-                        >
-                          🗑️
-                        </button>
+                        )}
                       </div>
-                      <p className="text-gray-600 mb-4 whitespace-pre-wrap">{announcement.content}</p>
-                      <div className="flex items-center justify-between text-sm text-gray-500">
-                        <span className="flex items-center gap-1">
-                          👤 {announcement.author}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          📅 {formatTarih(announcement.createdAt)}
-                        </span>
+
+                      {/* Açıklama */}
+                      <p className="text-sm text-gray-600 mb-3">{gorev.aciklama}</p>
+
+                      {/* Meta Bilgiler */}
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                        <div className="flex items-center gap-1">
+                          <span>👤</span>
+                          <span>
+                            {gorev.atayan === "Sistem" ? (
+                              <span className="font-medium text-purple-600">Sistem (Otomatik)</span>
+                            ) : (
+                              <span>Atayan: {gorev.atayanAd}</span>
+                            )}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span>📅</span>
+                          <span>{gorev.olusturulmaTarihi?.toDate?.().toLocaleDateString('tr-TR')}</span>
+                        </div>
+                        {gorev.gelinId && (
+                          <div className="flex items-center gap-1">
+                            <span>💄</span>
+                            <span className="text-pink-600">Gelin görevi</span>
+                          </div>
+                        )}
                       </div>
                     </div>
+
+                    {/* Durum Badge */}
+                    <div className="shrink-0">
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${durumBadge(gorev.durum)}`}>
+                        {durumEmojiyon(gorev.durum)} {gorev.durum.charAt(0).toUpperCase() + gorev.durum.slice(1).replace("-", " ")}
+                      </span>
+                    </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
+
+                  {/* Aksiyon Butonları */}
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    {gorev.durum === "bekliyor" && (
+                      <button
+                        onClick={() => handleDurumDegistir(gorev.id, "devam-ediyor")}
+                        className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition"
+                      >
+                        🔄 Başla
+                      </button>
+                    )}
+                    {gorev.durum === "devam-ediyor" && (
+                      <button
+                        onClick={() => handleDurumDegistir(gorev.id, "tamamlandi")}
+                        className="px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition"
+                      >
+                        ✅ Tamamla
+                      </button>
+                    )}
+                    {gorev.durum !== "tamamlandi" && (
+                      <button
+                        onClick={() => handleDurumDegistir(gorev.id, "iptal")}
+                        className="px-4 py-2 bg-gray-400 text-white rounded-lg text-sm font-medium hover:bg-gray-500 transition"
+                      >
+                        ❌ İptal Et
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleGorevSil(gorev.id)}
+                      className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 transition"
+                    >
+                      🗑️ Sil
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </main>
       </div>
-
-      {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowModal(false)}>
-          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6" onClick={e => e.stopPropagation()}>
-            <h3 className="text-xl font-bold text-gray-800 mb-4">📢 Yeni Duyuru</h3>
-            
-            <div className="space-y-4">
-              {/* Grup Seçimi */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Grup</label>
-                <div className="flex flex-wrap gap-2">
-                  {GROUPS.map(group => (
-                    <button
-                      key={group.id}
-                      type="button"
-                      onClick={() => setNewAnnouncement({...newAnnouncement, group: group.id})}
-                      className={`px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2 ${
-                        newAnnouncement.group === group.id
-                          ? `${group.color} text-white`
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
-                    >
-                      <span className={`w-2 h-2 rounded-full ${newAnnouncement.group === group.id ? "bg-white" : group.color}`}></span>
-                      {group.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Başlık</label>
-                <input
-                  type="text"
-                  value={newAnnouncement.title}
-                  onChange={(e) => setNewAnnouncement({...newAnnouncement, title: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500"
-                  placeholder="Duyuru başlığı..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">İçerik</label>
-                <textarea
-                  value={newAnnouncement.content}
-                  onChange={(e) => setNewAnnouncement({...newAnnouncement, content: e.target.value})}
-                  rows={4}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500"
-                  placeholder="Duyuru içeriği..."
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="important"
-                  checked={newAnnouncement.important}
-                  onChange={(e) => setNewAnnouncement({...newAnnouncement, important: e.target.checked})}
-                  className="rounded"
-                />
-                <label htmlFor="important" className="text-sm text-gray-700">🔥 Önemli duyuru olarak işaretle</label>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={handleAddAnnouncement}
-                  className="flex-1 bg-pink-500 hover:bg-pink-600 text-white py-2.5 rounded-xl font-medium transition"
-                >
-                  Ekle
-                </button>
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2.5 rounded-xl font-medium transition"
-                >
-                  İptal
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
