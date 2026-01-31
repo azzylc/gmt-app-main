@@ -37,13 +37,13 @@ interface Gelin {
   ucretYazildi?: boolean;
   malzemeListesiGonderildi?: boolean;
   paylasimIzni?: boolean;
-  yorumIstesinMi?: boolean;
+  yorumIstesinMi?: string;  // Kişi ismi veya boş
   yorumIstendiMi?: boolean;
   gelinNotu?: string;
   dekontGorseli?: string;
 }
 
-const API_URL = "https://script.google.com/macros/s/AKfycbyr_9fBVzkVXf-Fx4s-DUjFTPhHlxm54oBGrrG3UGfNengHOp8rQbXKdX8pOk4reH8/exec";
+const API_URL = "/api/gelinler"; // Server-side proxy ile güvenli
 const CACHE_KEY = "gmt_gelinler_cache";
 
 export default function TakvimPage() {
@@ -103,7 +103,24 @@ export default function TakvimPage() {
 
   const fetchGelinler = async () => {
     try {
-      const response = await fetch(`${API_URL}?action=gelinler`);
+      // Firebase token al
+      const token = await auth.currentUser?.getIdToken();
+      
+      if (!token) {
+        console.error("Token alınamadı");
+        return;
+      }
+
+      const response = await fetch(API_URL, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
       setGelinler(data);
       localStorage.setItem(CACHE_KEY, JSON.stringify(data));
@@ -233,7 +250,7 @@ export default function TakvimPage() {
                   const isValidDay = dayNumber > 0 && dayNumber <= daysInMonth;
                   const dateStr = isValidDay ? `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNumber).padStart(2, '0')}` : '';
                   const gunGelinler = isValidDay ? getGelinlerForDate(dateStr) : [];
-                  const gunIzinliler = isValidDay ? [] : [];
+                  const gunIzinliler: any[] = []; // TODO: Firebase'den izinleri çek
                   const isToday = dateStr === bugun;
                   const isPast = dateStr < bugun;
                   const isWeekend = index % 7 >= 5;
@@ -278,7 +295,7 @@ export default function TakvimPage() {
                           )}
                           
                           <div className="space-y-0.5 max-h-[90px] overflow-y-auto scrollbar-thin">
-                            {gunIzinliler.map((izin, idx) => (
+                            {gunIzinliler.map((izin: any, idx: number) => (
                               <div key={idx} className="calendar-event calendar-event-accent">
                                 {izin.personel?.emoji} İzinli
                               </div>
@@ -314,7 +331,6 @@ export default function TakvimPage() {
         <GelinModal 
           gelin={selectedGelin}
           onClose={() => setSelectedGelin(null)}
-          mode="full"
         />
       )}
 
