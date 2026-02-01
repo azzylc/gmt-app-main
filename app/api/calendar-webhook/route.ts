@@ -4,53 +4,99 @@ import { adminDb } from '@/app/lib/firestore-admin';
 
 export async function POST(req: NextRequest) {
   try {
-    // Google Calendar webhook header'ları
+    // Google Calendar webhook headers
     const channelId = req.headers.get('x-goog-channel-id');
     const resourceId = req.headers.get('x-goog-resource-id');
     const resourceState = req.headers.get('x-goog-resource-state');
     const channelToken = req.headers.get('x-goog-channel-token');
+    const messageNumber = req.headers.get('x-goog-message-number');
 
-    console.log('Webhook received:', { channelId, resourceId, resourceState });
+    console.log('Webhook received:', { 
+      channelId, 
+      resourceId, 
+      resourceState, 
+      messageNumber 
+    });
 
-    // Webhook validation: Channel bilgilerini Firestore'dan al ve doğrula
-    const webhookDoc = await adminDb.collection('system').doc('webhookChannel').get();
-    
-    if (webhookDoc.exists) {
-      const webhookData = webhookDoc.data()!;
-      
-      // Token, channelId ve resourceId doğrulaması
-      if (
-        webhookData.webhookToken !== channelToken ||
-        webhookData.channelId !== channelId ||
-        webhookData.resourceId !== resourceId
-      ) {
-        console.warn('Webhook validation failed:', {
-          expectedToken: webhookData.webhookToken ? 'exists' : 'missing',
-          receivedToken: channelToken ? 'exists' : 'missing',
-          expectedChannelId: webhookData.channelId,
-          receivedChannelId: channelId,
-          expectedResourceId: webhookData.resourceId,
-          receivedResourceId: resourceId,
-        });
-        
-        // 200 dön (Google retry yapmasın) ama işleme devam etme
-        return NextResponse.json({ status: 'validation_failed' });
-      }
-    } else {
-      console.warn('Webhook channel data not found in Firestore');
-      return NextResponse.json({ status: 'channel_not_found' });
+    // 🔥 GRACE PERIOD: Çoklu kanal validation (son 2-3 kanal)
+    const channelsSnapshot = await adminDb
+      .collection('webhookChannels')
+      .orderBy('createdAt', 'desc')
+      .limit(5)
+      .get();
+
+    if (channelsSnapshot.empty) {
+      console.warn('No webhook channels found in Firestore');
+      return NextResponse.json({ status: 'no_channels_configured' });
     }
 
-    // sync resourceState geldiğinde - Calendar değişti
+    // Valid channels (15dk grace period)
+    const now = Date.now();
+    const GRACE_PERIOD_MS = 15 * 60 * 1000; // 15 dakika
+    
+    let isValidChannel = false;
+    let validChannelData: any = null;
+
+    for (const doc of channelsSnapshot.docs) {
+      const data = doc.data();
+      const channelAge = now - new Date(data.createdAt).getTime();
+      
+      // Grace period içinde mi?
+      if (channelAge <= GRACE_PERIOD_MS) {
+        // Token + channelId + resourceId doğrula
+        if (
+          data.webhookToken === channelToken &&
+          data.channelId === channelId &&
+          data.resourceId === resourceId
+        ) {
+          isValidChannel = true;
+          validChannelData = data;
+          break;
+        }
+      }
+    }
+
+    if (!isValidChannel) {
+      console.warn('Webhook validation failed (no valid channel in grace period)');
+      return NextResponse.json({ status: 'validation_failed' });
+    }
+
+    // 🔥 MESSAGE-NUMBER TRACKING: Duplicate guard
+    if (messageNumber && validChannelData.lastMessageNumber) {
+      const lastNum = parseInt(validChannelData.lastMessageNumber);
+      const currentNum = parseInt(messageNumber);
+      
+      if (currentNum <= lastNum) {
+        console.log(`Duplicate/old message detected: ${currentNum} <= ${lastNum}`);
+        return NextResponse.json({ status: 'duplicate_message_ignored' });
+      }
+    }
+
+    // Update last message number
+    if (messageNumber) {
+      await adminDb
+        .collection('webhookChannels')
+        .where('channelId', '==', channelId)
+        .get()
+        .then(snapshot => {
+          if (!snapshot.empty) {
+            snapshot.docs[0].ref.update({
+              lastMessageNumber: messageNumber,
+              lastMessageAt: new Date().toISOString()
+            });
+          }
+        });
+    }
+
+    // sync resourceState - ilk webhook
     if (resourceState === 'sync') {
-      // İlk webhook - sadece log
-      return NextResponse.json({ status: 'sync acknowledged' });
+      return NextResponse.json({ status: 'sync_acknowledged' });
     }
 
     if (resourceState === 'exists') {
       // Calendar'da değişiklik var!
       
-      // syncToken'ı al (Firestore'da saklıyoruz)
+      // syncToken'ı al
       const syncTokenDoc = await adminDb.collection('system').doc('sync').get();
       const syncToken = syncTokenDoc.data()?.lastSyncToken;
 
@@ -72,20 +118,18 @@ export async function POST(req: NextRequest) {
           updates: result.updateCount 
         });
       } else if (result.error === 'SYNC_TOKEN_INVALID') {
-        // syncToken geçersiz - full sync gerekir
-        console.log('SyncToken invalid, triggering full sync...');
+        // 🔥 410 ERROR: Flag-based full sync (daha güvenli)
+        console.log('SyncToken invalid, flagging for full sync...');
         
-        // Full sync'i tetikle (async olarak, auth ile)
-        fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/full-sync`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${process.env.CRON_SECRET}`
-          }
-        }).catch(err => console.error('Full sync trigger failed:', err));
+        await adminDb.collection('system').doc('sync').set({
+          needsFullSync: true,
+          fullSyncReason: '410_sync_token_invalid',
+          flaggedAt: new Date().toISOString()
+        }, { merge: true });
 
         return NextResponse.json({ 
           status: 'sync_token_invalid', 
-          action: 'full_sync_triggered' 
+          action: 'full_sync_flagged' 
         });
       }
     }

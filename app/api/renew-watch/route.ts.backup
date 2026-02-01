@@ -6,7 +6,6 @@ import { verifyAdminAuth } from '@/app/lib/auth';
 
 const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID!;
 const WEBHOOK_URL = `${process.env.NEXT_PUBLIC_APP_URL}/api/calendar-webhook`;
-const GRACE_PERIOD_MS = 15 * 60 * 1000; // 15 dakika
 
 export async function POST(req: NextRequest) {
   // Verify admin authentication
@@ -29,42 +28,28 @@ async function renewWebhook() {
   try {
     const calendar = getCalendarClient();
 
-    // 🔥 YENİ: Çoklu kanal sistemi - eski kanalları temizle
-    const now = Date.now();
-    const channelsSnapshot = await adminDb
-      .collection('webhookChannels')
-      .orderBy('createdAt', 'desc')
-      .get();
-
-    // 15dk'dan eski kanalları sil ve durdur
-    for (const doc of channelsSnapshot.docs) {
-      const data = doc.data();
-      const channelAge = now - new Date(data.createdAt).getTime();
+    // Eski channel'ı durdur
+    const oldChannelDoc = await adminDb.collection('system').doc('webhookChannel').get();
+    
+    if (oldChannelDoc.exists) {
+      const oldData = oldChannelDoc.data()!;
       
-      if (channelAge > GRACE_PERIOD_MS) {
-        console.log(`Cleaning old channel: ${data.channelId} (age: ${Math.round(channelAge / 1000)}s)`);
-        
-        // Google'dan durdur
-        try {
-          await calendar.channels.stop({
-            requestBody: {
-              id: data.channelId,
-              resourceId: data.resourceId,
-            },
-          });
-          console.log('Old webhook stopped:', data.channelId);
-        } catch (error) {
-          console.warn('Could not stop old webhook (may already be expired):', error);
-        }
-        
-        // Firestore'dan sil
-        await doc.ref.delete();
+      try {
+        await calendar.channels.stop({
+          requestBody: {
+            id: oldData.channelId,
+            resourceId: oldData.resourceId,
+          },
+        });
+        console.log('Old webhook stopped:', oldData.channelId);
+      } catch (error) {
+        console.warn('Could not stop old webhook (may already be expired):', error);
       }
     }
 
-    // Yeni channel oluştur
+    // Yeni channel oluştur (token ile)
     const channelId = uuidv4();
-    const webhookToken = uuidv4();
+    const webhookToken = uuidv4(); // Güvenli token
     const expiration = Date.now() + (7 * 24 * 60 * 60 * 1000); // 7 gün
 
     const response = await calendar.events.watch({
@@ -73,20 +58,18 @@ async function renewWebhook() {
         id: channelId,
         type: 'web_hook',
         address: WEBHOOK_URL,
-        token: webhookToken,
+        token: webhookToken, // Token ekle
         expiration: expiration.toString(),
       },
     });
 
-    // 🔥 YENİ: Çoklu kanal collection'a ekle
-    await adminDb.collection('webhookChannels').doc(channelId).set({
+    // Yeni channel bilgilerini kaydet (token ile)
+    await adminDb.collection('system').doc('webhookChannel').set({
       channelId,
       resourceId: response.data.resourceId,
-      webhookToken,
+      webhookToken, // Token'ı kaydet
       expiration: new Date(expiration).toISOString(),
-      createdAt: new Date().toISOString(),
-      lastMessageNumber: null,
-      lastMessageAt: null,
+      renewedAt: new Date().toISOString(),
     });
 
     console.log('Webhook renewed successfully:', {
@@ -101,10 +84,6 @@ async function renewWebhook() {
       channelId,
       resourceId: response.data.resourceId,
       expiration: new Date(expiration).toISOString(),
-      activeChannels: channelsSnapshot.size + 1 - channelsSnapshot.docs.filter(doc => {
-        const age = now - new Date(doc.data().createdAt).getTime();
-        return age > GRACE_PERIOD_MS;
-      }).length,
     });
   } catch (error: any) {
     console.error('Webhook renewal error:', error);
