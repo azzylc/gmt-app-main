@@ -309,30 +309,82 @@ function PersonelPageContent() {
   };
 
   const handleKoparTelefon = async (id: string) => {
-    if (confirm("Bu personelin telefon bağını koparmak istediğinize emin misiniz?")) {
-      alert("Telefon bağı koparma işlemi yapılacak (Backend entegrasyonu gerekli)");
+    const personel = personeller.find(p => p.id === id);
+    if (!personel) return;
+    
+    if (confirm(`${personel.ad} ${personel.soyad} için telefon bağı koparılsın mı?\n\nBu işlem sonrası personel yeni bir cihazla giriş yapabilir.`)) {
+      try {
+        const response = await fetch('/api/personel/actions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'unbind-device', personelId: id })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+          alert('✅ ' + result.message);
+        } else {
+          alert('❌ Hata: ' + result.error);
+        }
+      } catch (error) {
+        console.error("Hata:", error);
+        alert('❌ İşlem başarısız!');
+      }
     }
   };
 
   const handleYeniSifre = async (personel: Personel) => {
-    if (confirm(`${personel.ad} ${personel.soyad} için yeni şifre oluşturulup gönderilsin mi?`)) {
-      alert(`Yeni şifre ${personel.email || personel.telefon} adresine gönderilecek (Backend entegrasyonu gerekli)`);
+    if (!personel.email) {
+      alert('❌ Bu personelin email adresi yok. Önce email ekleyin.');
+      return;
+    }
+
+    if (confirm(`${personel.ad} ${personel.soyad} için yeni şifre oluşturulsun mu?\n\nEmail: ${personel.email}`)) {
+      try {
+        const response = await fetch('/api/personel/actions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'reset-password', personelId: personel.id })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+          alert(`✅ Yeni şifre oluşturuldu!\n\nEmail: ${result.email}\nYeni Şifre: ${result.newPassword}\n\n⚠️ Bu şifreyi personele iletin!`);
+        } else {
+          alert('❌ Hata: ' + result.error);
+        }
+      } catch (error) {
+        console.error("Hata:", error);
+        alert('❌ İşlem başarısız!');
+      }
     }
   };
 
   const handleDevreDisi = async (personel: Personel) => {
     const mesaj = personel.aktif 
-      ? `${personel.ad} ${personel.soyad} devre dışı bırakılsın mı?`
-      : `${personel.ad} ${personel.soyad} tekrar aktif edilsin mi?`;
+      ? `${personel.ad} ${personel.soyad} devre dışı bırakılsın mı?\n\n⚠️ Personel sisteme giriş yapamayacak.`
+      : `${personel.ad} ${personel.soyad} tekrar aktif edilsin mi?\n\n✅ Personel sisteme giriş yapabilecek.`;
     
     if (confirm(mesaj)) {
       try {
-        await updateDoc(doc(db, "personnel", personel.id), { 
-          aktif: !personel.aktif,
-          istenAyrilma: !personel.aktif ? "" : new Date().toISOString().split('T')[0]
+        const response = await fetch('/api/personel/actions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'toggle-status', personelId: personel.id })
         });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+          alert('✅ ' + result.message);
+        } else {
+          alert('❌ Hata: ' + result.error);
+        }
       } catch (error) {
         console.error("Hata:", error);
+        alert('❌ İşlem başarısız!');
       }
     }
   };
