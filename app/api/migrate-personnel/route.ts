@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, adminAuth } from '@/app/lib/firestore-admin';
 
-const DEFAULT_PASSWORD = '9918';
+const DEFAULT_PASSWORD = 'gmt9918';
 
 export async function POST(req: NextRequest) {
   // Güvenlik: Sadece CRON_SECRET ile çalışsın
