@@ -17,15 +17,28 @@ export function getCalendarClient() {
   return google.calendar({ version: 'v3', auth });
 }
 
+// Text normalization - NBSP, boşluklar, Türkçe karakterler
+function normalizeText(s: string): string {
+  return (s ?? '')
+    .replace(/\u00A0/g, ' ')  // NBSP → normal space
+    .normalize('NFKC')         // Unicode normalize
+    .replace(/ +/g, ' ')       // Multiple spaces → single space
+    .trim();
+}
+
+// Robust financial marker check (çeşitli varyasyonları yakalar)
+function hasFinancialMarkers(description: string): boolean {
+  const normalized = normalizeText(description);
+  // "Anlaşılan Ücret:", "Anlasilan Ucret:", "Kapora:", "Kalan:" varyasyonlarını yakala
+  return /anla[şs][ıi]lan\s*[üu]cret\s*:|kapora\s*:|kalan\s*:/i.test(normalized);
+}
+
 // Description'dan tüm bilgileri parse et (SAĞLAMLAŞTIRILMIŞ!)
 function parseDescription(description: string) {
-  // NBSP ve diğer görünmeyen karakterleri temizle
-  // ÖNCE satırlara böl, SONRA her satırı temizle
+  // Her satırı normalize et
   const lines = description
-    .replace(/\u00A0/g, ' ')  // NBSP → normal boşluk
-    .normalize('NFKC')         // Unicode normalize
-    .split('\n')               // Satırlara böl
-    .map(line => line.replace(/ +/g, ' ').trim()); // Her satırdaki çoklu boşlukları tek boşluğa çevir
+    .split('\n')
+    .map(line => normalizeText(line));
 
   const result: any = {
     kinaGunu: '',
@@ -83,10 +96,11 @@ function parseDescription(description: string) {
       result.modaevi = line.split(':')[1]?.trim() || '';
     }
 
-    // Anlaşılan Ücret - ROBUST REGEX
-    const ucretMatch = line.match(/(anla.*)?ücret\s*:\s*(.+)/i);
+    // Anlaşılan Ücret - ROBUST + SPECIFIC REGEX
+    // Sadece "Anlaşılan Ücret:" satırını yakala (varyantlarıyla)
+    const ucretMatch = line.match(/^anla[şs][ıi]lan\s*[üu]cret\s*:\s*(.+)/i);
     if (ucretMatch) {
-      const value = ucretMatch[2].trim();
+      const value = ucretMatch[1].trim();
       if (value.toUpperCase().includes('X')) {
         result.ucret = -1;
       } else {
@@ -95,15 +109,16 @@ function parseDescription(description: string) {
       }
     }
 
-    // Kapora (SAĞLAMLAŞTIRILDI!)
-    if (lower.includes('kapora')) {
-      const value = line.split(':')[1]?.trim() || '';
+    // Kapora - ROBUST REGEX
+    const kaporaMatch = line.match(/^kapora\s*:\s*(.+)/i);
+    if (kaporaMatch) {
+      const value = kaporaMatch[1].trim();
       const nums = value.replace(/[^0-9]/g, '');
       result.kapora = parseInt(nums) || 0;
     }
 
-    // Kalan - ROBUST REGEX
-    const kalanMatch = line.match(/kalan\s*:\s*(.+)/i);
+    // Kalan - ROBUST + SPECIFIC REGEX
+    const kalanMatch = line.match(/^kalan\s*:\s*(.+)/i);
     if (kalanMatch) {
       const value = kalanMatch[1].trim();
       if (value.toUpperCase().includes('X')) {
@@ -211,13 +226,9 @@ function eventToGelin(event: any) {
     return null;
   }
 
-  // ✅ FİNANSAL VERİ KONTROLÜ (AppScript ile AYNI mantık)
+  // ✅ FİNANSAL VERİ KONTROLÜ (ROBUST!)
   // ✅ REF İSTİSNASI: REF varsa finansal veri şartı arama!
-  const hasFinancialData = 
-    description.includes('Anlaşılan Ücret:') || 
-    description.includes('Kapora:') || 
-    description.includes('Kalan:') ||
-    title.toUpperCase().includes('REF');
+  const hasFinancialData = hasFinancialMarkers(description) || title.toUpperCase().includes('REF');
   
   if (!hasFinancialData) {
     console.warn('[SKIP] Finansal veri yok:', { id: event.id, title });
@@ -267,51 +278,79 @@ function eventToGelin(event: any) {
   };
 }
 
-// Incremental sync - syncToken kullanarak
+// Incremental sync - syncToken kullanarak (with pagination)
 export async function incrementalSync(syncToken?: string) {
   const calendar = getCalendarClient();
 
-  const params: any = {
+  const baseParams: any = {
     calendarId: CALENDAR_ID,
     singleEvents: true,
     showDeleted: true,
   };
 
   if (syncToken) {
-    params.syncToken = syncToken;
+    baseParams.syncToken = syncToken;
   } else {
-    params.timeMin = new Date('2025-01-01').toISOString();
-    params.timeMax = new Date('2030-12-31').toISOString();
+    baseParams.timeMin = new Date('2025-01-01').toISOString();
+    baseParams.timeMax = new Date('2030-12-31').toISOString();
   }
 
   try {
-    const response: any = await calendar.events.list(params);
-    const events = response.data.items || [];
-    const newSyncToken = response.data.nextSyncToken;
+    let pageToken: string | undefined;
+    let nextSyncToken: string | undefined;
+    let totalUpdateCount = 0;
+    let batch = adminDb.batch();
+    let batchCount = 0;
 
-    const batch = adminDb.batch();
-    let updateCount = 0;
+    // Pagination loop - çok değişiklik varsa tüm sayfaları çek
+    do {
+      const params = { ...baseParams, pageToken };
+      const response: any = await calendar.events.list(params);
+      const events = response.data.items || [];
+      
+      // Next page token (varsa devam et)
+      pageToken = response.data.nextPageToken ?? undefined;
+      
+      // Next sync token (son sayfada gelir)
+      if (!pageToken && response.data.nextSyncToken) {
+        nextSyncToken = response.data.nextSyncToken;
+      }
 
-    for (const event of events) {
-      if (event.status === 'cancelled') {
-        const docRef = adminDb.collection('gelinler').doc(event.id!);
-        batch.delete(docRef);
-        updateCount++;
-      } else {
-        const gelin = eventToGelin(event);
-        if (gelin) {
-          const docRef = adminDb.collection('gelinler').doc(gelin.id);
-          batch.set(docRef, gelin, { merge: true });
-          updateCount++;
+      // Process events in this page
+      for (const event of events) {
+        if (event.status === 'cancelled') {
+          const docRef = adminDb.collection('gelinler').doc(event.id!);
+          batch.delete(docRef);
+          totalUpdateCount++;
+          batchCount++;
+        } else {
+          const gelin = eventToGelin(event);
+          if (gelin) {
+            const docRef = adminDb.collection('gelinler').doc(gelin.id);
+            batch.set(docRef, gelin, { merge: true });
+            totalUpdateCount++;
+            batchCount++;
+          }
+        }
+
+        // Commit batch if it reaches 500 (Firestore limit)
+        if (batchCount >= 500) {
+          await batch.commit();
+          console.log(`📦 Batch committed: ${totalUpdateCount} total updates so far`);
+          batch = adminDb.batch();
+          batchCount = 0;
         }
       }
-    }
 
-    if (updateCount > 0) {
+      console.log(`📄 Page processed: ${events.length} events (total: ${totalUpdateCount} updates)`);
+    } while (pageToken);
+
+    // Commit remaining batch
+    if (batchCount > 0) {
       await batch.commit();
     }
 
-    return { success: true, updateCount, syncToken: newSyncToken };
+    return { success: true, updateCount: totalUpdateCount, syncToken: nextSyncToken };
   } catch (error: any) {
     if (error.code === 410) {
       return { success: false, error: 'SYNC_TOKEN_INVALID' };

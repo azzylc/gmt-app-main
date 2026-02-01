@@ -1,8 +1,13 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { fullSync } from '@/app/lib/calendar-sync';
 import { adminDb } from '@/app/lib/firestore-admin';
+import { verifyAdminAuth } from '@/app/lib/auth';
 
-export async function POST() {
+export async function POST(req: NextRequest) {
+  // Verify admin authentication
+  const authError = verifyAdminAuth(req);
+  if (authError) return authError;
+
   try {
     console.log('🔄 Full sync başlatılıyor...');
     

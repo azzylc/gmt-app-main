@@ -2,11 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCalendarClient } from '@/app/lib/calendar-sync';
 import { adminDb } from '@/app/lib/firestore-admin';
 import { v4 as uuidv4 } from 'uuid';
+import { verifyAdminAuth } from '@/app/lib/auth';
 
 const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID!;
-const WEBHOOK_URL = 'https://gmt-app-main.vercel.app/api/calendar-webhook';
+const WEBHOOK_URL = `${process.env.NEXT_PUBLIC_APP_URL}/api/calendar-webhook`;
 
 export async function POST(req: NextRequest) {
+  // Verify admin authentication
+  const authError = verifyAdminAuth(req);
+  if (authError) return authError;
+
   try {
     const calendar = getCalendarClient();
 
