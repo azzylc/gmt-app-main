@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/renew-watch",
-      "schedule": "0 */12 * * *"
+      "schedule": "0 12 * * *"
     },
     {
       "path": "/api/drift-detection",
