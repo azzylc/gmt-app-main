@@ -1,7 +1,7 @@
 // app/lib/email.ts
-// SendGrid ile email gönderme servisi
+// Resend ile email gönderme servisi
 
-const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = 'noreply@mgtapp.com';
 const FROM_NAME = 'Gizem Yolcu Studio';
 
@@ -13,31 +13,30 @@ interface EmailParams {
 }
 
 export async function sendEmail({ to, subject, text, html }: EmailParams): Promise<boolean> {
-  if (!SENDGRID_API_KEY) {
-    console.error('SENDGRID_API_KEY not configured');
+  if (!RESEND_API_KEY) {
+    console.error('RESEND_API_KEY not configured');
     return false;
   }
 
   try {
-    const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+    const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${SENDGRID_API_KEY}`,
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        personalizations: [{ to: [{ email: to }] }],
-        from: { email: FROM_EMAIL, name: FROM_NAME },
+        from: `${FROM_NAME} <${FROM_EMAIL}>`,
+        to: [to],
         subject: subject,
-        content: [
-          { type: 'text/plain', value: text },
-          ...(html ? [{ type: 'text/html', value: html }] : []),
-        ],
+        text: text,
+        html: html,
       }),
     });
 
-    if (response.ok || response.status === 202) {
-      console.log(`✅ Email sent to ${to}`);
+    if (response.ok) {
+      const data = await response.json();
+      console.log(`✅ Email sent to ${to}, id: ${data.id}`);
       return true;
     } else {
       const error = await response.text();
