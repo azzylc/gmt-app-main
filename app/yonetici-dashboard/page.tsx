@@ -58,9 +58,6 @@ interface Gorev {
   gelinId?: string;
 }
 
-const API_URL = "https://script.google.com/macros/s/AKfycbyr_9fBVzkVXf-Fx4s-DUjFTPhHlxm54oBGrrG3UGfNengHOp8rQbXKdX8pOk4reH8/exec";
-const CACHE_KEY = "gmt_gelinler_cache";
-
 export default function YoneticiDashboardPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -134,28 +131,40 @@ export default function YoneticiDashboardPage() {
     return () => unsubscribe();
   }, [router]);
 
-  // Gelinleri cache'den yükle ve API'den çek
+  // ✅ Gelinler - Firestore'dan (real-time) - APPS SCRIPT YERİNE!
   useEffect(() => {
-    try {
-      const cached = localStorage.getItem(CACHE_KEY);
-      if (cached) {
-        setGelinler(JSON.parse(cached));
-      }
-    } catch (e) {}
-    
-    fetchGelinler();
-  }, []);
+    if (!user) return;
 
-  const fetchGelinler = async () => {
-    try {
-      const response = await fetch(`${API_URL}?action=gelinler`);
-      const data = await response.json();
+    console.log('🔄 Firestore gelinler listener başlatılıyor (Yönetici Dashboard)...');
+    
+    const q = query(
+      collection(db, "gelinler"),
+      orderBy("tarih", "asc")
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        isim: doc.data().isim || "",
+        tarih: doc.data().tarih || "",
+        makyaj: doc.data().makyaj || "",
+        turban: doc.data().turban || "",
+        anlasildigiTarih: doc.data().anlasildigiTarih || "",
+      } as Gelin));
+
+      console.log(`✅ ${data.length} gelin Firestore'dan yüklendi (Yönetici Dashboard, real-time)`);
       setGelinler(data);
-      localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-    } catch (error) {
-      console.error("Gelin verisi çekme hatası:", error);
-    }
-  };
+      setDataLoading(false);
+    }, (error) => {
+      console.error('❌ Firestore listener hatası (Yönetici Dashboard):', error);
+      setDataLoading(false);
+    });
+
+    return () => {
+      console.log('🛑 Firestore gelinler listener kapatılıyor (Yönetici Dashboard)...');
+      unsubscribe();
+    };
+  }, [user]);
 
   // Ekip üyelerini ve metriklerini çek
   useEffect(() => {
@@ -213,7 +222,6 @@ export default function YoneticiDashboardPage() {
       });
 
       setEkipUyeleri(ekipData);
-      setDataLoading(false);
     });
 
     return () => unsubPersonel();
@@ -360,7 +368,7 @@ export default function YoneticiDashboardPage() {
               <h1 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-3">
                 <span>👔</span> Yönetici Dashboard
               </h1>
-              <p className="text-gray-600 mt-1">Ekibinizi yönetin ve performansı takip edin</p>
+              <p className="text-gray-600 mt-1">Ekibinizi yönetin ve performansı takip edin (Firestore Real-time)</p>
             </div>
 
             {/* Ekip Performans Özeti */}

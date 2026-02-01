@@ -43,9 +43,6 @@ interface Gelin {
   dekontGorseli?: string;
 }
 
-const API_URL = "/api/gelinler"; // Server-side proxy ile güvenli
-const CACHE_KEY = "gmt_gelinler_cache";
-
 export default function TakvimPage() {
   const [user, setUser] = useState<any>(null);
   const [gelinler, setGelinler] = useState<Gelin[]>([]);
@@ -60,23 +57,11 @@ export default function TakvimPage() {
   const aylar = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
   const gunler = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 
-  const loadFromCache = () => {
-    try {
-      const cached = localStorage.getItem(CACHE_KEY);
-      if (cached) {
-        setGelinler(JSON.parse(cached));
-        setDataLoading(false);
-        return true;
-      }
-    } catch (e) {}
-    return false;
-  };
-
+  // Auth kontrolü
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setUser(user);
-        if (!loadFromCache()) fetchGelinler();
       } else {
         router.push("/login");
       }
@@ -85,6 +70,7 @@ export default function TakvimPage() {
     return () => unsubscribe();
   }, [router]);
 
+  // ✅ Personel verisi - Firestore'dan (real-time)
   useEffect(() => {
     if (!user) return;
     const q = query(collection(db, "personnel"), orderBy("ad", "asc"));
@@ -101,34 +87,36 @@ export default function TakvimPage() {
     return () => unsubscribe();
   }, [user]);
 
-  const fetchGelinler = async () => {
-    try {
-      // Firebase token al
-      const token = await auth.currentUser?.getIdToken();
-      
-      if (!token) {
-        console.error("Token alınamadı");
-        return;
-      }
+  // ✅ Gelin verisi - Firestore'dan (real-time) - APPS SCRIPT YERİNE!
+  useEffect(() => {
+    if (!user) return;
 
-      const response = await fetch(API_URL, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
+    console.log('🔄 Firestore gelinler listener başlatılıyor...');
+    
+    const q = query(
+      collection(db, "gelinler"),
+      orderBy("tarih", "asc")
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Gelin));
+
+      console.log(`✅ ${data.length} gelin Firestore'dan yüklendi (real-time)`);
       setGelinler(data);
-      localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-    } catch (error) {
-      console.error("Veri çekme hatası:", error);
-    }
-    setDataLoading(false);
-  };
+      setDataLoading(false);
+    }, (error) => {
+      console.error('❌ Firestore listener hatası:', error);
+      setDataLoading(false);
+    });
+
+    return () => {
+      console.log('🛑 Firestore gelinler listener kapatılıyor...');
+      unsubscribe();
+    };
+  }, [user]);
 
   const getKisaltma = (isim: string): string => {
     if (!isim) return "-";
@@ -199,7 +187,7 @@ export default function TakvimPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="page-title">📅 Takvim</h1>
-              <p className="page-subtitle">Aylık program görünümü</p>
+              <p className="page-subtitle">Aylık program görünümü (Firestore Real-time)</p>
             </div>
             <div className="flex items-center gap-2">
               <button onClick={prevMonth} className="p-1.5 hover:bg-gray-100 rounded-lg transition">◀️</button>
@@ -249,71 +237,81 @@ export default function TakvimPage() {
                   const dayNumber = index - startDay + 1;
                   const isValidDay = dayNumber > 0 && dayNumber <= daysInMonth;
                   const dateStr = isValidDay ? `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNumber).padStart(2, '0')}` : '';
-                  const gunGelinler = isValidDay ? getGelinlerForDate(dateStr) : [];
-                  const gunIzinliler: any[] = []; // TODO: Firebase'den izinleri çek
+                  const dayGelinler = isValidDay ? getGelinlerForDate(dateStr) : [];
                   const isToday = dateStr === bugun;
-                  const isPast = dateStr < bugun;
-                  const isWeekend = index % 7 >= 5;
-                  const tatil = isValidDay && isTatil(dateStr);
-                  const tatilIsmi = tatil ? getTatilIsmi(dateStr) : null;
+                  const tatilIsmi = isValidDay ? getTatilIsmi(dateStr) : null;
+                  const dayOfWeek = isValidDay ? new Date(dateStr).getDay() : -1;
+                  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
                   return (
-                    <div
+                    <div 
                       key={index}
-                      className={`calendar-day ${
-                        !isValidDay ? 'bg-gray-50' : 
-                        tatil ? 'bg-primary-50' :
-                        isToday ? 'bg-accent-50' : 
-                        isPast ? 'bg-gray-50' :
-                        isWeekend ? 'bg-neutral-cream/30' : 'bg-white'
-                      }`}
+                      className={`
+                        border border-gray-100 min-h-[120px] p-2 
+                        ${!isValidDay ? 'bg-gray-50' : ''}
+                        ${isToday ? 'bg-blue-50 border-blue-300' : ''}
+                        ${tatilIsmi ? 'bg-red-50' : ''}
+                        ${isWeekend && !tatilIsmi ? 'bg-orange-50' : ''}
+                        hover:bg-gray-50 transition-colors cursor-pointer
+                      `}
+                      onClick={() => {
+                        if (isValidDay) {
+                          setSelectedDay(dateStr);
+                        }
+                      }}
                     >
                       {isValidDay && (
                         <>
-                          <div className="calendar-day-header">
-                            <div className={`calendar-day-number ${
-                              isToday ? 'text-primary-500' : tatil ? 'text-primary-500' : isPast ? 'text-gray-400' : 'text-gray-600'
-                            }`}>
-                              {isToday ? (
-                                <span className="calendar-day-today">{dayNumber}</span>
-                              ) : dayNumber}
-                            </div>
-                            {gunGelinler.length > 0 && (
-                              <button 
-                                onClick={() => setSelectedDay(dateStr)}
-                                className="text-[10px] text-primary-500 hover:text-primary-600 font-medium"
-                              >
-                                →
-                              </button>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className={`
+                              text-sm font-medium
+                              ${isToday ? 'text-blue-600' : ''}
+                              ${tatilIsmi ? 'text-red-600' : ''}
+                              ${isWeekend && !tatilIsmi ? 'text-orange-600' : ''}
+                            `}>
+                              {dayNumber}
+                            </span>
+                            {dayGelinler.length > 0 && (
+                              <span className="text-xs bg-primary-500 text-white px-1.5 py-0.5 rounded-full">
+                                {dayGelinler.length}
+                              </span>
                             )}
                           </div>
-                          
+
                           {tatilIsmi && (
-                            <div className="text-[10px] bg-primary-100 text-primary-700 px-1 py-0.5 rounded mb-0.5 truncate font-medium">
-                              🏛️ {tatilIsmi}
+                            <div className="text-xs text-red-600 font-medium mb-1">
+                              🎉 {tatilIsmi}
                             </div>
                           )}
-                          
-                          <div className="space-y-0.5 max-h-[90px] overflow-y-auto scrollbar-thin">
-                            {gunIzinliler.map((izin: any, idx: number) => (
-                              <div key={idx} className="calendar-event calendar-event-accent">
-                                {izin.personel?.emoji} İzinli
-                              </div>
-                            ))}
-                            {gunGelinler.map((gelin) => (
-                              <div
+
+                          <div className="space-y-1">
+                            {dayGelinler.slice(0, 3).map((gelin) => (
+                              <div 
                                 key={gelin.id}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setSelectedGelin(gelin);
                                 }}
-                                className={`calendar-event ${
-                                  isPast ? 'calendar-event-past' : 'calendar-event-primary'
-                                }`}
+                                className="text-xs bg-white border border-gray-200 rounded p-1 hover:bg-primary-50 hover:border-primary-300 transition-colors cursor-pointer"
                               >
-                                {gelin.saat} {gelin.isim.split(' ')[0]}
+                                <div className="font-medium text-gray-900 truncate">{gelin.isim}</div>
+                                <div className="text-gray-500 text-[10px]">{gelin.saat}</div>
+                                <div className="text-gray-600 text-[10px] flex items-center gap-1">
+                                  <span>{getKisaltma(gelin.makyaj)}</span>
+                                  {gelin.turban && gelin.turban !== gelin.makyaj && (
+                                    <>
+                                      <span className="text-gray-400">&</span>
+                                      <span>{getKisaltma(gelin.turban)}</span>
+                                    </>
+                                  )}
+                                </div>
                               </div>
                             ))}
+                            {dayGelinler.length > 3 && (
+                              <div className="text-xs text-center text-gray-500 py-1">
+                                +{dayGelinler.length - 3} daha
+                              </div>
+                            )}
                           </div>
                         </>
                       )}
@@ -326,66 +324,73 @@ export default function TakvimPage() {
         </main>
       </div>
 
-      {/* Gelin Modal */}
+      {/* Gelin detay modal */}
       {selectedGelin && (
-        <GelinModal 
+        <GelinModal
           gelin={selectedGelin}
           onClose={() => setSelectedGelin(null)}
         />
       )}
 
-      {/* Günlük Modal */}
+      {/* Gün detay modal */}
       {selectedDay && (
-        <div className="modal-overlay" onClick={() => setSelectedDay(null)}>
-          <div className="modal modal-md animate-fade-in" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 className="modal-title">
-                📅 {new Date(selectedDay).toLocaleDateString('tr-TR', { 
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-semibold">
+                {new Date(selectedDay).toLocaleDateString('tr-TR', { 
                   weekday: 'long', 
-                  day: 'numeric', 
+                  year: 'numeric', 
                   month: 'long', 
-                  year: 'numeric' 
+                  day: 'numeric' 
                 })}
-              </h3>
-              <button onClick={() => setSelectedDay(null)} className="modal-close">×</button>
+              </h2>
+              <button 
+                onClick={() => setSelectedDay(null)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
             </div>
-
-            <div className="space-y-3">
+            <div className="p-6">
               {getGelinlerForDate(selectedDay).length === 0 ? (
-                <p className="text-center text-gray-500 py-8">Bu gün için gelin bulunmuyor</p>
+                <p className="text-gray-500 text-center py-8">Bu gün için gelin kaydı yok</p>
               ) : (
-                getGelinlerForDate(selectedDay).map((gelin) => (
-                  <div 
-                    key={gelin.id} 
-                    className="card card-compact hover:bg-gray-50 transition cursor-pointer"
-                    onClick={() => {
-                      setSelectedDay(null);
-                      setSelectedGelin(gelin);
-                    }}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <span className="text-base font-bold text-primary-600">{gelin.saat}</span>
-                          <span className="text-base font-bold">{gelin.isim}</span>
+                <div className="space-y-3">
+                  {getGelinlerForDate(selectedDay).map((gelin) => (
+                    <div 
+                      key={gelin.id}
+                      onClick={() => {
+                        setSelectedDay(null);
+                        setSelectedGelin(gelin);
+                      }}
+                      className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="font-semibold text-lg">{gelin.isim}</h3>
+                        <span className="text-sm text-gray-500">{gelin.saat}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span className="text-gray-500">Makyaj:</span>{' '}
+                          <span className="font-medium">{gelin.makyaj || '-'}</span>
                         </div>
-                        
-                        <div className="flex items-center gap-3 mb-1.5">
-                          <span className="badge badge-primary">{getKisaltma(gelin.makyaj)}</span>
-                          <span className="badge badge-gold">{getKisaltma(gelin.turban)}</span>
+                        <div>
+                          <span className="text-gray-500">Türban:</span>{' '}
+                          <span className="font-medium">{gelin.turban || '-'}</span>
                         </div>
-
-                        <div className="flex items-center gap-3 text-xs">
-                          {gelin.ucret > 0 && <span className="text-gray-600">💰 {gelin.ucret.toLocaleString('tr-TR')} ₺</span>}
-                          {gelin.kapora > 0 && <span className="text-gold-600">✅ {gelin.kapora.toLocaleString('tr-TR')} ₺</span>}
-                          {gelin.kalan > 0 && <span className="text-primary-600 font-semibold">⏳ {gelin.kalan.toLocaleString('tr-TR')} ₺</span>}
+                        <div>
+                          <span className="text-gray-500">Ücret:</span>{' '}
+                          <span className="font-medium">{gelin.ucret.toLocaleString('tr-TR')} ₺</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Kalan:</span>{' '}
+                          <span className="font-medium text-amber-600">{gelin.kalan.toLocaleString('tr-TR')} ₺</span>
                         </div>
                       </div>
-
-                      <span className="text-gray-400 text-xl">›</span>
                     </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </div>
           </div>

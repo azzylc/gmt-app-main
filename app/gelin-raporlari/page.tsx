@@ -1,10 +1,11 @@
 "use client";
 import { useState, useEffect } from "react";
-import { auth } from "../lib/firebase";
+import { auth, db } from "../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Sidebar from "../components/Sidebar";
 import { usePersoneller } from "../hooks/usePersoneller";
+import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 
 interface GelinRapor {
   id: string;
@@ -16,16 +17,11 @@ interface GelinRapor {
   hizmetTuru: string;
 }
 
-const API_URL = "https://script.google.com/macros/s/AKfycbyr_9fBVzkVXf-Fx4s-DUjFTPhHlxm54oBGrrG3UGfNengHOp8rQbXKdX8pOk4reH8/exec";
-const CACHE_KEY = "gmt_gelinler_cache";
-const CACHE_TIME_KEY = "gmt_gelinler_cache_time";
-
 export default function GelinRaporlariPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [gelinler, setGelinler] = useState<GelinRapor[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
-  const [lastUpdate, setLastUpdate] = useState<string>("");
   const [selectedPersonel, setSelectedPersonel] = useState<string>("hepsi");
   const [selectedAy, setSelectedAy] = useState<string>("hepsi");
   const router = useRouter();
@@ -54,34 +50,11 @@ export default function GelinRaporlariPage() {
     { value: "Takip Yardımı", label: "Takip Yardımı", emoji: "🤝", color: "gray" },
   ];
 
-  const loadFromCache = () => {
-    try {
-      const cached = localStorage.getItem(CACHE_KEY);
-      const cacheTime = localStorage.getItem(CACHE_TIME_KEY);
-      if (cached && cacheTime) {
-        setGelinler(JSON.parse(cached));
-        setLastUpdate(new Date(parseInt(cacheTime)).toLocaleTimeString('tr-TR'));
-        setDataLoading(false);
-        return true;
-      }
-    } catch (e) {}
-    return false;
-  };
-
-  const saveToCache = (data: GelinRapor[]) => {
-    try {
-      localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-      localStorage.setItem(CACHE_TIME_KEY, Date.now().toString());
-      setLastUpdate(new Date().toLocaleTimeString('tr-TR'));
-    } catch (e) {}
-  };
-
+  // Auth kontrolü
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setUser(user);
-        const hasCache = loadFromCache();
-        if (!hasCache) fetchGelinler();
       } else {
         router.push("/login");
       }
@@ -90,18 +63,41 @@ export default function GelinRaporlariPage() {
     return () => unsubscribe();
   }, [router]);
 
-  const fetchGelinler = async () => {
-    setDataLoading(true);
-    try {
-      const response = await fetch(`${API_URL}?action=gelinler`);
-      const data = await response.json();
+  // ✅ Gelin verisi - Firestore'dan (real-time) - APPS SCRIPT YERİNE!
+  useEffect(() => {
+    if (!user) return;
+
+    console.log('🔄 Firestore gelinler listener başlatılıyor (Raporlar)...');
+    
+    const q = query(
+      collection(db, "gelinler"),
+      orderBy("tarih", "asc")
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        isim: doc.data().isim || "",
+        tarih: doc.data().tarih || "",
+        saat: doc.data().saat || "",
+        makyaj: doc.data().makyaj || "",
+        turban: doc.data().turban || "",
+        hizmetTuru: doc.data().hizmetTuru || "Gelin", // Default
+      } as GelinRapor));
+
+      console.log(`✅ ${data.length} gelin Firestore'dan yüklendi (Raporlar, real-time)`);
       setGelinler(data);
-      saveToCache(data);
-    } catch (error) {
-      console.error("Veri çekme hatası:", error);
-    }
-    setDataLoading(false);
-  };
+      setDataLoading(false);
+    }, (error) => {
+      console.error('❌ Firestore listener hatası (Raporlar):', error);
+      setDataLoading(false);
+    });
+
+    return () => {
+      console.log('🛑 Firestore gelinler listener kapatılıyor (Raporlar)...');
+      unsubscribe();
+    };
+  }, [user]);
 
   // Filtrelenmiş gelinler
   const filteredGelinler = gelinler.filter(g => {
@@ -154,22 +150,12 @@ export default function GelinRaporlariPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-xl font-bold text-gray-800">📊 Gelin Raporları</h1>
-              <p className="text-sm text-gray-500">Personel ve hizmet türü bazında iş dağılımı</p>
+              <p className="text-sm text-gray-500">Personel ve hizmet türü bazında iş dağılımı (Firestore Real-time)</p>
             </div>
             <div className="flex items-center gap-4">
-              {lastUpdate && (
-                <div className="bg-green-50 px-3 py-1.5 rounded-lg border border-green-200">
-                  <span className="text-green-700 text-sm font-medium">✓ Son güncelleme: {lastUpdate}</span>
-                </div>
-              )}
-              <button
-                onClick={fetchGelinler}
-                disabled={dataLoading}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2"
-              >
-                {dataLoading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div> : "🔄"}
-                Yenile
-              </button>
+              <div className="bg-green-50 px-3 py-1.5 rounded-lg border border-green-200">
+                <span className="text-green-700 text-sm font-medium">✓ Real-time güncel</span>
+              </div>
             </div>
           </div>
         </header>
@@ -202,7 +188,7 @@ export default function GelinRaporlariPage() {
                           : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                       }`}
                     >
-                      {p.emoji} {p.isim}
+                      {p.isim}
                     </button>
                   ))}
                 </div>
@@ -211,131 +197,159 @@ export default function GelinRaporlariPage() {
               {/* Ay Filtresi */}
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-2 block">Ay:</label>
-                <select
-                  value={selectedAy}
-                  onChange={(e) => setSelectedAy(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 bg-white"
-                >
-                  <option value="hepsi">📅 Tüm Aylar</option>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setSelectedAy("hepsi")}
+                    className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
+                      selectedAy === "hepsi"
+                        ? "bg-pink-500 text-white"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                  >
+                    📅 Tümü
+                  </button>
                   {aylar.map(ay => (
-                    <option key={ay.value} value={ay.value}>{ay.label}</option>
+                    <button
+                      key={ay.value}
+                      onClick={() => setSelectedAy(ay.value)}
+                      className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
+                        selectedAy === ay.value
+                          ? "bg-pink-500 text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      {ay.label}
+                    </button>
                   ))}
-                </select>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Hizmet Türü İstatistikleri */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">📋 Hizmet Türü Dağılımı</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-              {hizmetTurleri.map(ht => (
-                <div key={ht.value} className={`bg-${ht.color}-50 p-3 rounded-xl border border-${ht.color}-200`}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xl">{ht.emoji}</span>
-                    <span className="text-xs font-medium text-gray-700">{ht.label}</span>
-                  </div>
-                  <p className={`text-2xl font-bold text-${ht.color}-600`}>{hizmetStats[ht.value] || 0}</p>
-                </div>
-              ))}
+          {dataLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
             </div>
-          </div>
-
-          {/* Personel İstatistikleri */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-            {personeller.map(personel => {
-              const stats = getPersonelStats(personel.isim);
-              return (
-                <div key={personel.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gray-200">
-                    <span className="text-3xl">{personel.emoji}</span>
-                    <div>
-                      <p className="font-semibold text-gray-800 text-lg">{personel.isim}</p>
-                      <p className="text-xs text-gray-500">Toplam: {stats.toplam} iş</p>
+          ) : (
+            <>
+              {/* Özet İstatistikler */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                  <div className="text-3xl font-bold text-pink-600">{filteredGelinler.length}</div>
+                  <div className="text-sm text-gray-500 mt-1">Toplam İş</div>
+                </div>
+                
+                {hizmetTurleri.slice(0, 3).map(ht => (
+                  <div key={ht.value} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                    <div className="text-3xl font-bold text-gray-800">{hizmetStats[ht.value] || 0}</div>
+                    <div className="text-sm text-gray-500 mt-1 flex items-center gap-1">
+                      <span>{ht.emoji}</span>
+                      <span>{ht.label}</span>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {hizmetTurleri.map(ht => {
-                      const count = stats[ht.value] || 0;
-                      if (count === 0) return null;
-                      return (
-                        <div key={ht.value} className="flex items-center justify-between bg-gray-50 px-2 py-1 rounded">
-                          <span className="text-xs text-gray-600">{ht.emoji} {ht.label.split(' ')[0]}</span>
-                          <span className="text-xs font-bold text-gray-800">{count}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                ))}
+              </div>
 
-          {/* Detaylı Liste */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100">
-              <h2 className="font-semibold text-gray-800">
-                📋 Detaylı İş Listesi ({filteredGelinler.length} iş)
-              </h2>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tarih</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Saat</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Gelin</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">💄 Makyaj</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">🧕 Türban</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hizmet Türü</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filteredGelinler
-                    .sort((a, b) => a.tarih.localeCompare(b.tarih))
-                    .map(gelin => {
-                      const hizmet = hizmetTurleri.find(ht => ht.value === gelin.hizmetTuru);
-                      return (
-                        <tr key={gelin.id} className="hover:bg-gray-50 transition">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {new Date(gelin.tarih).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{gelin.saat}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="font-medium text-gray-900">{gelin.isim}</span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {gelin.makyaj ? (
-                              <span className="px-2 py-1 text-xs font-medium bg-pink-100 text-pink-700 rounded-full">
-                                {gelin.makyaj}
-                              </span>
-                            ) : (
-                              <span className="text-xs text-gray-400">-</span>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {gelin.turban ? (
-                              <span className="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-700 rounded-full">
-                                {gelin.turban}
-                              </span>
-                            ) : (
-                              <span className="text-xs text-gray-400">-</span>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {hizmet && (
-                              <span className={`px-2 py-1 text-xs font-medium bg-${hizmet.color}-100 text-${hizmet.color}-700 rounded-full`}>
-                                {hizmet.emoji} {hizmet.label}
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                </tbody>
-              </table>
-            </div>
-          </div>
+              {/* Personel Bazlı Raporlar */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100">
+                  <h2 className="text-lg font-semibold text-gray-800">Personel Bazlı İstatistikler</h2>
+                  <p className="text-sm text-gray-500">
+                    {selectedAy === "hepsi" ? "Tüm aylar" : aylar.find(a => a.value === selectedAy)?.label} - 
+                    {selectedPersonel === "hepsi" ? " Tüm personel" : ` ${selectedPersonel}`}
+                  </p>
+                </div>
+                
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Personel
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Toplam İş
+                        </th>
+                        {hizmetTurleri.map(ht => (
+                          <th key={ht.value} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <span className="flex items-center gap-1">
+                              <span>{ht.emoji}</span>
+                              <span>{ht.label}</span>
+                            </span>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {personeller.map(personel => {
+                        const stats = getPersonelStats(personel.isim);
+                        if (selectedPersonel !== "hepsi" && selectedPersonel !== personel.isim) return null;
+                        if (stats.toplam === 0) return null;
+                        
+                        return (
+                          <tr key={personel.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="font-medium text-gray-900">{personel.isim}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-lg font-bold text-pink-600">{stats.toplam}</div>
+                            </td>
+                            {hizmetTurleri.map(ht => (
+                              <td key={ht.value} className="px-6 py-4 whitespace-nowrap">
+                                <div className={`text-sm ${stats[ht.value] > 0 ? 'font-semibold' : 'text-gray-400'}`}>
+                                  {stats[ht.value] || '-'}
+                                </div>
+                              </td>
+                            ))}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Detaylı Liste */}
+              <div className="mt-6 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100">
+                  <h2 className="text-lg font-semibold text-gray-800">Detaylı Liste</h2>
+                  <p className="text-sm text-gray-500">{filteredGelinler.length} kayıt</p>
+                </div>
+                
+                <div className="divide-y divide-gray-100">
+                  {filteredGelinler.map(gelin => (
+                    <div key={gelin.id} className="px-6 py-4 hover:bg-gray-50">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="font-medium text-gray-900">{gelin.isim}</div>
+                          <div className="text-sm text-gray-500 mt-1">
+                            {new Date(gelin.tarih).toLocaleDateString('tr-TR', { 
+                              day: 'numeric', 
+                              month: 'long',
+                              year: 'numeric' 
+                            })} • {gelin.saat}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-sm">
+                            <span className="text-gray-500">Makyaj:</span>{' '}
+                            <span className="font-medium">{gelin.makyaj}</span>
+                          </div>
+                          <div className="text-sm">
+                            <span className="text-gray-500">Türban:</span>{' '}
+                            <span className="font-medium">{gelin.turban}</span>
+                          </div>
+                          <div className="px-3 py-1 rounded-full text-xs font-medium bg-pink-100 text-pink-700">
+                            {gelin.hizmetTuru}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
         </main>
       </div>
     </div>

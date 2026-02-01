@@ -17,14 +17,15 @@ export function getCalendarClient() {
   return google.calendar({ version: 'v3', auth });
 }
 
-// Description'dan tüm bilgileri parse et (DÜZELTME: \n korunuyor!)
+// Description'dan tüm bilgileri parse et (SAĞLAMLAŞTIRILMIŞ!)
 function parseDescription(description: string) {
-  // NBSP temizle, normalize et, ama \n'leri KORUYALIM!
+  // NBSP ve diğer görünmeyen karakterleri temizle
+  // ÖNCE satırlara böl, SONRA her satırı temizle
   const lines = description
     .replace(/\u00A0/g, ' ')  // NBSP → normal boşluk
     .normalize('NFKC')         // Unicode normalize
     .split('\n')               // Satırlara böl
-    .map(line => line.replace(/ +/g, ' ').trim());  // Her satırı temizle
+    .map(line => line.replace(/ +/g, ' ').trim()); // Her satırdaki çoklu boşlukları tek boşluğa çevir
 
   const result: any = {
     kinaGunu: '',
@@ -55,14 +56,16 @@ function parseDescription(description: string) {
       result.kinaGunu = line.trim();
     }
 
-    // Tel No
+    // Tel No (eşi tel no hariç)
     if (lower.includes('tel no:') && !lower.includes('eşi')) {
-      result.telefon = line.split(':')[1]?.trim() || '';
+      const value = line.split(':')[1]?.trim() || '';
+      result.telefon = value;
     }
 
     // Eşi Tel No
     if (lower.includes('eşi tel no:')) {
-      result.esiTelefon = line.split(':')[1]?.trim() || '';
+      const value = line.split(':')[1]?.trim() || '';
+      result.esiTelefon = value;
     }
 
     // Instagram
@@ -80,30 +83,31 @@ function parseDescription(description: string) {
       result.modaevi = line.split(':')[1]?.trim() || '';
     }
 
-    // Anlaşılan Ücret (DÜZELTME: sadece ":" dan sonrasını parse et!)
-    if (line.includes('Anlaşılan Ücret:')) {
-      const value = line.split(':')[1]?.trim() || '';
-      if (value.toUpperCase().includes('X')) {
+    // Anlaşılan Ücret (SAĞLAMLAŞTIRILDI!)
+    if (lower.includes('anla') && lower.includes('ücret')) {
+      if (line.toUpperCase().includes('X')) {
         result.ucret = -1;
       } else {
+        // Sadece ":" dan sonrasını al, telefon numarası kontaminasyonunu önle
+        const value = line.split(':')[1]?.trim() || '';
         const nums = value.replace(/[^0-9]/g, '');
         result.ucret = parseInt(nums) || 0;
       }
     }
 
-    // Kapora (DÜZELTME: sadece ":" dan sonrasını parse et!)
-    if (line.includes('Kapora:')) {
+    // Kapora (SAĞLAMLAŞTIRILDI!)
+    if (lower.includes('kapora')) {
       const value = line.split(':')[1]?.trim() || '';
       const nums = value.replace(/[^0-9]/g, '');
       result.kapora = parseInt(nums) || 0;
     }
 
-    // Kalan (DÜZELTME: sadece ":" dan sonrasını parse et!)
-    if (line.includes('Kalan:')) {
-      const value = line.split(':')[1]?.trim() || '';
-      if (value.toUpperCase().includes('X')) {
+    // Kalan (SAĞLAMLAŞTIRILDI!)
+    if (lower.includes('kalan')) {
+      if (line.toUpperCase().includes('X')) {
         result.kalan = -1;
       } else {
+        const value = line.split(':')[1]?.trim() || '';
         const nums = value.replace(/[^0-9]/g, '');
         result.kalan = parseInt(nums) || 0;
       }
@@ -195,7 +199,7 @@ function parsePersonel(title: string) {
   return { isim, makyaj, turban };
 }
 
-// Event'i Firestore formatına çevir (FİLTRELER KALDIRILDI!)
+// Event'i Firestore formatına çevir
 function eventToGelin(event: any) {
   const title = event.summary || '';
   const description = event.description || '';
@@ -206,15 +210,25 @@ function eventToGelin(event: any) {
     return null;
   }
 
+  // ✅ FİNANSAL VERİ KONTROLÜ (AppScript ile AYNI mantık)
+  // ✅ REF İSTİSNASI: REF varsa finansal veri şartı arama!
+  const hasFinancialData = 
+    description.includes('Anlaşılan Ücret:') || 
+    description.includes('Kapora:') || 
+    description.includes('Kalan:') ||
+    title.toUpperCase().includes('REF');
+  
+  if (!hasFinancialData) {
+    console.warn('[SKIP] Finansal veri yok:', { id: event.id, title });
+    return null;
+  }
+
   const date = new Date(startDate);
   const dateStr = date.toISOString().split('T')[0];
   const timeStr = date.toTimeString().split(' ')[0].substring(0, 5);
 
   const parsedData = parseDescription(description);
   const { isim, makyaj, turban } = parsePersonel(title);
-
-  // ❌ ARTIK FİLTRE YOK! TÜM GELİNLER EKLENİYOR!
-  // (İptal olanlar da, ücret 0 olanlar da dahil)
 
   return {
     id: event.id,
@@ -263,7 +277,7 @@ export async function incrementalSync(syncToken?: string) {
   }
 
   try {
-    const response = await calendar.events.list(params);
+    const response: any = await calendar.events.list(params);
     const events = response.data.items || [];
     const newSyncToken = response.data.nextSyncToken;
 
@@ -298,26 +312,11 @@ export async function incrementalSync(syncToken?: string) {
   }
 }
 
-// Full sync - Önce temizle sonra yaz (PAGINATION İLE + BATCH LİMİTLERİ!)
+// Full sync - SADECE EKLE (SİLME YOK!)
 export async function fullSync() {
   const calendar = getCalendarClient();
 
-  // 1. ÖNCE TÜM GELİNLERİ SİL (500'LÜK BATCH'LERLE!)
-  console.log('🗑️ Firestore temizleniyor...');
-  const allDocs = await adminDb.collection('gelinler').get();
-  
-  // 500'lük gruplar halinde sil
-  for (let i = 0; i < allDocs.docs.length; i += 500) {
-    const deleteBatch = adminDb.batch();
-    const chunk = allDocs.docs.slice(i, i + 500);
-    chunk.forEach(doc => deleteBatch.delete(doc.ref));
-    await deleteBatch.commit();
-    console.log(`🗑️ ${i + chunk.length} / ${allDocs.docs.length} gelin silindi...`);
-  }
-  
-  console.log(`✅ Toplam ${allDocs.size} gelin silindi`);
-
-  // 2. CALENDAR'DAN TÜM GELİNLERİ ÇEK (PAGINATION İLE!)
+  // CALENDAR'DAN TÜM GELİNLERİ ÇEK (PAGINATION İLE!)
   console.log('📥 Calendar\'dan çekiliyor...');
   let allEvents: any[] = [];
   let pageToken: string | null | undefined = undefined;
@@ -328,7 +327,7 @@ export async function fullSync() {
       timeMin: new Date('2025-01-01').toISOString(),
       timeMax: new Date('2030-12-31').toISOString(),
       singleEvents: true,
-      maxResults: 2500,  // Her sayfada max 2500
+      maxResults: 2500,
       pageToken: pageToken || undefined
     });
 
@@ -341,9 +340,10 @@ export async function fullSync() {
 
   console.log(`✅ Toplam ${allEvents.length} event çekildi`);
 
-  // 3. FIRESTORE'A YAZ (100'LÜK BATCH'LERLE - DAHA KÜÇÜK!)
+  // 3. FIRESTORE'A YAZ (100'lük BATCH'LERLE!)
   console.log('📝 Firestore\'a yazılıyor...');
   let addedCount = 0;
+  let skippedCount = 0;
   let batch = adminDb.batch();
   let batchCount = 0;
 
@@ -355,13 +355,15 @@ export async function fullSync() {
       addedCount++;
       batchCount++;
 
-      // Firestore batch limiti: 100'E DÜŞÜRÜLDÜ (description'lar uzun!)
+      // Firestore batch limiti: 100 (güvenli için)
       if (batchCount >= 100) {
         await batch.commit();
         console.log(`💾 ${addedCount} gelin yazıldı...`);
         batch = adminDb.batch();
         batchCount = 0;
       }
+    } else {
+      skippedCount++;
     }
   }
 
@@ -371,11 +373,12 @@ export async function fullSync() {
   }
 
   console.log(`✅ Toplam ${addedCount} gelin eklendi`);
+  console.log(`⚠️ ${skippedCount} event atlandı (finansal veri yok)`);
 
   return { 
-    success: true, 
-    deleted: allDocs.size,
+    success: true,
     totalEvents: allEvents.length,
-    added: addedCount
+    added: addedCount,
+    skipped: skippedCount
   };
 }

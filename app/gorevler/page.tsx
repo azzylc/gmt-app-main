@@ -66,19 +66,38 @@ export default function GorevlerPage() {
     return () => unsubscribe();
   }, [router]);
 
-  // Gelinleri çek (Google Sheets'ten)
+  // ✅ Gelinler - Firestore'dan (real-time) - APPS SCRIPT YERİNE!
   useEffect(() => {
-    const fetchGelinler = async () => {
-      try {
-        const response = await fetch("https://script.google.com/macros/s/AKfycbyr_9fBVzkVXf-Fx4s-DUjFTPhHlxm54oBGrrG3UGfNengHOp8rQbXKdX8pOk4reH8/exec");
-        const data = await response.json();
-        setGelinler(data.gelinler || []);
-      } catch (error) {
-        console.error("Gelinler yüklenemedi:", error);
-      }
+    if (!user) return;
+
+    console.log('🔄 Firestore gelinler listener başlatılıyor (Görevler)...');
+    
+    const q = query(
+      collection(db, "gelinler"),
+      orderBy("tarih", "asc")
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        isim: doc.data().isim || "",
+        tarih: doc.data().tarih || "",
+        saat: doc.data().saat || "",
+        makyaj: doc.data().makyaj || "",
+        yorumIstesinMi: doc.data().yorumIstesinMi || "",
+      } as Gelin));
+
+      console.log(`✅ ${data.length} gelin Firestore'dan yüklendi (Görevler, real-time)`);
+      setGelinler(data);
+    }, (error) => {
+      console.error('❌ Firestore listener hatası (Görevler):', error);
+    });
+
+    return () => {
+      console.log('🛑 Firestore gelinler listener kapatılıyor (Görevler)...');
+      unsubscribe();
     };
-    fetchGelinler();
-  }, []);
+  }, [user]);
 
   // Görevleri dinle
   useEffect(() => {
@@ -230,6 +249,7 @@ export default function GorevlerPage() {
         <header className="bg-white shadow-sm sticky top-0 z-10 border-b border-gray-200">
           <div className="px-4 md:px-6 py-4">
             <h1 className="text-xl md:text-2xl font-bold text-gray-800">✅ Görevlerim</h1>
+            <p className="text-sm text-gray-500 mt-1">Firestore Real-time</p>
           </div>
         </header>
 
