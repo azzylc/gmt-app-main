@@ -1,95 +1,149 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { fullSync } from '@/app/lib/calendar-sync';
+// app/api/drift-detection/route.ts
+
+import { NextResponse } from 'next/server';
 import { adminDb } from '@/app/lib/firestore-admin';
-import { verifyAdminAuth } from '@/app/lib/auth';
+import { google } from 'googleapis';
+import * as Sentry from '@sentry/nextjs';
+import { FieldValue } from 'firebase-admin/firestore';
 
-// Vercel function configuration
-export const maxDuration = 60; // 60 seconds for large syncs
+const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID!;
 
-export async function POST(req: NextRequest) {
-  // Verify admin authentication
-  const authError = verifyAdminAuth(req);
-  if (authError) return authError;
+// 📊 Job Stats Helper
+async function updateJobStats(jobName: string, success: boolean, errorCode?: string, extra?: Record<string, any>) {
+  const statsRef = adminDb.collection('system').doc('jobStats').collection('jobs').doc(jobName);
+  
+  const updateData: Record<string, any> = {
+    lastRunAt: new Date().toISOString(),
+    runCount: FieldValue.increment(1),
+  };
+  
+  if (success) {
+    updateData.lastSuccessAt = new Date().toISOString();
+    updateData.successCount = FieldValue.increment(1);
+    if (extra) updateData.lastResult = extra;
+  } else {
+    updateData.lastErrorAt = new Date().toISOString();
+    updateData.lastErrorCode = errorCode || 'UNKNOWN';
+    updateData.errorCount = FieldValue.increment(1);
+  }
+  
+  await statsRef.set(updateData, { merge: true });
+}
+
+export async function GET(request: Request) {
+  // Cron auth check
+  const authHeader = request.headers.get('authorization');
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
   try {
-    // 🔒 CONCURRENCY LOCK: Full-sync overlap önle
-    const lockRef = adminDb.collection('system').doc('locks').collection('jobs').doc('fullSync');
+    // 1. Firestore'dan tüm gelinleri çek
+    const firestoreSnapshot = await adminDb.collection('gelinler').get();
+    const firestoreMap = new Map<string, FirebaseFirestore.DocumentData>();
     
-    // Transaction ile lock al
-    const lockAcquired = await adminDb.runTransaction(async (transaction) => {
-      const lockDoc = await transaction.get(lockRef);
-      const now = Date.now();
-      
-      if (lockDoc.exists) {
-        const lockData = lockDoc.data()!;
-        const lockedUntil = new Date(lockData.lockedUntil).getTime();
-        
-        // Lock hala geçerli mi?
-        if (lockedUntil > now) {
-          const remainingMs = lockedUntil - now;
-          console.log(`⏸️ Full-sync zaten çalışıyor (${Math.round(remainingMs / 1000)}s kaldı)`);
-          return false;
-        }
-      }
-      
-      // Lock al (60 saniye TTL)
-      transaction.set(lockRef, {
-        lockedAt: new Date().toISOString(),
-        lockedUntil: new Date(now + 60000).toISOString(), // 60s TTL
-        lockedBy: 'full-sync-cron'
-      });
-      
-      return true;
+    firestoreSnapshot.docs.forEach((doc) => {
+      firestoreMap.set(doc.id, doc.data());
     });
+
+    // 2. Google Calendar'dan eventleri çek
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      },
+      scopes: ['https://www.googleapis.com/auth/calendar.readonly'],
+    });
+
+    const calendar = google.calendar({ version: 'v3', auth });
     
-    // Lock alınamadı
-    if (!lockAcquired) {
-      return NextResponse.json({
-        status: 'locked',
-        message: 'Full-sync already running, skipping this invocation'
-      });
-    }
+    const calendarEvents: { id?: string | null }[] = [];
+    let pageToken: string | undefined;
     
-    console.log('🔄 Full sync başlatılıyor...');
-    
-    try {
-      const result = await fullSync();
-      
-      // SyncToken'ı kaydet
-      await adminDb.collection('system').doc('sync').set({
-        lastSyncToken: result.syncToken || null,
-        lastFullSync: new Date().toISOString(),
-        needsFullSync: false // Flag'i temizle
-      }, { merge: true });
-      
-      // Lock'u temizle
-      await lockRef.delete();
-      
-      return NextResponse.json({
-        success: true,
-        totalEvents: result.totalEvents,
-        added: result.added,
-        skipped: result.skipped,
-        syncToken: result.syncToken,
-        message: `✅ ${result.added} gelin eklendi, ${result.skipped} atlandı`
+    do {
+      const response = await calendar.events.list({
+        calendarId: CALENDAR_ID,
+        maxResults: 2500,
+        pageToken,
+        singleEvents: true,
       });
       
-    } catch (syncError: any) {
-      // Sync hatası olsa bile lock'u temizle
-      await lockRef.delete();
-      throw syncError;
+      calendarEvents.push(...(response.data.items || []));
+      pageToken = response.data.nextPageToken || undefined;
+    } while (pageToken);
+
+    // 3. Drift analizi - SADECE ID'leri topla, PII yok!
+    const driftResults = {
+      missingInFirestore: [] as string[],
+      missingInCalendar: [] as string[],
+      totalCalendar: calendarEvents.length,
+      totalFirestore: firestoreSnapshot.size,
+    };
+
+    // Calendar'da olup Firestore'da olmayan
+    calendarEvents.forEach(event => {
+      if (event.id && !firestoreMap.has(event.id)) {
+        driftResults.missingInFirestore.push(event.id);
+      }
+    });
+
+    // Firestore'da olup Calendar'da olmayan
+    const calendarIds = new Set(calendarEvents.map(e => e.id));
+    firestoreSnapshot.docs.forEach((doc) => {
+      if (!calendarIds.has(doc.id)) {
+        driftResults.missingInCalendar.push(doc.id);
+      }
+    });
+
+    const totalDrift = driftResults.missingInFirestore.length + driftResults.missingInCalendar.length;
+
+    // 4. Drift varsa Sentry'ye bildir - PII-SAFE!
+    if (totalDrift > 0) {
+      Sentry.captureMessage('Calendar drift detected', {
+        level: 'warning',
+        extra: {
+          missingInFirestoreCount: driftResults.missingInFirestore.length,
+          missingInCalendarCount: driftResults.missingInCalendar.length,
+          missingInFirestoreIds: driftResults.missingInFirestore.slice(0, 10),
+          missingInCalendarIds: driftResults.missingInCalendar.slice(0, 10),
+          totalCalendar: driftResults.totalCalendar,
+          totalFirestore: driftResults.totalFirestore,
+          timestamp: new Date().toISOString(),
+        },
+      });
     }
 
-  } catch (error: any) {
-    console.error('❌ Full sync hatası:', error);
+    // 📊 Job Stats - SUCCESS
+    await updateJobStats('driftDetection', true, undefined, {
+      totalDrift,
+      totalCalendar: driftResults.totalCalendar,
+      totalFirestore: driftResults.totalFirestore,
+    });
+
+    // 5. Response - PII-SAFE!
+    return NextResponse.json({
+      status: totalDrift > 0 ? 'drift_detected' : 'in_sync',
+      summary: {
+        totalCalendar: driftResults.totalCalendar,
+        totalFirestore: driftResults.totalFirestore,
+        missingInFirestoreCount: driftResults.missingInFirestore.length,
+        missingInCalendarCount: driftResults.missingInCalendar.length,
+      },
+      sampleIds: totalDrift > 0 ? {
+        missingInFirestore: driftResults.missingInFirestore.slice(0, 10),
+        missingInCalendar: driftResults.missingInCalendar.slice(0, 10),
+      } : null,
+      checkedAt: new Date().toISOString(),
+    });
+
+  } catch (error) {
+    // 📊 Job Stats - ERROR
+    await updateJobStats('driftDetection', false, error instanceof Error ? error.message : 'UNKNOWN');
+    
+    Sentry.captureException(error);
     return NextResponse.json(
-      { error: 'Full sync failed', details: error.message },
+      { error: 'Drift detection failed', timestamp: new Date().toISOString() },
       { status: 500 }
     );
   }
-}
-
-// GET method (Vercel Cron için)
-export async function GET(req: NextRequest) {
-  return POST(req);
 }
