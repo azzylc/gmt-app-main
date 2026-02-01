@@ -7,14 +7,41 @@ const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID!;
 const WEBHOOK_URL = `${process.env.NEXT_PUBLIC_APP_URL}/api/calendar-webhook`;
 
 export async function POST(req: NextRequest) {
+  return renewWebhook();
+}
+
+// Vercel Cron job için GET method desteği
+export async function GET(req: NextRequest) {
+  return renewWebhook();
+}
+
+async function renewWebhook() {
   try {
     const calendar = getCalendarClient();
 
-    // Unique channel ID oluştur
+    // Eski channel'ı durdur
+    const oldChannelDoc = await adminDb.collection('system').doc('webhookChannel').get();
+    
+    if (oldChannelDoc.exists) {
+      const oldData = oldChannelDoc.data()!;
+      
+      try {
+        await calendar.channels.stop({
+          requestBody: {
+            id: oldData.channelId,
+            resourceId: oldData.resourceId,
+          },
+        });
+        console.log('Old webhook stopped:', oldData.channelId);
+      } catch (error) {
+        console.warn('Could not stop old webhook (may already be expired):', error);
+      }
+    }
+
+    // Yeni channel oluştur
     const channelId = uuidv4();
     const expiration = Date.now() + (7 * 24 * 60 * 60 * 1000); // 7 gün
 
-    // Watch request
     const response = await calendar.events.watch({
       calendarId: CALENDAR_ID,
       requestBody: {
@@ -25,15 +52,15 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Channel bilgilerini Firestore'a kaydet
+    // Yeni channel bilgilerini kaydet
     await adminDb.collection('system').doc('webhookChannel').set({
       channelId,
       resourceId: response.data.resourceId,
       expiration: new Date(expiration).toISOString(),
-      createdAt: new Date().toISOString(),
+      renewedAt: new Date().toISOString(),
     });
 
-    console.log('Webhook setup successful:', {
+    console.log('Webhook renewed successfully:', {
       channelId,
       resourceId: response.data.resourceId,
       expiration: new Date(expiration).toISOString(),
@@ -41,51 +68,18 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      message: 'Webhook renewed',
       channelId,
       resourceId: response.data.resourceId,
       expiration: new Date(expiration).toISOString(),
-      webhookUrl: WEBHOOK_URL,
     });
   } catch (error: any) {
-    console.error('Webhook setup error:', error);
+    console.error('Webhook renewal error:', error);
     return NextResponse.json(
       { 
-        error: 'Webhook setup failed', 
+        error: 'Webhook renewal failed', 
         details: error.message 
       },
-      { status: 500 }
-    );
-  }
-}
-
-// GET - Mevcut webhook durumunu göster
-export async function GET() {
-  try {
-    const channelDoc = await adminDb.collection('system').doc('webhookChannel').get();
-    
-    if (!channelDoc.exists) {
-      return NextResponse.json({ 
-        status: 'No webhook configured',
-        action: 'POST to this endpoint to setup webhook'
-      });
-    }
-
-    const data = channelDoc.data()!;
-    const expiresIn = new Date(data.expiration).getTime() - Date.now();
-    const hoursLeft = Math.floor(expiresIn / (1000 * 60 * 60));
-
-    return NextResponse.json({
-      status: 'Webhook active',
-      channelId: data.channelId,
-      resourceId: data.resourceId,
-      expiration: data.expiration,
-      hoursLeft,
-      needsRenewal: hoursLeft < 24,
-    });
-  } catch (error) {
-    console.error('Error fetching webhook status:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch webhook status' },
       { status: 500 }
     );
   }
