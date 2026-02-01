@@ -20,8 +20,8 @@ export async function POST(req: NextRequest) {
       // Calendar'da değişiklik var!
       
       // syncToken'ı al (Firestore'da saklıyoruz)
-      const syncTokenDoc = await adminDb.collection('system').doc('calendarSync').get();
-      const syncToken = syncTokenDoc.data()?.syncToken;
+      const syncTokenDoc = await adminDb.collection('system').doc('sync').get();
+      const syncToken = syncTokenDoc.data()?.lastSyncToken;
 
       // Incremental sync yap
       const result = await incrementalSync(syncToken);
@@ -29,10 +29,10 @@ export async function POST(req: NextRequest) {
       if (result.success) {
         // Yeni syncToken'ı kaydet
         if (result.syncToken) {
-          await adminDb.collection('system').doc('calendarSync').set({
-            syncToken: result.syncToken,
+          await adminDb.collection('system').doc('sync').set({
+            lastSyncToken: result.syncToken,
             lastSync: new Date().toISOString()
-          });
+          }, { merge: true });
         }
 
         console.log('Incremental sync completed:', result.updateCount, 'updates');

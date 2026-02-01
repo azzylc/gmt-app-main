@@ -8,9 +8,9 @@ export async function POST() {
     
     const result = await fullSync();
     
-    // SyncToken'ı Firestore'a kaydet (yeni syncToken yok, null kaydet)
+    // SyncToken'ı Firestore'a kaydet
     await adminDb.collection('system').doc('sync').set({
-      lastSyncToken: null,
+      lastSyncToken: result.syncToken || null,
       lastFullSync: new Date().toISOString()
     });
 
@@ -19,6 +19,7 @@ export async function POST() {
       totalEvents: result.totalEvents,
       added: result.added,
       skipped: result.skipped,
+      syncToken: result.syncToken,
       message: `✅ ${result.added} gelin eklendi, ${result.skipped} atlandı (finansal veri yok)`
     });
 

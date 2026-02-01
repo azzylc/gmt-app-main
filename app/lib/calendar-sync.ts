@@ -320,6 +320,7 @@ export async function fullSync() {
   console.log('📥 Calendar\'dan çekiliyor...');
   let allEvents: any[] = [];
   let pageToken: string | null | undefined = undefined;
+  let syncToken: string | undefined;
 
   do {
     const response: any = await calendar.events.list({
@@ -334,6 +335,11 @@ export async function fullSync() {
     const events = response.data.items || [];
     allEvents = allEvents.concat(events);
     pageToken = response.data.nextPageToken;
+    
+    // Son sayfada syncToken gelir
+    if (!pageToken && response.data.nextSyncToken) {
+      syncToken = response.data.nextSyncToken;
+    }
 
     console.log(`📦 ${events.length} event çekildi (Toplam: ${allEvents.length})`);
   } while (pageToken);
@@ -379,6 +385,7 @@ export async function fullSync() {
     success: true,
     totalEvents: allEvents.length,
     added: addedCount,
-    skipped: skippedCount
+    skipped: skippedCount,
+    syncToken: syncToken
   };
 }
