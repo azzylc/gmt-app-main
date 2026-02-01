@@ -30,34 +30,40 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ status: 'no_channels_configured' });
     }
 
-    // Valid channels (15dk grace period)
+    // Valid channels - AKTİF veya grace period içinde
     const now = Date.now();
-    const GRACE_PERIOD_MS = 15 * 60 * 1000; // 15 dakika
+    const GRACE_PERIOD_MS = 15 * 60 * 1000; // 15 dakika (eski kanallar için geçiş süresi)
     
     let isValidChannel = false;
     let validChannelData: any = null;
 
     for (const doc of channelsSnapshot.docs) {
       const data = doc.data();
+      const expiration = new Date(data.expiration).getTime();
       const channelAge = now - new Date(data.createdAt).getTime();
       
-      // Grace period içinde mi?
-      if (channelAge <= GRACE_PERIOD_MS) {
-        // Token + channelId + resourceId doğrula
-        if (
-          data.webhookToken === channelToken &&
-          data.channelId === channelId &&
-          data.resourceId === resourceId
-        ) {
+      // Token + channelId + resourceId doğrula
+      const tokenMatch = data.webhookToken === channelToken &&
+                         data.channelId === channelId &&
+                         data.resourceId === resourceId;
+      
+      if (tokenMatch) {
+        // ✅ AKTİF kanal (expiration geçmemiş) VEYA grace period içinde (eski kanal geçişi)
+        if (expiration > now || channelAge <= GRACE_PERIOD_MS) {
           isValidChannel = true;
           validChannelData = data;
+          console.log('Valid channel found:', { 
+            channelId: data.channelId, 
+            isActive: expiration > now,
+            inGracePeriod: channelAge <= GRACE_PERIOD_MS 
+          });
           break;
         }
       }
     }
 
     if (!isValidChannel) {
-      console.warn('Webhook validation failed (no valid channel in grace period)');
+      console.warn('Webhook validation failed - no matching active channel');
       return NextResponse.json({ status: 'validation_failed' });
     }
 

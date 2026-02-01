@@ -133,6 +133,9 @@ function PersonelPageContent() {
       konumDisi: false,
     }
   });
+  const [sifre, setSifre] = useState(""); // Yeni personel için şifre
+  const [sifreGoster, setSifreGoster] = useState(false);
+  const [apiLoading, setApiLoading] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -202,10 +205,40 @@ function PersonelPageContent() {
       return;
     }
 
+    // Yeni personel için email ve şifre zorunlu
+    if (!editingPersonel) {
+      if (!formData.email) {
+        alert("Yeni personel için email adresi zorunludur!");
+        return;
+      }
+      if (!sifre || sifre.length < 6) {
+        alert("Yeni personel için en az 6 karakterli şifre zorunludur!");
+        return;
+      }
+    }
+
+    setApiLoading(true);
+
     try {
       if (editingPersonel) {
+        // GÜNCELLEME - API kullan
         const { id, ...dataToUpdate } = formData;
-        await updateDoc(doc(db, "personnel", editingPersonel.id), dataToUpdate);
+        
+        const response = await fetch('/api/personel', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: editingPersonel.id,
+            password: sifre || undefined, // Şifre değişikliği varsa gönder
+            ...dataToUpdate
+          })
+        });
+
+        const result = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(result.error || 'Güncelleme başarısız');
+        }
         
         // Yönetici veya Kurucu ise, yönettiği personelleri güncelle
         if (formData.kullaniciTuru === "Yönetici" || formData.kullaniciTuru === "Kurucu") {
@@ -231,18 +264,32 @@ function PersonelPageContent() {
           }
         }
       } else {
+        // YENİ PERSONEL - API kullan (Firebase Auth + Firestore)
         const { id, ...dataToAdd } = formData;
-        const docRef = await addDoc(collection(db, "personnel"), {
-          ...dataToAdd,
-          createdAt: serverTimestamp()
+        
+        const response = await fetch('/api/personel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...dataToAdd,
+            password: sifre
+          })
         });
+
+        const result = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(result.error || 'Personel oluşturulamadı');
+        }
         
         // Yeni eklenen personel Yönetici veya Kurucu ise, yönettiği personelleri set et
         if ((formData.kullaniciTuru === "Yönetici" || formData.kullaniciTuru === "Kurucu") && yonetilenPersoneller.length > 0) {
           for (const personelId of yonetilenPersoneller) {
-            await updateDoc(doc(db, "personnel", personelId), { yoneticiId: docRef.id });
+            await updateDoc(doc(db, "personnel", personelId), { yoneticiId: result.uid });
           }
         }
+
+        alert(`✅ ${formData.ad} ${formData.soyad} başarıyla eklendi!\n\nGiriş bilgileri:\nEmail: ${formData.email}\nŞifre: ${sifre}`);
       }
 
       if (action === 'close') {
@@ -253,9 +300,11 @@ function PersonelPageContent() {
         resetForm();
         setActiveTab(0);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Hata:", error);
-      alert("İşlem başarısız!");
+      alert(`İşlem başarısız: ${error.message}`);
+    } finally {
+      setApiLoading(false);
     }
   };
 
@@ -339,6 +388,8 @@ function PersonelPageContent() {
     });
     setFotoPreview("");
     setYonetilenPersoneller([]); // YENİ: Yönetilen personelleri temizle
+    setSifre(""); // Şifreyi sıfırla
+    setSifreGoster(false);
   };
 
   const toggleGrup = (grup: string) => {
@@ -750,7 +801,7 @@ function PersonelPageContent() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Email {!isKurucu && "(Sadece Kurucular Değiştirebilir)"}
+                        Email {!isKurucu && "(Sadece Kurucular Değiştirebilir)"} {!editingPersonel && <span className="text-red-500">*</span>}
                       </label>
                       <input 
                         type="email" 
@@ -760,6 +811,34 @@ function PersonelPageContent() {
                         className={`w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 ${!isKurucu ? 'bg-gray-100 cursor-not-allowed' : ''}`} 
                         placeholder="email@example.com" 
                       />
+                    </div>
+                    
+                    {/* Şifre Alanı */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        {editingPersonel ? 'Yeni Şifre (değiştirmek için doldurun)' : 'Şifre'} 
+                        {!editingPersonel && <span className="text-red-500">*</span>}
+                      </label>
+                      <div className="relative">
+                        <input 
+                          type={sifreGoster ? "text" : "password"}
+                          value={sifre} 
+                          onChange={(e) => setSifre(e.target.value)} 
+                          className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 pr-12" 
+                          placeholder={editingPersonel ? "••••••" : "En az 6 karakter"}
+                          minLength={6}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setSifreGoster(!sifreGoster)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          {sifreGoster ? '🙈' : '👁️'}
+                        </button>
+                      </div>
+                      {!editingPersonel && (
+                        <p className="text-xs text-gray-500 mt-1">Personel bu şifre ile giriş yapacak</p>
+                      )}
                     </div>
                   </div>
 
@@ -919,21 +998,24 @@ function PersonelPageContent() {
             <div className="sticky bottom-0 bg-white px-6 py-4 border-t flex gap-3">
               <button 
                 onClick={() => handleAddEdit('close')} 
-                className="flex-1 px-4 py-3 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition font-medium"
+                disabled={apiLoading}
+                className={`flex-1 px-4 py-3 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition font-medium ${apiLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                💾 Kaydet & Geri dön
+                {apiLoading ? '⏳ Kaydediliyor...' : '💾 Kaydet & Geri dön'}
               </button>
               {!editingPersonel && (
                 <button 
                   onClick={() => handleAddEdit('new')} 
-                  className="flex-1 px-4 py-3 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition font-medium"
+                  disabled={apiLoading}
+                  className={`flex-1 px-4 py-3 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition font-medium ${apiLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  ➕ Kaydet & Yeni ekle
+                  {apiLoading ? '⏳ Kaydediliyor...' : '➕ Kaydet & Yeni ekle'}
                 </button>
               )}
               <button 
                 onClick={() => { setShowModal(false); resetForm(); }} 
-                className="flex-1 px-4 py-3 bg-gray-500 text-white rounded-xl hover:bg-gray-600 transition font-medium"
+                disabled={apiLoading}
+                className={`flex-1 px-4 py-3 bg-gray-500 text-white rounded-xl hover:bg-gray-600 transition font-medium ${apiLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 ↩️ Geri dön
               </button>
