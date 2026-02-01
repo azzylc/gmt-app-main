@@ -40,3 +40,6 @@ app_backup/
 # backup files
 app.zip
 app_backup/
+
+# Sentry Config File
+.env.sentry-build-plugin
