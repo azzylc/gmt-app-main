@@ -1,23 +1,34 @@
-// app/api/compare-gelinler/route.ts
-// 
-// Firestore vs Apps Script karşılaştırma endpoint'i
-// Kullanım: http://localhost:3000/api/compare-gelinler
+import { NextRequest, NextResponse } from 'next/server';
+import { adminDb } from '@/app/lib/firestore-admin';
+import { getCalendarClient } from '@/app/lib/calendar-sync';
+import { verifyAdminAuth } from '@/app/lib/auth';
 
-import { NextResponse } from 'next/server';
-import { db } from '@/app/lib/firebase';
-import { collection, getDocs, orderBy as firestoreOrderBy, query } from 'firebase/firestore';
+const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID!;
 
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyr_9fBVzkVXf-Fx4s-DUjFTPhHlxm54oBGrrG3UGfNengHOp8rQbXKdX8pOk4reH8/exec";
+/**
+ * ADMIN TOOL: Firestore vs Google Calendar Karşılaştırma
+ * 
+ * Detaylı analiz:
+ * - İsim bazlı analiz (İptal, Ertelendi, İzin, Tatil, REF)
+ * - Tarih grupları
+ * - Fazla/eksik gelinler
+ * - Neden analizi
+ */
+export async function GET(req: NextRequest) {
+  // Verify admin authentication
+  const authError = verifyAdminAuth(req);
+  if (authError) return authError;
 
-export async function GET() {
   try {
-    console.log('🔍 Firestore vs Excel Karşılaştırma Başlıyor...');
+    console.log('🔍 Firestore vs Google Calendar Karşılaştırma Başlıyor...');
     
     // 1. FIRESTORE'DAN GELİNLERİ ÇEK
     console.log('1️⃣ Firestore\'dan gelinler çekiliyor...');
     
-    const q = query(collection(db, 'gelinler'), firestoreOrderBy('tarih', 'asc'));
-    const snapshot = await getDocs(q);
+    const snapshot = await adminDb
+      .collection('gelinler')
+      .orderBy('tarih', 'asc')
+      .get();
     
     const firestoreGelinler: any[] = [];
     snapshot.forEach(doc => {
@@ -34,39 +45,76 @@ export async function GET() {
     
     console.log(`   ✅ ${firestoreGelinler.length} gelin bulundu (Firestore)`);
     
-    // 2. APPS SCRIPT'TEN GELİNLERİ ÇEK
-    console.log('2️⃣ Apps Script\'ten gelinler çekiliyor...');
+    // 2. GOOGLE CALENDAR'DAN GELİNLERİ ÇEK
+    console.log('2️⃣ Google Calendar\'dan gelinler çekiliyor...');
     
-    const response = await fetch(`${APPS_SCRIPT_URL}?action=gelinler`);
-    const appsScriptGelinler = await response.json();
+    const calendar = getCalendarClient();
+    const calendarResponse = await calendar.events.list({
+      calendarId: CALENDAR_ID,
+      timeMin: new Date('2025-01-01').toISOString(),
+      timeMax: new Date('2030-12-31').toISOString(),
+      singleEvents: true,
+      maxResults: 2500,
+    });
+
+    const calendarEvents = calendarResponse.data.items || [];
     
-    console.log(`   ✅ ${appsScriptGelinler.length} gelin bulundu (Apps Script)`);
+    // Calendar'daki finansal eventleri filtrele (Firestore'dakilerle aynı mantık)
+    const calendarGelinler = calendarEvents
+      .filter(event => {
+        const summary = event.summary || '';
+        const description = event.description || '';
+        
+        // REF veya finansal veri içeren eventler
+        return (
+          summary.toUpperCase().includes('REF') ||
+          description.includes('Anlaşılan Ücret:') ||
+          description.includes('Kapora:') ||
+          description.includes('Kalan:')
+        );
+      })
+      .map(event => ({
+        id: event.id,
+        isim: event.summary || '',
+        tarih: event.start?.dateTime 
+          ? new Date(event.start.dateTime).toISOString().split('T')[0]
+          : event.start?.date || '',
+        saat: event.start?.dateTime
+          ? new Date(event.start.dateTime).toLocaleTimeString('tr-TR', { 
+              hour: '2-digit', 
+              minute: '2-digit',
+              timeZone: 'Europe/Istanbul'
+            })
+          : '',
+      }));
+    
+    console.log(`   ✅ ${calendarGelinler.length} gelin bulundu (Calendar)`);
     
     // 3. KARŞILAŞTIRMA YAP
     console.log('3️⃣ Karşılaştırma yapılıyor...');
     
-    // Apps Script'teki gelinlerin key'lerini oluştur
-    const appsScriptKeys = new Set<string>();
-    appsScriptGelinler.forEach((gelin: any) => {
+    // Calendar'daki gelinlerin key'lerini oluştur
+    const calendarKeys = new Set<string>();
+    calendarGelinler.forEach(gelin => {
       const key1 = `${gelin.isim}|${gelin.tarih}|${gelin.saat}`;
       const key2 = `${gelin.isim}|${gelin.tarih}`;
-      appsScriptKeys.add(key1);
-      appsScriptKeys.add(key2);
+      calendarKeys.add(key1);
+      calendarKeys.add(key2);
     });
     
-    // Firestore'da olup Apps Script'te olmayanları bul
+    // Firestore'da olup Calendar'da olmayanları bul
     const fazlaGelinler = firestoreGelinler.filter(gelin => {
       const key1 = `${gelin.isim}|${gelin.tarih}|${gelin.saat}`;
       const key2 = `${gelin.isim}|${gelin.tarih}`;
-      return !appsScriptKeys.has(key1) && !appsScriptKeys.has(key2);
+      return !calendarKeys.has(key1) && !calendarKeys.has(key2);
     });
     
     // 4. ANALİZ YAP
     const analiz: any = {
       toplam: {
         firestore: firestoreGelinler.length,
-        appsScript: appsScriptGelinler.length,
-        fark: firestoreGelinler.length - appsScriptGelinler.length
+        calendar: calendarGelinler.length,
+        fark: firestoreGelinler.length - calendarGelinler.length
       },
       fazlaGelinler: fazlaGelinler,
       fazlaGelinlerSayisi: fazlaGelinler.length,
@@ -78,7 +126,7 @@ export async function GET() {
     if (refGelinler.length > 0) {
       analiz.nedenler.ref = {
         adet: refGelinler.length,
-        aciklama: 'Apps Script\'te REF filtrelenmiş olabilir'
+        aciklama: 'Calendar\'da REF filtrelenmiş olabilir'
       };
     }
     

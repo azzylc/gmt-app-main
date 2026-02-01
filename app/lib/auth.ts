@@ -7,10 +7,19 @@ import { NextRequest, NextResponse } from 'next/server';
 export function verifyAdminAuth(req: NextRequest): NextResponse | null {
   const authHeader = req.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
+  const vercelEnv = process.env.VERCEL_ENV; // 'production', 'preview', 'development'
 
-  // If CRON_SECRET not set, allow (dev mode)
+  // CRITICAL: In production/preview, CRON_SECRET must exist (fail-closed)
   if (!cronSecret) {
-    console.warn('[AUTH] CRON_SECRET not set - allowing request (dev mode)');
+    if (vercelEnv === 'production' || vercelEnv === 'preview') {
+      console.error('[AUTH] CRON_SECRET not set in production/preview - blocking request');
+      return NextResponse.json(
+        { error: 'Server configuration error' },
+        { status: 500 }
+      );
+    }
+    // Dev mode: allow without secret
+    console.warn('[AUTH] CRON_SECRET not set - dev mode, allowing request');
     return null;
   }
 
