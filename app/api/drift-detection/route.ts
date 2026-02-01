@@ -1,70 +1,115 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdminAuth } from '@/app/lib/auth';
+// app/api/drift-detection/route.ts - PII-SAFE VERSION (FIXED v2)
+
+import { NextResponse } from 'next/server';
+import { adminDb } from '@/app/lib/firestore-admin';  // ✅ adminDb
+import { google } from 'googleapis';
 import * as Sentry from '@sentry/nextjs';
 
-export async function GET(req: NextRequest) {
-  // Verify admin authentication
-  const authError = verifyAdminAuth(req);
-  if (authError) return authError;
+const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID!;
+
+export async function GET(request: Request) {
+  // Cron auth check
+  const authHeader = request.headers.get('authorization');
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
   try {
-    // Compare-gelinler endpoint'ini çağır
-    const compareUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/compare-gelinler`;
-    const compareResponse = await fetch(compareUrl, {
-      headers: {
-        'x-admin-key': process.env.ADMIN_KEY!,
-      },
+    // 1. Firestore'dan tüm gelinleri çek
+    const firestoreSnapshot = await adminDb.collection('gelinler').get();
+    const firestoreMap = new Map<string, FirebaseFirestore.DocumentData>();
+    
+    firestoreSnapshot.docs.forEach((doc) => {
+      firestoreMap.set(doc.id, doc.data());
     });
 
-    if (!compareResponse.ok) {
-      throw new Error('Compare-gelinler request failed');
-    }
+    // 2. Google Calendar'dan eventleri çek
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      },
+      scopes: ['https://www.googleapis.com/auth/calendar.readonly'],
+    });
 
-    const result = await compareResponse.json();
+    const calendar = google.calendar({ version: 'v3', auth });
+    
+    const calendarEvents: { id?: string | null }[] = [];
+    let pageToken: string | undefined;
+    
+    do {
+      const response = await calendar.events.list({
+        calendarId: CALENDAR_ID,
+        maxResults: 2500,
+        pageToken,
+        singleEvents: true,
+      });
+      
+      calendarEvents.push(...(response.data.items || []));
+      pageToken = response.data.nextPageToken || undefined;
+    } while (pageToken);
 
-    // Drift varsa alarm
-    if (result.differences && result.differences.length > 0) {
-      const driftCount = result.differences.length;
-      
-      console.error(`DRIFT DETECTED: ${driftCount} differences between Calendar and Firestore`);
-      
-      // 🔒 PII-SAFE: Sadece event ID'leri ve count gönder
-      const eventIds = result.differences
-        .map((d: any) => d.calendarEvent?.id || d.firestoreEvent?.id)
-        .filter(Boolean)
-        .slice(0, 10);
-      
-      // Sentry'ye PII olmadan gönder
-      Sentry.captureMessage(`Drift Detection: ${driftCount} differences found`, {
+    // 3. Drift analizi - SADECE ID'leri topla, PII yok!
+    const driftResults = {
+      missingInFirestore: [] as string[],
+      missingInCalendar: [] as string[],
+      totalCalendar: calendarEvents.length,
+      totalFirestore: firestoreSnapshot.size,
+    };
+
+    // Calendar'da olup Firestore'da olmayan
+    calendarEvents.forEach(event => {
+      if (event.id && !firestoreMap.has(event.id)) {
+        driftResults.missingInFirestore.push(event.id);
+      }
+    });
+
+    // Firestore'da olup Calendar'da olmayan
+    const calendarIds = new Set(calendarEvents.map(e => e.id));
+    firestoreSnapshot.docs.forEach((doc) => {
+      if (!calendarIds.has(doc.id)) {
+        driftResults.missingInCalendar.push(doc.id);
+      }
+    });
+
+    const totalDrift = driftResults.missingInFirestore.length + driftResults.missingInCalendar.length;
+
+    // 4. Drift varsa Sentry'ye bildir - PII-SAFE!
+    if (totalDrift > 0) {
+      Sentry.captureMessage('Calendar drift detected', {
         level: 'warning',
         extra: {
-          count: driftCount,
-          eventIds: eventIds, // Sadece ID'ler (PII yok)
+          missingInFirestoreCount: driftResults.missingInFirestore.length,
+          missingInCalendarCount: driftResults.missingInCalendar.length,
+          missingInFirestoreIds: driftResults.missingInFirestore.slice(0, 10),
+          missingInCalendarIds: driftResults.missingInCalendar.slice(0, 10),
+          totalCalendar: driftResults.totalCalendar,
+          totalFirestore: driftResults.totalFirestore,
           timestamp: new Date().toISOString(),
         },
       });
-
-      return NextResponse.json({
-        status: 'drift_detected',
-        message: `Found ${driftCount} differences`,
-        count: driftCount,
-        action: 'notification_sent_to_sentry',
-      });
     }
 
-    // Drift yok
+    // 5. Response - PII-SAFE!
     return NextResponse.json({
-      status: 'ok',
-      message: 'No drift detected',
+      status: totalDrift > 0 ? 'drift_detected' : 'in_sync',
+      summary: {
+        totalCalendar: driftResults.totalCalendar,
+        totalFirestore: driftResults.totalFirestore,
+        missingInFirestoreCount: driftResults.missingInFirestore.length,
+        missingInCalendarCount: driftResults.missingInCalendar.length,
+      },
+      sampleIds: totalDrift > 0 ? {
+        missingInFirestore: driftResults.missingInFirestore.slice(0, 10),
+        missingInCalendar: driftResults.missingInCalendar.slice(0, 10),
+      } : null,
       checkedAt: new Date().toISOString(),
     });
-  } catch (error: any) {
-    console.error('Drift detection error:', error);
-    
+
+  } catch (error) {
     Sentry.captureException(error);
-    
     return NextResponse.json(
-      { error: 'Drift detection failed', details: error.message },
+      { error: 'Drift detection failed', timestamp: new Date().toISOString() },
       { status: 500 }
     );
   }
