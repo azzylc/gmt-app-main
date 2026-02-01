@@ -87,13 +87,11 @@ function parseDescription(description: string) {
     const ucretMatch = line.match(/(anla.*)?ücret\s*:\s*(.+)/i);
     if (ucretMatch) {
       const value = ucretMatch[2].trim();
-      console.log('[DEBUG ÜCRET] Matched! Value:', JSON.stringify(value));
       if (value.toUpperCase().includes('X')) {
         result.ucret = -1;
       } else {
         const nums = value.replace(/[^0-9]/g, '');
         result.ucret = parseInt(nums) || 0;
-        console.log('[DEBUG ÜCRET] Parsed ucret:', result.ucret);
       }
     }
 
@@ -108,13 +106,11 @@ function parseDescription(description: string) {
     const kalanMatch = line.match(/kalan\s*:\s*(.+)/i);
     if (kalanMatch) {
       const value = kalanMatch[1].trim();
-      console.log('[DEBUG KALAN] Matched! Value:', JSON.stringify(value));
       if (value.toUpperCase().includes('X')) {
         result.kalan = -1;
       } else {
         const nums = value.replace(/[^0-9]/g, '');
         result.kalan = parseInt(nums) || 0;
-        console.log('[DEBUG KALAN] Parsed kalan:', result.kalan);
       }
     }
 
