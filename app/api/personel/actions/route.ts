@@ -165,6 +165,68 @@ export async function POST(req: NextRequest) {
       }
 
       // =====================
+      // ✅ ŞİFRE TALEBİ ONAYLA
+      // =====================
+      case 'approve-reset-request': {
+        const { requestId } = await req.json().catch(() => ({}));
+        
+        if (!requestId) {
+          return NextResponse.json({ error: 'requestId gerekli' }, { status: 400 });
+        }
+
+        // Talebi bul
+        const requestDoc = await adminDb.collection('passwordResetRequests').doc(requestId).get();
+        if (!requestDoc.exists) {
+          return NextResponse.json({ error: 'Talep bulunamadı' }, { status: 404 });
+        }
+
+        const requestData = requestDoc.data()!;
+        const reqPersonelId = requestData.personelId;
+
+        // Personeli bul
+        const personelDoc = await adminDb.collection('personnel').doc(reqPersonelId).get();
+        if (!personelDoc.exists) {
+          return NextResponse.json({ error: 'Personel bulunamadı' }, { status: 404 });
+        }
+
+        const personelData = personelDoc.data()!;
+        const authUid = personelData.authUid;
+        const reqPersonelEmail = personelData.email;
+        const reqPersonelName = `${personelData.ad} ${personelData.soyad}`;
+
+        if (!authUid) {
+          return NextResponse.json({ error: 'Bu personelin auth kaydı yok' }, { status: 400 });
+        }
+
+        // Yeni şifre üret
+        const newPassword = generatePassword(8);
+
+        // Firebase Auth'da şifreyi güncelle
+        await adminAuth.updateUser(authUid, { password: newPassword });
+
+        // Talebi güncelle
+        await adminDb.collection('passwordResetRequests').doc(requestId).update({
+          status: 'approved',
+          updatedAt: new Date().toISOString(),
+          approvedAt: new Date().toISOString()
+        });
+
+        // Personele email gönder
+        const { sendPasswordResetEmail } = await import('@/app/lib/email');
+        const emailSent = await sendPasswordResetEmail(reqPersonelEmail, reqPersonelName, newPassword);
+
+        return NextResponse.json({
+          success: true,
+          message: emailSent 
+            ? 'Talep onaylandı ve yeni şifre gönderildi' 
+            : 'Talep onaylandı (email gönderilemedi)',
+          newPassword: newPassword,
+          email: reqPersonelEmail,
+          emailSent: emailSent
+        });
+      }
+
+      // =====================
       // ❌ BİLİNMEYEN ACTION
       // =====================
       default:

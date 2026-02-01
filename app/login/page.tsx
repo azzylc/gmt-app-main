@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { auth } from "../lib/firebase";
-import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
@@ -41,18 +41,23 @@ export default function LoginPage() {
     setSuccess("");
     
     try {
-      await sendPasswordResetEmail(auth, resetEmail);
-      setSuccess("Şifre sıfırlama linki e-posta adresinize gönderildi. Lütfen gelen kutunuzu kontrol edin.");
-      setShowResetModal(false);
-      setResetEmail("");
-    } catch (err: any) {
-      if (err.code === 'auth/user-not-found') {
-        setError("Bu e-posta adresi sistemde kayıtlı değil.");
-      } else if (err.code === 'auth/invalid-email') {
-        setError("Geçersiz e-posta adresi.");
+      const response = await fetch('/api/password-reset-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: resetEmail })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setSuccess(data.message);
+        setShowResetModal(false);
+        setResetEmail("");
       } else {
-        setError("Bir hata oluştu. Lütfen tekrar deneyin.");
+        setError(data.error || "Bir hata oluştu.");
       }
+    } catch (err: any) {
+      setError("Bir hata oluştu. Lütfen tekrar deneyin.");
     }
     setResetLoading(false);
   };
@@ -154,7 +159,7 @@ export default function LoginPage() {
             </div>
 
             <p className="text-gray-600 mb-4">
-              E-posta adresinizi girin, size şifre sıfırlama linki gönderelim.
+              E-posta adresinizi girin, şifre sıfırlama talebinizi yöneticinize iletelim.
             </p>
 
             <form onSubmit={handleResetPassword} className="space-y-4">
@@ -192,7 +197,7 @@ export default function LoginPage() {
                       Gönderiliyor...
                     </>
                   ) : (
-                    "Link Gönder"
+                    "Talep Gönder"
                   )}
                 </button>
               </div>

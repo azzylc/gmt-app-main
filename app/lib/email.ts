@@ -55,7 +55,7 @@ export async function sendPasswordResetEmail(
   name: string, 
   newPassword: string
 ): Promise<boolean> {
-  const subject = '🔐 Yeni Şifreniz - Gizem Yolcu Studio';
+  const subject = 'Yeni Şifreniz - Mgt App';
   
   const text = `
 Merhaba ${name},
@@ -65,12 +65,10 @@ Merhaba ${name},
 Email: ${to}
 Şifre: ${newPassword}
 
-Güvenliğiniz için lütfen giriş yaptıktan sonra şifrenizi değiştirin.
-
 Giriş yapmak için: https://gmt-app-main.vercel.app/login
 
 İyi çalışmalar,
-Gizem Yolcu Studio
+Mgt App
   `.trim();
 
   const html = `
@@ -78,55 +76,82 @@ Gizem Yolcu Studio
 <html>
 <head>
   <meta charset="utf-8">
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 500px; margin: 0 auto; padding: 20px; }
-    .header { text-align: center; margin-bottom: 30px; }
-    .logo { font-size: 40px; }
-    .title { font-size: 24px; font-weight: bold; color: #333; margin: 10px 0; }
-    .credentials { background: linear-gradient(135deg, #fdf2f8 0%, #faf5ff 100%); border-radius: 12px; padding: 20px; margin: 20px 0; }
-    .credential-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
-    .credential-row:last-child { border-bottom: none; }
-    .label { color: #6b7280; font-size: 14px; }
-    .value { font-weight: 600; color: #111; font-family: monospace; font-size: 16px; }
-    .button { display: inline-block; background: linear-gradient(135deg, #ec4899 0%, #a855f7 100%); color: white; padding: 14px 28px; text-decoration: none; border-radius: 10px; font-weight: 600; margin: 20px 0; }
-    .warning { background: #fef3c7; border-radius: 8px; padding: 12px; font-size: 14px; color: #92400e; margin: 20px 0; }
-    .footer { text-align: center; color: #9ca3af; font-size: 12px; margin-top: 30px; }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body>
-  <div class="container">
-    <div class="header">
-      <div class="logo">💄</div>
-      <div class="title">Gizem Yolcu Studio</div>
-    </div>
-    
-    <p>Merhaba <strong>${name}</strong>,</p>
-    <p>Şifreniz sıfırlandı. Yeni giriş bilgileriniz:</p>
-    
-    <div class="credentials">
-      <div class="credential-row">
-        <span class="label">Email</span>
-        <span class="value">${to}</span>
-      </div>
-      <div class="credential-row">
-        <span class="label">Yeni Şifre</span>
-        <span class="value">${newPassword}</span>
-      </div>
-    </div>
-    
-    <div style="text-align: center;">
-      <a href="https://gmt-app-main.vercel.app/login" class="button">Giriş Yap</a>
-    </div>
-    
-    <div class="warning">
-      ⚠️ Güvenliğiniz için lütfen giriş yaptıktan sonra şifrenizi değiştirin.
-    </div>
-    
-    <div class="footer">
-      <p>İyi çalışmalar,<br>Gizem Yolcu Studio</p>
-    </div>
-  </div>
+<body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8fafc; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 480px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+          
+          <!-- Header -->
+          <tr>
+            <td style="padding: 40px 40px 30px 40px; text-align: center; border-bottom: 1px solid #e2e8f0;">
+              <h1 style="margin: 0; font-size: 28px; font-weight: 700; color: #1e293b; letter-spacing: -0.5px;">Mgt App</h1>
+            </td>
+          </tr>
+          
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px;">
+              <p style="margin: 0 0 20px 0; font-size: 16px; color: #334155; line-height: 1.6;">
+                Merhaba <strong style="color: #1e293b;">${name}</strong>,
+              </p>
+              <p style="margin: 0 0 30px 0; font-size: 16px; color: #334155; line-height: 1.6;">
+                Şifreniz sıfırlandı. Yeni giriş bilgileriniz:
+              </p>
+              
+              <!-- Credentials Box -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f1f5f9; border-radius: 12px; margin-bottom: 30px;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #e2e8f0;">
+                          <span style="font-size: 13px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Email</span>
+                          <br>
+                          <span style="font-size: 15px; color: #1e293b; font-weight: 600;">${to}</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 12px 0;">
+                          <span style="font-size: 13px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Yeni Şifre</span>
+                          <br>
+                          <span style="font-size: 18px; color: #1e293b; font-weight: 700; font-family: 'SF Mono', Monaco, 'Courier New', monospace; letter-spacing: 1px;">${newPassword}</span>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+              
+              <!-- Button -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <a href="https://gmt-app-main.vercel.app/login" style="display: inline-block; background-color: #3b82f6; color: #ffffff; font-size: 15px; font-weight: 600; text-decoration: none; padding: 14px 32px; border-radius: 8px;">
+                      Giriş Yap
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 30px 40px; border-top: 1px solid #e2e8f0; text-align: center;">
+              <p style="margin: 0; font-size: 13px; color: #94a3b8;">
+                İyi çalışmalar,<br>
+                <strong style="color: #64748b;">Mgt App</strong>
+              </p>
+            </td>
+          </tr>
+          
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>
   `.trim();
