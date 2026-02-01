@@ -1,13 +1,16 @@
 {
-  "buildCommand": "next build",
-  "devCommand": "next dev",
-  "installCommand": "npm install",
-  "framework": "nextjs",
-  "regions": ["iad1"],
   "crons": [
     {
+      "path": "/api/full-sync",
+      "schedule": "0 3 * * *"
+    },
+    {
       "path": "/api/renew-watch",
-      "schedule": "0 2 */5 * *"
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/drift-detection",
+      "schedule": "0 6 * * *"
     }
   ]
 }
