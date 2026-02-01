@@ -351,7 +351,11 @@ function PersonelPageContent() {
         const result = await response.json();
         
         if (response.ok) {
-          alert(`✅ Yeni şifre oluşturuldu!\n\nEmail: ${result.email}\nYeni Şifre: ${result.newPassword}\n\n⚠️ Bu şifreyi personele iletin!`);
+          if (result.emailSent) {
+            alert(`✅ Yeni şifre oluşturuldu ve email gönderildi!\n\nEmail: ${result.email}\nYeni Şifre: ${result.newPassword}`);
+          } else {
+            alert(`✅ Yeni şifre oluşturuldu!\n\nEmail: ${result.email}\nYeni Şifre: ${result.newPassword}\n\n⚠️ Email gönderilemedi, şifreyi manuel iletin!`);
+          }
         } else {
           alert('❌ Hata: ' + result.error);
         }

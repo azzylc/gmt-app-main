@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, adminAuth } from '@/app/lib/firestore-admin';
+import { sendPasswordResetEmail } from '@/app/lib/email';
 
 // Rastgele şifre üret
 function generatePassword(length = 8): string {
@@ -41,9 +42,14 @@ export async function POST(req: NextRequest) {
         const personelData = personelDoc.data()!;
         const authUid = personelData.authUid;
         const personelEmail = personelData.email;
+        const personelName = `${personelData.ad} ${personelData.soyad}`;
 
         if (!authUid) {
           return NextResponse.json({ error: 'Bu personelin auth kaydı yok' }, { status: 400 });
+        }
+
+        if (!personelEmail) {
+          return NextResponse.json({ error: 'Bu personelin email adresi yok' }, { status: 400 });
         }
 
         // Yeni şifre üret
@@ -58,12 +64,17 @@ export async function POST(req: NextRequest) {
           passwordResetBy: 'admin'
         });
 
+        // Email gönder
+        const emailSent = await sendPasswordResetEmail(personelEmail, personelName, newPassword);
+
         return NextResponse.json({
           success: true,
-          message: 'Şifre sıfırlandı',
+          message: emailSent 
+            ? 'Şifre sıfırlandı ve email gönderildi' 
+            : 'Şifre sıfırlandı (email gönderilemedi)',
           newPassword: newPassword,
           email: personelEmail,
-          // Not: Gerçek uygulamada şifreyi email ile gönder, response'da gösterme
+          emailSent: emailSent
         });
       }
 
