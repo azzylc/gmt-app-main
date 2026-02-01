@@ -2,15 +2,15 @@
   "crons": [
     {
       "path": "/api/full-sync",
-      "schedule": "0 3 * * *"
+      "schedule": "0 0 * * *"
     },
     {
       "path": "/api/renew-watch",
-      "schedule": "0 */6 * * *"
+      "schedule": "0 */12 * * *"
     },
     {
       "path": "/api/drift-detection",
-      "schedule": "0 6 * * *"
+      "schedule": "0 3 * * *"
     }
   ]
 }

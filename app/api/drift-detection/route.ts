@@ -28,12 +28,18 @@ export async function GET(req: NextRequest) {
       
       console.error(`DRIFT DETECTED: ${driftCount} differences between Calendar and Firestore`);
       
-      // Sentry'ye gönder
+      // 🔒 PII-SAFE: Sadece event ID'leri ve count gönder
+      const eventIds = result.differences
+        .map((d: any) => d.calendarEvent?.id || d.firestoreEvent?.id)
+        .filter(Boolean)
+        .slice(0, 10);
+      
+      // Sentry'ye PII olmadan gönder
       Sentry.captureMessage(`Drift Detection: ${driftCount} differences found`, {
         level: 'warning',
         extra: {
-          differences: result.differences.slice(0, 10), // İlk 10 fark
-          totalDifferences: driftCount,
+          count: driftCount,
+          eventIds: eventIds, // Sadece ID'ler (PII yok)
           timestamp: new Date().toISOString(),
         },
       });
@@ -41,8 +47,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({
         status: 'drift_detected',
         message: `Found ${driftCount} differences`,
-        differences: result.differences,
-        action: 'notification_sent',
+        count: driftCount,
+        action: 'notification_sent_to_sentry',
       });
     }
 
