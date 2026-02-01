@@ -3,6 +3,9 @@ import { fullSync } from '@/app/lib/calendar-sync';
 import { adminDb } from '@/app/lib/firestore-admin';
 import { verifyAdminAuth } from '@/app/lib/auth';
 
+// Vercel function configuration
+export const maxDuration = 60; // 60 seconds for large syncs
+
 export async function POST(req: NextRequest) {
   // Verify admin authentication
   const authError = verifyAdminAuth(req);

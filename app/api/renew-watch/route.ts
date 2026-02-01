@@ -47,8 +47,9 @@ async function renewWebhook() {
       }
     }
 
-    // Yeni channel oluştur
+    // Yeni channel oluştur (token ile)
     const channelId = uuidv4();
+    const webhookToken = uuidv4(); // Güvenli token
     const expiration = Date.now() + (7 * 24 * 60 * 60 * 1000); // 7 gün
 
     const response = await calendar.events.watch({
@@ -57,14 +58,16 @@ async function renewWebhook() {
         id: channelId,
         type: 'web_hook',
         address: WEBHOOK_URL,
+        token: webhookToken, // Token ekle
         expiration: expiration.toString(),
       },
     });
 
-    // Yeni channel bilgilerini kaydet
+    // Yeni channel bilgilerini kaydet (token ile)
     await adminDb.collection('system').doc('webhookChannel').set({
       channelId,
       resourceId: response.data.resourceId,
+      webhookToken, // Token'ı kaydet
       expiration: new Date(expiration).toISOString(),
       renewedAt: new Date().toISOString(),
     });

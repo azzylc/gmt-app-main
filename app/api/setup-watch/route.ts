@@ -15,25 +15,28 @@ export async function POST(req: NextRequest) {
   try {
     const calendar = getCalendarClient();
 
-    // Unique channel ID oluştur
+    // Unique channel ID ve secure token oluştur
     const channelId = uuidv4();
+    const webhookToken = uuidv4(); // Güvenli token
     const expiration = Date.now() + (7 * 24 * 60 * 60 * 1000); // 7 gün
 
-    // Watch request
+    // Watch request (token ile)
     const response = await calendar.events.watch({
       calendarId: CALENDAR_ID,
       requestBody: {
         id: channelId,
         type: 'web_hook',
         address: WEBHOOK_URL,
+        token: webhookToken, // Token ekle
         expiration: expiration.toString(),
       },
     });
 
-    // Channel bilgilerini Firestore'a kaydet
+    // Channel bilgilerini Firestore'a kaydet (token ile)
     await adminDb.collection('system').doc('webhookChannel').set({
       channelId,
       resourceId: response.data.resourceId,
+      webhookToken, // Token'ı kaydet
       expiration: new Date(expiration).toISOString(),
       createdAt: new Date().toISOString(),
     });

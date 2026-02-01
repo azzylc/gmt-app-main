@@ -6,9 +6,40 @@ export async function POST(req: NextRequest) {
   try {
     // Google Calendar webhook header'ları
     const channelId = req.headers.get('x-goog-channel-id');
+    const resourceId = req.headers.get('x-goog-resource-id');
     const resourceState = req.headers.get('x-goog-resource-state');
+    const channelToken = req.headers.get('x-goog-channel-token');
 
-    console.log('Webhook received:', { channelId, resourceState });
+    console.log('Webhook received:', { channelId, resourceId, resourceState });
+
+    // Webhook validation: Channel bilgilerini Firestore'dan al ve doğrula
+    const webhookDoc = await adminDb.collection('system').doc('webhookChannel').get();
+    
+    if (webhookDoc.exists) {
+      const webhookData = webhookDoc.data()!;
+      
+      // Token, channelId ve resourceId doğrulaması
+      if (
+        webhookData.webhookToken !== channelToken ||
+        webhookData.channelId !== channelId ||
+        webhookData.resourceId !== resourceId
+      ) {
+        console.warn('Webhook validation failed:', {
+          expectedToken: webhookData.webhookToken ? 'exists' : 'missing',
+          receivedToken: channelToken ? 'exists' : 'missing',
+          expectedChannelId: webhookData.channelId,
+          receivedChannelId: channelId,
+          expectedResourceId: webhookData.resourceId,
+          receivedResourceId: resourceId,
+        });
+        
+        // 200 dön (Google retry yapmasın) ama işleme devam etme
+        return NextResponse.json({ status: 'validation_failed' });
+      }
+    } else {
+      console.warn('Webhook channel data not found in Firestore');
+      return NextResponse.json({ status: 'channel_not_found' });
+    }
 
     // sync resourceState geldiğinde - Calendar değişti
     if (resourceState === 'sync') {
@@ -44,9 +75,12 @@ export async function POST(req: NextRequest) {
         // syncToken geçersiz - full sync gerekir
         console.log('SyncToken invalid, triggering full sync...');
         
-        // Full sync'i tetikle (async olarak, bekleme)
+        // Full sync'i tetikle (async olarak, auth ile)
         fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/full-sync`, {
           method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.CRON_SECRET}`
+          }
         }).catch(err => console.error('Full sync trigger failed:', err));
 
         return NextResponse.json({ 
