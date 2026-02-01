@@ -70,7 +70,7 @@ Personel: ${personelName}
 Email: ${email}
 Tarih: ${new Date().toLocaleString('tr-TR')}
 
-Onaylamak için: https://gmt-app-main.vercel.app/personel
+Onaylamak için: https://gys.mgtapp.com/personel
 
 İyi çalışmalar,
 Mgt App
@@ -116,7 +116,7 @@ Mgt App
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td align="center">
-                    <a href="https://gmt-app-main.vercel.app/personel" style="display: inline-block; background-color: #3b82f6; color: #ffffff; font-size: 15px; font-weight: 600; text-decoration: none; padding: 14px 32px; border-radius: 8px;">
+                    <a href="https://gys.mgtapp.com/personel" style="display: inline-block; background-color: #3b82f6; color: #ffffff; font-size: 15px; font-weight: 600; text-decoration: none; padding: 14px 32px; border-radius: 8px;">
                       Talepleri Görüntüle
                     </a>
                   </td>
