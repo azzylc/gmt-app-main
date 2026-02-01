@@ -229,8 +229,15 @@ function eventToGelin(event: any) {
   }
 
   const date = new Date(startDate);
-  const dateStr = date.toISOString().split('T')[0];
-  const timeStr = date.toTimeString().split(' ')[0].substring(0, 5);
+  
+  // Türkiye saatine çevir (Europe/Istanbul timezone)
+  const dateStr = date.toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' }); // YYYY-MM-DD format
+  const timeStr = date.toLocaleTimeString('en-GB', { 
+    timeZone: 'Europe/Istanbul', 
+    hour: '2-digit', 
+    minute: '2-digit',
+    hour12: false 
+  }); // HH:MM format
 
   const parsedData = parseDescription(description);
   const { isim, makyaj, turban } = parsePersonel(title);
