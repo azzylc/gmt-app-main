@@ -83,15 +83,17 @@ function parseDescription(description: string) {
       result.modaevi = line.split(':')[1]?.trim() || '';
     }
 
-    // Anlaşılan Ücret (SAĞLAMLAŞTIRILDI!)
-    if (lower.includes('anla') && lower.includes('ücret')) {
-      if (line.toUpperCase().includes('X')) {
+    // Anlaşılan Ücret - ROBUST REGEX
+    const ucretMatch = line.match(/(anla.*)?ücret\s*:\s*(.+)/i);
+    if (ucretMatch) {
+      const value = ucretMatch[2].trim();
+      console.log('[DEBUG ÜCRET] Matched! Value:', JSON.stringify(value));
+      if (value.toUpperCase().includes('X')) {
         result.ucret = -1;
       } else {
-        // Sadece ":" dan sonrasını al, telefon numarası kontaminasyonunu önle
-        const value = line.split(':')[1]?.trim() || '';
         const nums = value.replace(/[^0-9]/g, '');
         result.ucret = parseInt(nums) || 0;
+        console.log('[DEBUG ÜCRET] Parsed ucret:', result.ucret);
       }
     }
 
@@ -102,14 +104,17 @@ function parseDescription(description: string) {
       result.kapora = parseInt(nums) || 0;
     }
 
-    // Kalan (SAĞLAMLAŞTIRILDI!)
-    if (lower.includes('kalan')) {
-      if (line.toUpperCase().includes('X')) {
+    // Kalan - ROBUST REGEX
+    const kalanMatch = line.match(/kalan\s*:\s*(.+)/i);
+    if (kalanMatch) {
+      const value = kalanMatch[1].trim();
+      console.log('[DEBUG KALAN] Matched! Value:', JSON.stringify(value));
+      if (value.toUpperCase().includes('X')) {
         result.kalan = -1;
       } else {
-        const value = line.split(':')[1]?.trim() || '';
         const nums = value.replace(/[^0-9]/g, '');
         result.kalan = parseInt(nums) || 0;
+        console.log('[DEBUG KALAN] Parsed kalan:', result.kalan);
       }
     }
 
