@@ -32,3 +32,4 @@ Vercel otomatik deploy eder.
 ```bash
 curl -X POST https://gmt-app-main.vercel.app/api/setup-watch
 ```
+
