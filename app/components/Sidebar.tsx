@@ -27,7 +27,7 @@ function SidebarContent({ user }: SidebarProps) {
   const [isMobile, setIsMobile] = useState(false);
   const [personelData, setPersonelData] = useState<any>(null);
   const [rolYetkileri, setRolYetkileri] = useState<{[key: string]: string[]}>({
-    "Yönetici": ["genel-bakis", "qr-giris", "giris-cikis-islemleri", "duyurular", "gorevler", "takvim", "izinler", "raporlar", "yonetici-dashboard"],
+    "Yönetici": ["genel-bakis", "qr-giris", "giris-cikis-islemleri", "duyurular", "gorevler", "takvim", "izinler", "raporlar"],
     "Personel": ["genel-bakis", "qr-giris", "duyurular", "gorevler", "takvim", "izinler"]
   });
 
@@ -174,12 +174,6 @@ function SidebarContent({ user }: SidebarProps) {
           { label: "Diğer", type: "header" },
           { label: "Gelin Raporları", path: "/gelin-raporlari" },
         ],
-      },
-      {
-        id: "yonetici-dashboard",
-        label: "Ekip Yönetimi",
-        icon: "👔",
-        path: "/yonetici-dashboard",
       },
       {
         id: "yonetim",
