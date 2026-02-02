@@ -29,6 +29,7 @@ interface Personel {
   email: string;
   telefon: string;
   foto: string;
+  dogumGunu?: string; // YYYY-MM-DD formatında
   firmalar?: string[]; // Çalıştığı firma ID'leri (çoklu)
   yonettigiFirmalar?: string[]; // Yönetici ise hangi firmaları yönetiyor
   calismaSaati: string;
@@ -127,6 +128,7 @@ function PersonelPageContent() {
     email: "",
     telefon: "",
     foto: "",
+    dogumGunu: "", // Doğum günü
     firmalar: [], // Çalıştığı firmalar (çoklu)
     yonettigiFirmalar: [], // Yönetici için
     calismaSaati: "serbest",
@@ -429,6 +431,7 @@ function PersonelPageContent() {
       email: "",
       telefon: "",
       foto: "",
+      dogumGunu: "", // Doğum günü
       firmalar: [], // Çalıştığı firmalar (çoklu)
       yonettigiFirmalar: [], // Yönetici için
       calismaSaati: "serbest",
@@ -950,6 +953,10 @@ function PersonelPageContent() {
                       <label className="block text-sm font-medium text-gray-700 mb-1">İşten Ayrılma</label>
                       <input type="date" value={formData.istenAyrilma} onChange={(e) => setFormData({ ...formData, istenAyrilma: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500" />
                     </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">🎂 Doğum Günü</label>
+                      <input type="date" value={formData.dogumGunu || ""} onChange={(e) => setFormData({ ...formData, dogumGunu: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500" />
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -1187,6 +1194,13 @@ function PersonelPageContent() {
                 <p className="text-sm text-orange-600 mb-1">📅 İşe Başlama</p>
                 <p className="font-semibold text-gray-800">{selectedPersonel.iseBaslama || 'Belirtilmemiş'}</p>
               </div>
+
+              {selectedPersonel.dogumGunu && (
+                <div className="p-4 bg-pink-50 rounded-xl">
+                  <p className="text-sm text-pink-600 mb-1">🎂 Doğum Günü</p>
+                  <p className="font-semibold text-gray-800">{new Date(selectedPersonel.dogumGunu).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })}</p>
+                </div>
+              )}
 
               {selectedPersonel.istenAyrilma && (
                 <div className="p-4 bg-red-50 rounded-xl border border-red-200">

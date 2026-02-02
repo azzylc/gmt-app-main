@@ -13,6 +13,7 @@ interface Personel {
   ad: string;
   soyad: string;
   kisaltma?: string;
+  dogumGunu?: string;
   aktif: boolean;
 }
 
@@ -167,6 +168,16 @@ export default function TakvimPage() {
     return null;
   };
 
+  // Doğum günü kontrolü (ay ve gün eşleşmesi)
+  const getDogumGunuPersoneller = (tarih: string) => {
+    const [, ay, gun] = tarih.split('-');
+    return personeller.filter(p => {
+      if (!p.dogumGunu || !p.aktif) return false;
+      const [, pAy, pGun] = p.dogumGunu.split('-');
+      return pAy === ay && pGun === gun;
+    });
+  };
+
   const ayGelinler = gelinler.filter(g => g.tarih.startsWith(`${year}-${String(month + 1).padStart(2, '0')}`));
   const ayKalan = ayGelinler.reduce((sum, g) => sum + (g.kalan > 0 ? g.kalan : 0), 0);
 
@@ -284,6 +295,13 @@ export default function TakvimPage() {
                             </div>
                           )}
 
+                          {/* Doğum günleri */}
+                          {getDogumGunuPersoneller(dateStr).map(p => (
+                            <div key={p.id} className="text-xs text-pink-600 font-medium mb-1">
+                              🎂 {p.kisaltma || p.ad}
+                            </div>
+                          ))}
+
                           <div className="space-y-1">
                             {dayGelinler.slice(0, 3).map((gelin) => (
                               <div 
@@ -353,6 +371,20 @@ export default function TakvimPage() {
               </button>
             </div>
             <div className="p-6">
+              {/* Doğum günleri */}
+              {getDogumGunuPersoneller(selectedDay).length > 0 && (
+                <div className="mb-4 p-4 bg-pink-50 rounded-lg border border-pink-200">
+                  <h4 className="font-semibold text-pink-700 mb-2">🎂 Doğum Günleri</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {getDogumGunuPersoneller(selectedDay).map(p => (
+                      <span key={p.id} className="px-3 py-1 bg-pink-100 text-pink-700 rounded-full text-sm font-medium">
+                        🎉 {p.ad} {p.soyad}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {getGelinlerForDate(selectedDay).length === 0 ? (
                 <p className="text-gray-500 text-center py-8">Bu gün için gelin kaydı yok</p>
               ) : (
