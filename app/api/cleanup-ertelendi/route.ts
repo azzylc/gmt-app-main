@@ -1,57 +1,82 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/app/lib/firestore-admin";
+import { getCalendarClient } from "@/app/lib/calendar-sync";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const confirm = searchParams.get("confirm");
   
   try {
-    const snapshot = await adminDb.collection("gelinler").get();
+    // 1️⃣ GOOGLE CALENDAR'DAN TÜM EVENTLERİ ÇEK
+    const calendar = getCalendarClient();
+    const response: any = await calendar.events.list({
+      calendarId: process.env.GOOGLE_CALENDAR_ID!,
+      timeMin: new Date('2025-01-01').toISOString(),
+      timeMax: new Date('2030-12-31').toISOString(),
+      singleEvents: true,
+      maxResults: 2500
+    });
     
-    const silinecekler: { id: string; isim: string }[] = [];
+    const events = response.data.items || [];
     
-    snapshot.docs.forEach((doc) => {
-      const data = doc.data();
-      // Tüm document'ı string olarak kontrol et
-      const allText = JSON.stringify(data).toUpperCase();
-      if (allText.includes("ERTELENDİ") || allText.includes("İPTAL") || allText.includes("IPTAL")) {
-        silinecekler.push({ id: doc.id, isim: data.isim || "" });
+    // 2️⃣ ERTELENDİ/İPTAL EVENTLERİNİN ID'LERİNİ BUL
+    const silinecekIds: string[] = [];
+    const ornekler: { id: string; title: string }[] = [];
+    
+    events.forEach((event: any) => {
+      const title = (event.summary || "").toUpperCase();
+      
+      // ERTELENDİ, İPTAL veya IPTAL içerenleri bul
+      if (title.includes("ERTELENDİ") || title.includes("İPTAL") || title.includes("IPTAL")) {
+        silinecekIds.push(event.id);
+        
+        // İlk 10 tanesini örnek olarak sakla
+        if (ornekler.length < 10) {
+          ornekler.push({
+            id: event.id,
+            title: event.summary || ""
+          });
+        }
       }
     });
     
-    // Sadece sayım modu
+    // SADECE SAYIM MODU
     if (confirm !== "true") {
       return NextResponse.json({
         mode: "SAYIM (silmek için ?confirm=true ekle)",
-        toplam: silinecekler.length,
-        ornekler: silinecekler.slice(0, 10)
+        toplam: silinecekIds.length,
+        ornekler: ornekler
       });
     }
     
-    // Silme modu - batch ile (500 limit)
+    // 3️⃣ SİLME MODU - FIRESTORE'DAN BU ID'LERİ SİL
     let deleted = 0;
     const batchSize = 500;
     
-    for (let i = 0; i < silinecekler.length; i += batchSize) {
+    for (let i = 0; i < silinecekIds.length; i += batchSize) {
       const batch = adminDb.batch();
-      const chunk = silinecekler.slice(i, i + batchSize);
+      const chunk = silinecekIds.slice(i, i + batchSize);
       
-      chunk.forEach((item) => {
-        batch.delete(adminDb.collection("gelinler").doc(item.id));
+      chunk.forEach((id) => {
+        batch.delete(adminDb.collection("gelinler").doc(id));
       });
       
       await batch.commit();
       deleted += chunk.length;
-      console.log(`🗑️ ${deleted}/${silinecekler.length} silindi`);
+      console.log(`🗑️ ${deleted}/${silinecekIds.length} silindi`);
     }
     
     return NextResponse.json({
       mode: "SİLİNDİ",
-      silinenSayisi: deleted
+      silinenSayisi: deleted,
+      ornekler: ornekler.slice(0, 5)
     });
     
   } catch (error: any) {
     console.error("Temizlik hatası:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ 
+      error: error.message,
+      stack: error.stack 
+    }, { status: 500 });
   }
 }
