@@ -33,6 +33,12 @@ function hasFinancialMarkers(description: string): boolean {
   return /anla[şs][ıi]lan\s*[üu]cret\s*:|kapora\s*:|kalan\s*:/i.test(normalized);
 }
 
+// ✅ ERTELENDİ/İPTAL KONTROLÜ
+function isErtelendiOrIptal(title: string): boolean {
+  const upper = (title || '').toUpperCase();
+  return upper.includes('ERTELENDİ') || upper.includes('İPTAL') || upper.includes('IPTAL');
+}
+
 // Description'dan tüm bilgileri parse et (SAĞLAMLAŞTIRILMIŞ!)
 function parseDescription(description: string) {
   // Her satırı normalize et
@@ -216,7 +222,7 @@ function parsePersonel(title: string) {
 }
 
 // Event'i Firestore formatına çevir
-function eventToGelin(event: any) {
+function eventToGelin(event: any): any {
   const title = event.summary || '';
   const description = event.description || '';
   const startDate = event.start?.dateTime || event.start?.date;
@@ -226,9 +232,16 @@ function eventToGelin(event: any) {
     return null;
   }
 
+  // ✅ ERTELENDİ/İPTAL KONTROLÜ - Bunları Firestore'a kaydetme, varsa sil!
+  if (isErtelendiOrIptal(title)) {
+    console.warn('[SKIP] ERTELENDİ/İPTAL:', { id: event.id, title });
+    return { __delete: true, id: event.id, reason: 'ertelendi_iptal' };
+  }
+
   // ✅ FİNANSAL VERİ KONTROLÜ (ROBUST!)
   // ✅ REF İSTİSNASI: REF varsa finansal veri şartı arama!
-  const hasFinancialData = hasFinancialMarkers(description) || title.toUpperCase().includes('REF');
+  const titleUpper = title.toUpperCase();
+  const hasFinancialData = hasFinancialMarkers(description) || titleUpper.includes('REF');
   
   if (!hasFinancialData) {
     console.warn('[SKIP] Finansal veri yok:', { id: event.id, title });
@@ -299,6 +312,7 @@ export async function incrementalSync(syncToken?: string) {
     let pageToken: string | undefined;
     let nextSyncToken: string | undefined;
     let totalUpdateCount = 0;
+    let deleteCount = 0;
     let batch = adminDb.batch();
     let batchCount = 0;
 
@@ -322,10 +336,20 @@ export async function incrementalSync(syncToken?: string) {
           const docRef = adminDb.collection('gelinler').doc(event.id!);
           batch.delete(docRef);
           totalUpdateCount++;
+          deleteCount++;
           batchCount++;
         } else {
           const gelin = eventToGelin(event);
-          if (gelin) {
+          
+          // ✅ ERTELENDİ/İPTAL ise Firestore'dan SİL
+          if (gelin && gelin.__delete) {
+            const docRef = adminDb.collection('gelinler').doc(gelin.id);
+            batch.delete(docRef);
+            totalUpdateCount++;
+            deleteCount++;
+            batchCount++;
+            console.log(`🗑️ Siliniyor (${gelin.reason}): ${event.summary}`);
+          } else if (gelin) {
             const docRef = adminDb.collection('gelinler').doc(gelin.id);
             batch.set(docRef, gelin, { merge: true });
             totalUpdateCount++;
@@ -342,7 +366,7 @@ export async function incrementalSync(syncToken?: string) {
         }
       }
 
-      console.log(`📄 Page processed: ${events.length} events (total: ${totalUpdateCount} updates)`);
+      console.log(`📄 Page processed: ${events.length} events (total: ${totalUpdateCount} updates, ${deleteCount} deletes)`);
     } while (pageToken);
 
     // Commit remaining batch
@@ -350,7 +374,7 @@ export async function incrementalSync(syncToken?: string) {
       await batch.commit();
     }
 
-    return { success: true, updateCount: totalUpdateCount, syncToken: nextSyncToken };
+    return { success: true, updateCount: totalUpdateCount, deleteCount, syncToken: nextSyncToken };
   } catch (error: any) {
     if (error.code === 410) {
       return { success: false, error: 'SYNC_TOKEN_INVALID' };
@@ -397,12 +421,21 @@ export async function fullSync() {
   console.log('📝 Firestore\'a yazılıyor...');
   let addedCount = 0;
   let skippedCount = 0;
+  let deletedCount = 0;
   let batch = adminDb.batch();
   let batchCount = 0;
 
   for (const event of allEvents) {
     const gelin = eventToGelin(event);
-    if (gelin) {
+    
+    // ✅ ERTELENDİ/İPTAL ise Firestore'dan SİL (varsa)
+    if (gelin && gelin.__delete) {
+      const docRef = adminDb.collection('gelinler').doc(gelin.id);
+      batch.delete(docRef);
+      deletedCount++;
+      batchCount++;
+      console.log(`🗑️ Siliniyor (${gelin.reason}): ${event.summary}`);
+    } else if (gelin) {
       const docRef = adminDb.collection('gelinler').doc(gelin.id);
       batch.set(docRef, gelin);
       addedCount++;
@@ -426,12 +459,14 @@ export async function fullSync() {
   }
 
   console.log(`✅ Toplam ${addedCount} gelin eklendi`);
+  console.log(`🗑️ ${deletedCount} gelin silindi (ertelendi/iptal)`);
   console.log(`⚠️ ${skippedCount} event atlandı (finansal veri yok)`);
 
   return { 
     success: true,
     totalEvents: allEvents.length,
     added: addedCount,
+    deleted: deletedCount,
     skipped: skippedCount,
     syncToken: syncToken
   };

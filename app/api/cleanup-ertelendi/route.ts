@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     snapshot.docs.forEach((doc) => {
       const isim = doc.data().isim || "";
       const upper = isim.toUpperCase();
-      if (upper.includes("ERTELENDİ") || upper.includes("İPTAL")) {
+      if (upper.includes("ERTELENDİ") || upper.includes("İPTAL") || upper.includes("IPTAL")) {
         silinecekler.push({ id: doc.id, isim: isim });
       }
     });
@@ -23,23 +23,34 @@ export async function GET(request: Request) {
       return NextResponse.json({
         mode: "SAYIM (silmek için ?confirm=true ekle)",
         toplam: silinecekler.length,
-        ilk10: silinecekler.slice(0, 10)
+        ornekler: silinecekler.slice(0, 10)
       });
     }
     
-    // Silme modu
-    const batch = adminDb.batch();
-    silinecekler.forEach((item) => {
-      batch.delete(adminDb.collection("gelinler").doc(item.id));
-    });
-    await batch.commit();
+    // Silme modu - batch ile (500 limit)
+    let deleted = 0;
+    const batchSize = 500;
+    
+    for (let i = 0; i < silinecekler.length; i += batchSize) {
+      const batch = adminDb.batch();
+      const chunk = silinecekler.slice(i, i + batchSize);
+      
+      chunk.forEach((item) => {
+        batch.delete(adminDb.collection("gelinler").doc(item.id));
+      });
+      
+      await batch.commit();
+      deleted += chunk.length;
+      console.log(`🗑️ ${deleted}/${silinecekler.length} silindi`);
+    }
     
     return NextResponse.json({
       mode: "SİLİNDİ",
-      silinenSayisi: silinecekler.length
+      silinenSayisi: deleted
     });
     
   } catch (error: any) {
+    console.error("Temizlik hatası:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
