@@ -4,6 +4,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, adminAuth } from '@/app/lib/firestore-admin';
 
+// Rastgele şifre üret
+function generatePassword(length = 8): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -26,27 +36,23 @@ export async function POST(req: NextRequest) {
       foto
     } = body;
 
-    // Validasyon
-    if (!email || !password || !ad || !soyad || !sicilNo || !telefon) {
+    // Validasyon - şifre artık zorunlu değil
+    if (!email || !ad || !soyad || !sicilNo || !telefon) {
       return NextResponse.json(
-        { error: 'Zorunlu alanlar eksik: email, password, ad, soyad, sicilNo, telefon' },
+        { error: 'Zorunlu alanlar eksik: email, ad, soyad, sicilNo, telefon' },
         { status: 400 }
       );
     }
 
-    if (password.length < 6) {
-      return NextResponse.json(
-        { error: 'Şifre en az 6 karakter olmalı' },
-        { status: 400 }
-      );
-    }
+    // Şifre yoksa otomatik oluştur
+    const finalPassword = password || generatePassword(8);
 
     // 1. Firebase Auth'da kullanıcı oluştur
     let userRecord;
     try {
       userRecord = await adminAuth.createUser({
         email: email,
-        password: password,
+        password: finalPassword,
         displayName: `${ad} ${soyad}`,
         disabled: !aktif
       });

@@ -133,8 +133,6 @@ function PersonelPageContent() {
       konumDisi: false,
     }
   });
-  const [sifre, setSifre] = useState(""); // Yeni personel için şifre
-  const [sifreGoster, setSifreGoster] = useState(false);
   const [apiLoading, setApiLoading] = useState(false);
 
   useEffect(() => {
@@ -205,14 +203,10 @@ function PersonelPageContent() {
       return;
     }
 
-    // Yeni personel için email ve şifre zorunlu
+    // Yeni personel için email zorunlu
     if (!editingPersonel) {
       if (!formData.email) {
         alert("Yeni personel için email adresi zorunludur!");
-        return;
-      }
-      if (!sifre || sifre.length < 6) {
-        alert("Yeni personel için en az 6 karakterli şifre zorunludur!");
         return;
       }
     }
@@ -229,7 +223,6 @@ function PersonelPageContent() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             id: editingPersonel.id,
-            password: sifre || undefined, // Şifre değişikliği varsa gönder
             ...dataToUpdate
           })
         });
@@ -271,8 +264,8 @@ function PersonelPageContent() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            ...dataToAdd,
-            password: sifre
+            ...dataToAdd
+            // Şifre API tarafında otomatik oluşturulacak
           })
         });
 
@@ -289,7 +282,7 @@ function PersonelPageContent() {
           }
         }
 
-        alert(`✅ ${formData.ad} ${formData.soyad} başarıyla eklendi!\n\nGiriş bilgileri:\nEmail: ${formData.email}\nŞifre: ${sifre}`);
+        alert(`✅ ${formData.ad} ${formData.soyad} başarıyla eklendi!\n\n"Yeni Şifre Gönder" butonuna basarak giriş bilgilerini email ile gönderin.`);
       }
 
       if (action === 'close') {
@@ -444,8 +437,6 @@ function PersonelPageContent() {
     });
     setFotoPreview("");
     setYonetilenPersoneller([]); // YENİ: Yönetilen personelleri temizle
-    setSifre(""); // Şifreyi sıfırla
-    setSifreGoster(false);
   };
 
   const toggleGrup = (grup: string) => {
@@ -867,34 +858,6 @@ function PersonelPageContent() {
                         className={`w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 ${!isKurucu ? 'bg-gray-100 cursor-not-allowed' : ''}`} 
                         placeholder="email@example.com" 
                       />
-                    </div>
-                    
-                    {/* Şifre Alanı */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {editingPersonel ? 'Yeni Şifre (değiştirmek için doldurun)' : 'Şifre'} 
-                        {!editingPersonel && <span className="text-red-500">*</span>}
-                      </label>
-                      <div className="relative">
-                        <input 
-                          type={sifreGoster ? "text" : "password"}
-                          value={sifre} 
-                          onChange={(e) => setSifre(e.target.value)} 
-                          className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 pr-12" 
-                          placeholder={editingPersonel ? "••••••" : "En az 6 karakter"}
-                          minLength={6}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setSifreGoster(!sifreGoster)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                        >
-                          {sifreGoster ? '🙈' : '👁️'}
-                        </button>
-                      </div>
-                      {!editingPersonel && (
-                        <p className="text-xs text-gray-500 mt-1">Personel bu şifre ile giriş yapacak</p>
-                      )}
                     </div>
                   </div>
 
