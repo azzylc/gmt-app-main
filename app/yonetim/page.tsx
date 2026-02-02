@@ -84,14 +84,15 @@ export default function YonetimPage() {
     return () => unsubscribe();
   }, [router]);
 
-  // ✅ Gelinler - Firestore'dan (real-time) - APPS SCRIPT YERİNE!
+  // ✅ Gelinler - Firestore'dan (real-time) - 2025+ filtreli
   useEffect(() => {
     if (!user) return;
 
-    console.log('🔄 Firestore gelinler listener başlatılıyor (Yönetim)...');
+    console.log('🔄 Firestore gelinler listener başlatılıyor (Yönetim, 2025+)...');
     
     const q = query(
       collection(db, "gelinler"),
+      where("tarih", ">=", "2025-01-01"),
       orderBy("tarih", "asc")
     );
 
@@ -109,16 +110,13 @@ export default function YonetimPage() {
         anlasildigiTarih: doc.data().anlasildigiTarih || "",
       } as Gelin));
 
-      console.log(`✅ ${data.length} gelin Firestore'dan yüklendi (Yönetim, real-time)`);
+      console.log(`✅ ${data.length} gelin Firestore'dan yüklendi (Yönetim 2025+)`);
       setGelinler(data);
     }, (error) => {
       console.error('❌ Firestore listener hatası (Yönetim):', error);
     });
 
-    return () => {
-      console.log('🛑 Firestore gelinler listener kapatılıyor (Yönetim)...');
-      unsubscribe();
-    };
+    return () => unsubscribe();
   }, [user]);
 
   // Hedefleri Firebase'den çek

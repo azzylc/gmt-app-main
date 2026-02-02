@@ -171,8 +171,6 @@ function SidebarContent({ user }: SidebarProps) {
           { label: "Geç Kalanlar", path: "/raporlar/gec-kalanlar" },
           { label: "Haftalık", type: "header" },
           { label: "Toplam Çalışma Süreleri", path: "/raporlar/haftalik-calisma-sureleri" },
-          { label: "Diğer", type: "header" },
-          { label: "Gelin Raporları", path: "/gelin-raporlari" },
         ],
       },
       {
