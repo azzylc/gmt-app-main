@@ -100,6 +100,7 @@ export default function GorevlerPage() {
   const [personeller, setPersoneller] = useState<Personel[]>([]);
   const [filtreliGorevler, setFiltreliGorevler] = useState<Gorev[]>([]);
   const [filtre, setFiltre] = useState<"hepsi" | "bekliyor" | "devam-ediyor" | "tamamlandi">("hepsi");
+  const [siralama, setSiralama] = useState<"yenidenEskiye" | "eskidenYeniye">("yenidenEskiye");
   const [aktifSekme, setAktifSekme] = useState<"gorevlerim" | "otomatik" | "tumgorevler">("gorevlerim");
   const [otomatikAltSekme, setOtomatikAltSekme] = useState<"yorumIstesinMi" | "paylasimIzni" | "yorumIstendiMi">("yorumIstesinMi");
   const [seciliPersoneller, setSeciliPersoneller] = useState<string[]>([]); // Seçili personel email'leri
@@ -451,7 +452,7 @@ export default function GorevlerPage() {
     gorevSayisi: tumGorevler.filter(g => g.atanan === p.email).length
   }));
 
-  // Filtre uygula (sekme + durum filtresi + seçili personeller + alt sekme)
+  // Filtre uygula (sekme + durum filtresi + seçili personeller + alt sekme + sıralama)
   useEffect(() => {
     let sonuc: Gorev[] = [];
     
@@ -474,9 +475,24 @@ export default function GorevlerPage() {
     if (filtre !== "hepsi") {
       sonuc = sonuc.filter(g => g.durum === filtre);
     }
+
+    // Sıralama uygula (gelin tarihine göre)
+    sonuc.sort((a, b) => {
+      const gelinA = gelinler.find(g => g.id === a.gelinId);
+      const gelinB = gelinler.find(g => g.id === b.gelinId);
+      
+      const tarihA = gelinA ? new Date(gelinA.tarih).getTime() : 0;
+      const tarihB = gelinB ? new Date(gelinB.tarih).getTime() : 0;
+      
+      if (siralama === "yenidenEskiye") {
+        return tarihB - tarihA; // Yeniden eskiye
+      } else {
+        return tarihA - tarihB; // Eskiden yeniye
+      }
+    });
     
     setFiltreliGorevler(sonuc);
-  }, [gorevler, tumGorevler, filtre, aktifSekme, seciliPersoneller, otomatikAltSekme]);
+  }, [gorevler, tumGorevler, filtre, aktifSekme, seciliPersoneller, otomatikAltSekme, siralama, gelinler]);
 
   // Görev durumu değiştir
   const handleDurumDegistir = async (gorevId: string, yeniDurum: Gorev["durum"]) => {
@@ -1058,6 +1074,14 @@ export default function GorevlerPage() {
               }`}
             >
               ✅ Tamamlandı
+            </button>
+            
+            {/* Sıralama */}
+            <button
+              onClick={() => setSiralama(siralama === "yenidenEskiye" ? "eskidenYeniye" : "yenidenEskiye")}
+              className="ml-auto px-3 py-1.5 rounded-lg text-sm font-medium bg-stone-100 text-stone-600 hover:bg-stone-200 border border-stone-200 transition flex items-center gap-1"
+            >
+              {siralama === "yenidenEskiye" ? "📅 Yeni → Eski" : "📅 Eski → Yeni"}
             </button>
           </div>
 
