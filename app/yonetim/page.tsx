@@ -240,6 +240,12 @@ export default function YonetimPage() {
               <p className="text-sm text-stone-500">Aylık hedefler ve performans takibi (Firestore Real-time)</p>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => router.push("/yonetim/compare")}
+                className="px-4 py-2 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 text-sm font-medium"
+              >
+                🔄 Karşılaştır
+              </button>
               <select
                 value={selectedYil}
                 onChange={(e) => setSelectedYil(parseInt(e.target.value))}
