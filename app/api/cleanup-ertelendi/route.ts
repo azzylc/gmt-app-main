@@ -11,10 +11,11 @@ export async function GET(request: Request) {
     const silinecekler: { id: string; isim: string }[] = [];
     
     snapshot.docs.forEach((doc) => {
-      const isim = doc.data().isim || "";
-      const upper = isim.toUpperCase();
-      if (upper.includes("ERTELENDİ") || upper.includes("İPTAL") || upper.includes("IPTAL")) {
-        silinecekler.push({ id: doc.id, isim: isim });
+      const data = doc.data();
+      // Tüm document'ı string olarak kontrol et
+      const allText = JSON.stringify(data).toUpperCase();
+      if (allText.includes("ERTELENDİ") || allText.includes("İPTAL") || allText.includes("IPTAL")) {
+        silinecekler.push({ id: doc.id, isim: data.isim || "" });
       }
     });
     
