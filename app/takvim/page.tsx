@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { auth, db } from "../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
@@ -53,6 +53,9 @@ export default function TakvimPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedGelin, setSelectedGelin] = useState<Gelin | null>(null);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
   const aylar = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
@@ -119,6 +122,28 @@ export default function TakvimPage() {
       unsubscribe();
     };
   }, [user]);
+
+  // Click outside - arama dropdown'ı kapat
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSearchDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Arama sonuçları
+  const searchResults = useMemo(() => {
+    if (searchQuery.length < 2) return [];
+    const q = searchQuery.toLocaleLowerCase('tr-TR');
+    return gelinler.filter(g => 
+      g.isim.toLocaleLowerCase('tr-TR').includes(q) ||
+      g.telefon?.includes(searchQuery) ||
+      g.esiTelefon?.includes(searchQuery)
+    ).slice(0, 10);
+  }, [searchQuery, gelinler]);
 
   const getKisaltma = (isim: string): string => {
     if (!isim) return "-";
@@ -196,18 +221,92 @@ export default function TakvimPage() {
       
       <div className="md:ml-56 pb-20 md:pb-0">
         <header className="page-header">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex-shrink-0">
               <h1 className="page-title">📅 Takvim</h1>
-              <p className="page-subtitle">Aylık program görünümü (Firestore Real-time)</p>
+              <p className="page-subtitle">Aylık program görünümü</p>
             </div>
-            <div className="flex items-center gap-2">
+            
+            {/* Gelin Arama */}
+            <div ref={searchRef} className="hidden md:block flex-1 max-w-xs relative">
+              <div className="relative">
+                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400 text-sm">🔍</span>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setShowSearchDropdown(true);
+                  }}
+                  onFocus={() => setShowSearchDropdown(true)}
+                  placeholder="Gelin ara..."
+                  className="w-full pl-8 pr-3 py-1.5 bg-stone-50 border border-stone-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-300 focus:bg-white transition"
+                />
+                {searchQuery && (
+                  <button 
+                    onClick={() => { setSearchQuery(""); setShowSearchDropdown(false); }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 text-xs"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+              
+              {/* Arama Sonuçları Dropdown */}
+              {showSearchDropdown && searchQuery.length >= 2 && (
+                <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-lg shadow-lg border border-stone-100 overflow-hidden z-50 max-h-[300px] overflow-y-auto">
+                  {searchResults.length === 0 ? (
+                    <div className="px-3 py-4 text-center text-stone-500">
+                      <span className="text-xl block mb-1">🔍</span>
+                      <p className="text-xs">"{searchQuery}" için sonuç bulunamadı</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="px-3 py-1.5 bg-stone-50 border-b border-stone-100 text-[10px] text-stone-500 font-medium">
+                        {searchResults.length} sonuç bulundu
+                      </div>
+                      {searchResults.map((gelin) => (
+                        <div
+                          key={gelin.id}
+                          onClick={() => {
+                            setSelectedGelin(gelin);
+                            setSearchQuery("");
+                            setShowSearchDropdown(false);
+                            // Gelinin tarihine git
+                            const gelinTarih = new Date(gelin.tarih);
+                            setCurrentDate(new Date(gelinTarih.getFullYear(), gelinTarih.getMonth(), 1));
+                          }}
+                          className="px-3 py-2 hover:bg-amber-50 cursor-pointer border-b border-stone-50 last:border-0 transition"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium text-stone-800 text-xs">{gelin.isim}</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-[10px] text-stone-500">📅 {new Date(gelin.tarih).toLocaleDateString('tr-TR')}</span>
+                                <span className="text-[10px] text-stone-500">🕐 {gelin.saat}</span>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              {gelin.kalan > 0 && (
+                                <p className="text-[10px] text-red-500">{gelin.kalan.toLocaleString('tr-TR')} ₺</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 flex-shrink-0">
               <button onClick={prevMonth} className="p-1.5 hover:bg-stone-100 rounded-lg transition">◀️</button>
-              <div className="gradient-primary text-white px-4 py-2 rounded-lg font-semibold min-w-[160px] text-center">
+              <div className="gradient-primary text-white px-3 py-1.5 rounded-lg font-medium min-w-[140px] text-center text-sm">
                 {aylar[month]} {year}
               </div>
               <button onClick={nextMonth} className="p-1.5 hover:bg-stone-100 rounded-lg transition">▶️</button>
-              <button onClick={goToToday} className="btn btn-ghost btn-sm ml-2">
+              <button onClick={goToToday} className="btn btn-ghost btn-sm ml-1">
                 Bugün
               </button>
             </div>
