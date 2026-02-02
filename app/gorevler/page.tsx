@@ -504,7 +504,7 @@ export default function GorevlerPage() {
       return;
     }
 
-    if (!confirm(`Aşağıdaki görev türleri senkronize edilecek:\n\n${tarihliler.map(t => "• " + t).join("\n")}\n\nOnaylıyor musunuz?`)) {
+    if (!confirm(`⚠️ DİKKAT!\n\nTüm otomatik görevler silinecek ve seçilen tarihlerden itibaren yeniden oluşturulacak.\n\nSenkronize edilecek türler:\n${tarihliler.map(t => "• " + t).join("\n")}\n\nDevam etmek istiyor musunuz?`)) {
       return;
     }
 
@@ -516,7 +516,16 @@ export default function GorevlerPage() {
       let toplamSilinen = 0;
       let toplamOlusturulan = 0;
 
-      // Her görev türü için işlem yap
+      // ÖNCELİKLE: Tüm otomatik görevleri sil (gorevTuru olsun olmasın)
+      const tumOtomatikQuery = query(gorevlerRef, where("otomatikMi", "==", true));
+      const tumOtomatikSnapshot = await getDocs(tumOtomatikQuery);
+      
+      for (const gorevDoc of tumOtomatikSnapshot.docs) {
+        await deleteDoc(doc(db, "gorevler", gorevDoc.id));
+        toplamSilinen++;
+      }
+
+      // Her görev türü için yeni görevler oluştur
       const gorevTurleri: ("yorumIstesinMi" | "paylasimIzni" | "yorumIstendiMi")[] = ["yorumIstesinMi", "paylasimIzni", "yorumIstendiMi"];
       const yeniAyarlar = { ...gorevAyarlari };
 
@@ -528,22 +537,7 @@ export default function GorevlerPage() {
 
         const baslangic = new Date(ayar.baslangicTarihi);
 
-        // 1. Bu tür görevleri al ve eski olanları sil
-        const q = query(gorevlerRef, where("gorevTuru", "==", gorevTuru), where("otomatikMi", "==", true));
-        const snapshot = await getDocs(q);
-
-        for (const gorevDoc of snapshot.docs) {
-          const gorev = gorevDoc.data();
-          if (gorev.gelinId) {
-            const gelin = gelinler.find(g => g.id === gorev.gelinId);
-            if (gelin && new Date(gelin.tarih) < baslangic) {
-              await deleteDoc(doc(db, "gorevler", gorevDoc.id));
-              toplamSilinen++;
-            }
-          }
-        }
-
-        // 2. Yeni görevler oluştur
+        // Yeni görevler oluştur
         for (const gelin of gelinler) {
           const gelinTarih = new Date(gelin.tarih);
           if (gelinTarih < baslangic) continue;
@@ -568,16 +562,6 @@ export default function GorevlerPage() {
           }
 
           if (!alanBos) continue;
-
-          // Bu gelin için bu türde görev var mı?
-          const mevcutGorevQuery = query(
-            gorevlerRef,
-            where("gelinId", "==", gelin.id),
-            where("gorevTuru", "==", gorevTuru),
-            where("otomatikMi", "==", true)
-          );
-          const mevcutSnapshot = await getDocs(mevcutGorevQuery);
-          if (!mevcutSnapshot.empty) continue;
 
           // Makyajcı ve türbancıyı bul
           const makyajci = personeller.find(p => 
