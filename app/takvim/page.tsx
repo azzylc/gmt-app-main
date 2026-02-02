@@ -81,6 +81,7 @@ export default function TakvimPage() {
         ad: doc.data().ad || "",
         soyad: doc.data().soyad || "",
         kisaltma: doc.data().kisaltma || "",
+        dogumGunu: doc.data().dogumGunu || "",
         aktif: doc.data().aktif !== false
       } as Personel));
       setPersoneller(data.filter(p => p.aktif));
