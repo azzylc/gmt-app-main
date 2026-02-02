@@ -33,10 +33,10 @@ function hasFinancialMarkers(description: string): boolean {
   return /anla[şs][ıi]lan\s*[üu]cret\s*:|kapora\s*:|kalan\s*:/i.test(normalized);
 }
 
-// ✅ ERTELENDİ/İPTAL KONTROLÜ
-function isErtelendiOrIptal(title: string): boolean {
+// ✅ ERTELENDİ KONTROLÜ (İPTAL kayıtlar KALACAK!)
+function isErtelendi(title: string): boolean {
   const upper = (title || '').toUpperCase();
-  return upper.includes('ERTELENDİ') || upper.includes('İPTAL') || upper.includes('IPTAL');
+  return upper.includes('ERTELENDİ');
 }
 
 // Description'dan tüm bilgileri parse et (SAĞLAMLAŞTIRILMIŞ!)
@@ -232,10 +232,10 @@ function eventToGelin(event: any): any {
     return null;
   }
 
-  // ✅ ERTELENDİ/İPTAL KONTROLÜ - Bunları Firestore'a kaydetme, varsa sil!
-  if (isErtelendiOrIptal(title)) {
-    console.warn('[SKIP] ERTELENDİ/İPTAL:', { id: event.id, title });
-    return { __delete: true, id: event.id, reason: 'ertelendi_iptal' };
+  // ✅ ERTELENDİ KONTROLÜ - Bunları Firestore'a kaydetme, varsa sil!
+  if (isErtelendi(title)) {
+    console.warn('[SKIP] ERTELENDİ:', { id: event.id, title });
+    return { __delete: true, id: event.id, reason: 'ertelendi' };
   }
 
   // ✅ FİNANSAL VERİ KONTROLÜ (ROBUST!)
@@ -341,7 +341,7 @@ export async function incrementalSync(syncToken?: string) {
         } else {
           const gelin = eventToGelin(event);
           
-          // ✅ ERTELENDİ/İPTAL ise Firestore'dan SİL
+          // ✅ ERTELENDİ ise Firestore'dan SİL (İPTAL kayıtlar kalacak)
           if (gelin && gelin.__delete) {
             const docRef = adminDb.collection('gelinler').doc(gelin.id);
             batch.delete(docRef);
@@ -428,7 +428,7 @@ export async function fullSync() {
   for (const event of allEvents) {
     const gelin = eventToGelin(event);
     
-    // ✅ ERTELENDİ/İPTAL ise Firestore'dan SİL (varsa)
+    // ✅ ERTELENDİ ise Firestore'dan SİL (İPTAL kayıtlar kalacak)
     if (gelin && gelin.__delete) {
       const docRef = adminDb.collection('gelinler').doc(gelin.id);
       batch.delete(docRef);
@@ -459,7 +459,7 @@ export async function fullSync() {
   }
 
   console.log(`✅ Toplam ${addedCount} gelin eklendi`);
-  console.log(`🗑️ ${deletedCount} gelin silindi (ertelendi/iptal)`);
+  console.log(`🗑️ ${deletedCount} gelin silindi (ertelendi - İPTAL kayıtlar korundu)`);
   console.log(`⚠️ ${skippedCount} event atlandı (finansal veri yok)`);
 
   return { 

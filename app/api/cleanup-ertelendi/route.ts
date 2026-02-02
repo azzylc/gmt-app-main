@@ -26,8 +26,8 @@ export async function GET(request: Request) {
     events.forEach((event: any) => {
       const title = (event.summary || "").toUpperCase();
       
-      // ERTELENDİ, İPTAL veya IPTAL içerenleri bul
-      if (title.includes("ERTELENDİ") || title.includes("İPTAL") || title.includes("IPTAL")) {
+      // SADECE ERTELENDİ içerenleri bul (İPTAL KALACAK!)
+      if (title.includes("ERTELENDİ")) {
         silinecekIds.push(event.id);
         
         // İlk 10 tanesini örnek olarak sakla
