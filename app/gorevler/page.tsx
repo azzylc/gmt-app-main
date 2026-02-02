@@ -4,6 +4,7 @@ import { auth, db } from "../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Sidebar from "../components/Sidebar";
+import GelinModal from "../components/GelinModal";
 import {
   collection,
   query,
@@ -48,6 +49,22 @@ interface Gelin {
   yorumIstesinMi?: string;
   paylasimIzni?: boolean;
   yorumIstendiMi?: boolean;
+  // GelinModal için ek alanlar
+  ucret?: number;
+  kapora?: number;
+  kalan?: number;
+  telefon?: string;
+  esiTelefon?: string;
+  instagram?: string;
+  fotografci?: string;
+  modaevi?: string;
+  kinaGunu?: string;
+  not?: string;
+  bilgilendirmeGonderildiMi?: boolean;
+  anlasmaYazildiMi?: boolean;
+  malzemeGonderildiMi?: boolean;
+  yorumIstendiMi2?: boolean;
+  anlastigiTarih?: string;
 }
 
 interface Personel {
@@ -87,6 +104,7 @@ export default function GorevlerPage() {
   const [otomatikAltSekme, setOtomatikAltSekme] = useState<"yorumIstesinMi" | "paylasimIzni" | "yorumIstendiMi">("yorumIstesinMi");
   const [seciliPersoneller, setSeciliPersoneller] = useState<string[]>([]); // Seçili personel email'leri
   const [selectedGorev, setSelectedGorev] = useState<Gorev | null>(null);
+  const [selectedGelinId, setSelectedGelinId] = useState<string | null>(null);
   const [showAyarlar, setShowAyarlar] = useState(false);
   const [senkronizeLoading, setSenkronizeLoading] = useState<string | null>(null);
   const [gorevAyarlari, setGorevAyarlari] = useState<GorevAyarlari>({
@@ -148,6 +166,22 @@ export default function GorevlerPage() {
         yorumIstesinMi: doc.data().yorumIstesinMi || "",
         paylasimIzni: doc.data().paylasimIzni || false,
         yorumIstendiMi: doc.data().yorumIstendiMi || false,
+        // GelinModal için ek alanlar
+        ucret: doc.data().ucret || 0,
+        kapora: doc.data().kapora || 0,
+        kalan: doc.data().kalan || 0,
+        telefon: doc.data().telefon || "",
+        esiTelefon: doc.data().esiTelefon || "",
+        instagram: doc.data().instagram || "",
+        fotografci: doc.data().fotografci || "",
+        modaevi: doc.data().modaevi || "",
+        kinaGunu: doc.data().kinaGunu || "",
+        not: doc.data().not || "",
+        bilgilendirmeGonderildiMi: doc.data().bilgilendirmeGonderildiMi || false,
+        anlasmaYazildiMi: doc.data().anlasmaYazildiMi || false,
+        malzemeGonderildiMi: doc.data().malzemeGonderildiMi || false,
+        yorumIstendiMi2: doc.data().yorumIstendiMi2 || false,
+        anlastigiTarih: doc.data().anlastigiTarih || "",
       } as Gelin));
 
       console.log(`✅ ${data.length} gelin Firestore'dan yüklendi (Görevler, real-time)`);
@@ -457,168 +491,153 @@ export default function GorevlerPage() {
     }
   };
 
-  // Görev Ayarı Senkronize Et
-  const handleSenkronizeEt = async (gorevTuru: "yorumIstesinMi" | "paylasimIzni" | "yorumIstendiMi") => {
-    const ayar = gorevAyarlari[gorevTuru];
-    
-    if (!ayar.baslangicTarihi) {
-      alert("Lütfen başlangıç tarihi girin!");
+  // Tüm Görev Ayarlarını Tek Seferde Senkronize Et
+  const handleTumunuSenkronizeEt = async () => {
+    // En az bir tarih girilmiş mi kontrol et
+    const tarihliler = [];
+    if (gorevAyarlari.yorumIstesinMi.baslangicTarihi) tarihliler.push("Yorum İstensin Mi");
+    if (gorevAyarlari.paylasimIzni.baslangicTarihi) tarihliler.push("Paylaşım İzni");
+    if (gorevAyarlari.yorumIstendiMi.baslangicTarihi) tarihliler.push("Yorum İstendi Mi");
+
+    if (tarihliler.length === 0) {
+      alert("Lütfen en az bir görev türü için başlangıç tarihi girin!");
       return;
     }
 
-    if (!confirm(`${gorevTuru === "yorumIstesinMi" ? "Yorum İstensin Mi" : gorevTuru === "paylasimIzni" ? "Paylaşım İzni" : "Yorum İstendi Mi"} görevlerini senkronize etmek istediğinize emin misiniz?\n\n• ${ayar.baslangicTarihi} tarihinden önceki görevler silinecek\n• Bu tarihten sonraki gelinler için görev oluşturulacak`)) {
+    if (!confirm(`Aşağıdaki görev türleri senkronize edilecek:\n\n${tarihliler.map(t => "• " + t).join("\n")}\n\nOnaylıyor musunuz?`)) {
       return;
     }
 
-    setSenkronizeLoading(gorevTuru);
+    setSenkronizeLoading("tumu");
 
     try {
-      const baslangic = new Date(ayar.baslangicTarihi);
       const simdi = new Date();
-
-      // 1. Bu tür görevleri al
       const gorevlerRef = collection(db, "gorevler");
-      const q = query(gorevlerRef, where("gorevTuru", "==", gorevTuru), where("otomatikMi", "==", true));
-      const snapshot = await getDocs(q);
+      let toplamSilinen = 0;
+      let toplamOlusturulan = 0;
 
-      // 2. Başlangıç tarihinden önceki görevleri sil
-      let silinenSayisi = 0;
-      for (const gorevDoc of snapshot.docs) {
-        const gorev = gorevDoc.data();
-        if (gorev.gelinId) {
-          const gelin = gelinler.find(g => g.id === gorev.gelinId);
-          if (gelin && new Date(gelin.tarih) < baslangic) {
-            await deleteDoc(doc(db, "gorevler", gorevDoc.id));
-            silinenSayisi++;
+      // Her görev türü için işlem yap
+      const gorevTurleri: ("yorumIstesinMi" | "paylasimIzni" | "yorumIstendiMi")[] = ["yorumIstesinMi", "paylasimIzni", "yorumIstendiMi"];
+      const yeniAyarlar = { ...gorevAyarlari };
+
+      for (const gorevTuru of gorevTurleri) {
+        const ayar = gorevAyarlari[gorevTuru];
+        
+        // Tarih girilmemişse bu türü atla
+        if (!ayar.baslangicTarihi) continue;
+
+        const baslangic = new Date(ayar.baslangicTarihi);
+
+        // 1. Bu tür görevleri al ve eski olanları sil
+        const q = query(gorevlerRef, where("gorevTuru", "==", gorevTuru), where("otomatikMi", "==", true));
+        const snapshot = await getDocs(q);
+
+        for (const gorevDoc of snapshot.docs) {
+          const gorev = gorevDoc.data();
+          if (gorev.gelinId) {
+            const gelin = gelinler.find(g => g.id === gorev.gelinId);
+            if (gelin && new Date(gelin.tarih) < baslangic) {
+              await deleteDoc(doc(db, "gorevler", gorevDoc.id));
+              toplamSilinen++;
+            }
           }
         }
-      }
 
-      // 3. Başlangıç tarihinden sonraki gelinler için görev oluştur
-      let olusturulanSayisi = 0;
-      for (const gelin of gelinler) {
-        const gelinTarih = new Date(gelin.tarih);
-        if (gelinTarih < baslangic) continue; // Tarihten önceki gelinleri atla
+        // 2. Yeni görevler oluştur
+        for (const gelin of gelinler) {
+          const gelinTarih = new Date(gelin.tarih);
+          if (gelinTarih < baslangic) continue;
 
-        // Gelin bitmiş mi kontrol et
-        const gelinSaat = gelin.saat.split(":");
-        const gelinDateTime = new Date(gelin.tarih);
-        gelinDateTime.setHours(parseInt(gelinSaat[0]), parseInt(gelinSaat[1]));
-        const bitisSaati = new Date(gelinDateTime.getTime() + 4 * 60 * 60 * 1000);
-        const hatirlatmaZamani = new Date(bitisSaati.getTime() + ayar.saatFarki * 60 * 60 * 1000);
+          const gelinSaat = gelin.saat?.split(":") || ["10", "00"];
+          const gelinDateTime = new Date(gelin.tarih);
+          gelinDateTime.setHours(parseInt(gelinSaat[0]), parseInt(gelinSaat[1]));
+          const bitisSaati = new Date(gelinDateTime.getTime() + 4 * 60 * 60 * 1000);
+          const hatirlatmaZamani = new Date(bitisSaati.getTime() + ayar.saatFarki * 60 * 60 * 1000);
 
-        // Yorum istendi mi için hatırlatma zamanı kontrolü yok
-        if (gorevTuru !== "yorumIstendiMi" && simdi < hatirlatmaZamani) continue;
+          // Yorum istendi mi için zaman kontrolü yok
+          if (gorevTuru !== "yorumIstendiMi" && simdi < hatirlatmaZamani) continue;
 
-        // Alan boş mu kontrol et
-        let alanBos = false;
-        if (gorevTuru === "yorumIstesinMi") {
-          alanBos = !gelin.yorumIstesinMi || gelin.yorumIstesinMi.trim() === "";
-        } else if (gorevTuru === "paylasimIzni") {
-          alanBos = !gelin.paylasimIzni;
-        } else if (gorevTuru === "yorumIstendiMi") {
-          alanBos = !gelin.yorumIstendiMi;
-        }
+          // Alan boş mu kontrol et
+          let alanBos = false;
+          if (gorevTuru === "yorumIstesinMi") {
+            alanBos = !gelin.yorumIstesinMi || gelin.yorumIstesinMi.trim() === "";
+          } else if (gorevTuru === "paylasimIzni") {
+            alanBos = !gelin.paylasimIzni;
+          } else if (gorevTuru === "yorumIstendiMi") {
+            alanBos = !gelin.yorumIstendiMi;
+          }
 
-        if (!alanBos) continue; // Alan doluysa atla
+          if (!alanBos) continue;
 
-        // Bu gelin için bu türde görev var mı?
-        const mevcutGorevQuery = query(
-          gorevlerRef,
-          where("gelinId", "==", gelin.id),
-          where("gorevTuru", "==", gorevTuru),
-          where("otomatikMi", "==", true)
-        );
-        const mevcutSnapshot = await getDocs(mevcutGorevQuery);
-        if (!mevcutSnapshot.empty) continue; // Zaten görev var
-
-        // Makyajcı ve türbancıyı bul
-        const makyajci = personeller.find(p => 
-          p.ad.toLocaleLowerCase('tr-TR') === gelin.makyaj?.toLocaleLowerCase('tr-TR') ||
-          `${p.ad} ${p.soyad}`.toLocaleLowerCase('tr-TR') === gelin.makyaj?.toLocaleLowerCase('tr-TR')
-        );
-        const turbanci = personeller.find(p => 
-          p.ad.toLocaleLowerCase('tr-TR') === gelin.turban?.toLocaleLowerCase('tr-TR') ||
-          `${p.ad} ${p.soyad}`.toLocaleLowerCase('tr-TR') === gelin.turban?.toLocaleLowerCase('tr-TR')
-        );
-
-        const ayniKisi = makyajci?.email === turbanci?.email;
-        const kisiler: { email: string; ad: string; rol: string }[] = [];
-
-        if (makyajci?.email) {
-          kisiler.push({ email: makyajci.email, ad: `${makyajci.ad} ${makyajci.soyad}`, rol: "Makyaj" });
-        }
-        if (turbanci?.email && !ayniKisi) {
-          kisiler.push({ email: turbanci.email, ad: `${turbanci.ad} ${turbanci.soyad}`, rol: "Türban" });
-        }
-
-        const gorevBaslik = gorevTuru === "yorumIstesinMi" 
-          ? "Yorum istensin mi alanını doldur"
-          : gorevTuru === "paylasimIzni"
-          ? "Paylaşım izni alanını doldur"
-          : "Yorum istendi mi alanını doldur";
-
-        for (const kisi of kisiler) {
-          // Kişi bazlı kontrol
-          const kisiGorevQuery = query(
+          // Bu gelin için bu türde görev var mı?
+          const mevcutGorevQuery = query(
             gorevlerRef,
             where("gelinId", "==", gelin.id),
-            where("atanan", "==", kisi.email),
             where("gorevTuru", "==", gorevTuru),
             where("otomatikMi", "==", true)
           );
-          const kisiSnapshot = await getDocs(kisiGorevQuery);
-          if (!kisiSnapshot.empty) continue;
+          const mevcutSnapshot = await getDocs(mevcutGorevQuery);
+          if (!mevcutSnapshot.empty) continue;
 
-          await addDoc(gorevlerRef, {
-            baslik: `${gelin.isim} - ${gorevBaslik}`,
-            aciklama: `${gelin.isim} için "${gorevBaslik}" alanı boş. Takvimden doldurun. (${kisi.rol})`,
-            atayan: "Sistem",
-            atayanAd: "Sistem (Otomatik)",
-            atanan: kisi.email,
-            atananAd: kisi.ad,
-            durum: "bekliyor",
-            oncelik: "yuksek",
-            olusturulmaTarihi: serverTimestamp(),
-            gelinId: gelin.id,
-            otomatikMi: true,
-            gorevTuru: gorevTuru
-          });
-          olusturulanSayisi++;
+          // Makyajcı ve türbancıyı bul
+          const makyajci = personeller.find(p => 
+            p.ad.toLocaleLowerCase('tr-TR') === gelin.makyaj?.toLocaleLowerCase('tr-TR') ||
+            `${p.ad} ${p.soyad}`.toLocaleLowerCase('tr-TR') === gelin.makyaj?.toLocaleLowerCase('tr-TR')
+          );
+          const turbanci = personeller.find(p => 
+            p.ad.toLocaleLowerCase('tr-TR') === gelin.turban?.toLocaleLowerCase('tr-TR') ||
+            `${p.ad} ${p.soyad}`.toLocaleLowerCase('tr-TR') === gelin.turban?.toLocaleLowerCase('tr-TR')
+          );
+
+          const ayniKisi = makyajci?.email === turbanci?.email;
+          const kisiler: { email: string; ad: string; rol: string }[] = [];
+
+          if (makyajci?.email) {
+            kisiler.push({ email: makyajci.email, ad: `${makyajci.ad} ${makyajci.soyad}`, rol: "Makyaj" });
+          }
+          if (turbanci?.email && !ayniKisi) {
+            kisiler.push({ email: turbanci.email, ad: `${turbanci.ad} ${turbanci.soyad}`, rol: "Türban" });
+          }
+
+          const gorevBasliklar: Record<string, string> = {
+            yorumIstesinMi: "Yorum istensin mi alanını doldur",
+            paylasimIzni: "Paylaşım izni alanını doldur",
+            yorumIstendiMi: "Yorum istendi mi alanını doldur"
+          };
+
+          for (const kisi of kisiler) {
+            await addDoc(gorevlerRef, {
+              baslik: `${gelin.isim} - ${gorevBasliklar[gorevTuru]}`,
+              aciklama: `${gelin.isim} için "${gorevBasliklar[gorevTuru]}" alanı boş. Takvimden doldurun. (${kisi.rol})`,
+              atayan: "Sistem",
+              atayanAd: "Sistem (Otomatik)",
+              atanan: kisi.email,
+              atananAd: kisi.ad,
+              durum: "bekliyor",
+              oncelik: "yuksek",
+              olusturulmaTarihi: serverTimestamp(),
+              gelinId: gelin.id,
+              otomatikMi: true,
+              gorevTuru: gorevTuru
+            });
+            toplamOlusturulan++;
+          }
         }
+
+        // Bu türü aktif yap
+        yeniAyarlar[gorevTuru] = { ...ayar, aktif: true };
       }
 
-      // 4. Ayarları kaydet
-      const yeniAyarlar = {
-        ...gorevAyarlari,
-        [gorevTuru]: { ...ayar, aktif: true }
-      };
+      // Ayarları kaydet
       await setDoc(doc(db, "settings", "gorevAyarlari"), yeniAyarlar);
       setGorevAyarlari(yeniAyarlar);
 
-      alert(`✅ Senkronizasyon tamamlandı!\n\n• ${silinenSayisi} görev silindi\n• ${olusturulanSayisi} yeni görev oluşturuldu`);
+      alert(`✅ Senkronizasyon tamamlandı!\n\n• ${toplamSilinen} görev silindi\n• ${toplamOlusturulan} yeni görev oluşturuldu`);
     } catch (error) {
       console.error("Senkronizasyon hatası:", error);
       alert("❌ Senkronizasyon sırasında hata oluştu!");
     } finally {
       setSenkronizeLoading(null);
-    }
-  };
-
-  // Görev Ayarı Pasifleştir
-  const handlePasifEt = async (gorevTuru: "yorumIstesinMi" | "paylasimIzni" | "yorumIstendiMi") => {
-    if (!confirm("Bu görev türünü pasifleştirmek istediğinize emin misiniz? Mevcut görevler silinmeyecek.")) return;
-
-    try {
-      const yeniAyarlar = {
-        ...gorevAyarlari,
-        [gorevTuru]: { ...gorevAyarlari[gorevTuru], aktif: false }
-      };
-      await setDoc(doc(db, "settings", "gorevAyarlari"), yeniAyarlar);
-      setGorevAyarlari(yeniAyarlar);
-      alert("✅ Görev türü pasifleştirildi!");
-    } catch (error) {
-      console.error("Pasifleştirme hatası:", error);
     }
   };
 
@@ -758,19 +777,16 @@ export default function GorevlerPage() {
               
               <div className="p-4 space-y-4">
                 {/* Yorum İstensin Mi */}
-                <div className={`p-4 rounded-lg border-2 ${gorevAyarlari.yorumIstesinMi.aktif ? "border-green-400 bg-green-50" : "border-stone-200 bg-stone-50"}`}>
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <h3 className="font-semibold text-stone-800">📝 Yorum İstensin Mi</h3>
-                      <p className="text-xs text-stone-500">Gelin bitişinden +1 saat sonra hatırlatma</p>
+                <div className={`p-3 rounded-lg border ${gorevAyarlari.yorumIstesinMi.aktif ? "border-green-400 bg-green-50" : "border-stone-200 bg-stone-50"}`}>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg">📝</span>
+                      <div>
+                        <h3 className="font-semibold text-stone-800 text-sm">Yorum İstensin Mi</h3>
+                        <p className="text-xs text-stone-500">Bitiş + 1 saat</p>
+                      </div>
                     </div>
-                    {gorevAyarlari.yorumIstesinMi.aktif && (
-                      <span className="px-2 py-1 bg-green-500 text-white text-xs rounded-full">✓ Aktif</span>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3">
                     <div className="flex items-center gap-2">
-                      <label className="text-sm text-stone-600">Başlangıç:</label>
                       <input
                         type="date"
                         value={gorevAyarlari.yorumIstesinMi.baslangicTarihi}
@@ -778,41 +794,26 @@ export default function GorevlerPage() {
                           ...gorevAyarlari,
                           yorumIstesinMi: { ...gorevAyarlari.yorumIstesinMi, baslangicTarihi: e.target.value }
                         })}
-                        className="px-3 py-1.5 border border-stone-300 rounded-lg text-sm"
+                        className="px-2 py-1 border border-stone-300 rounded text-sm w-36"
                       />
+                      {gorevAyarlari.yorumIstesinMi.aktif && (
+                        <span className="px-2 py-0.5 bg-green-500 text-white text-xs rounded-full">✓</span>
+                      )}
                     </div>
-                    <button
-                      onClick={() => handleSenkronizeEt("yorumIstesinMi")}
-                      disabled={senkronizeLoading === "yorumIstesinMi"}
-                      className="px-4 py-1.5 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
-                    >
-                      {senkronizeLoading === "yorumIstesinMi" ? "⏳ İşleniyor..." : "🔄 Aktifleştir & Senkronize Et"}
-                    </button>
-                    {gorevAyarlari.yorumIstesinMi.aktif && (
-                      <button
-                        onClick={() => handlePasifEt("yorumIstesinMi")}
-                        className="px-3 py-1.5 bg-stone-400 text-white rounded-lg text-sm hover:bg-stone-500"
-                      >
-                        Pasifleştir
-                      </button>
-                    )}
                   </div>
                 </div>
 
                 {/* Paylaşım İzni */}
-                <div className={`p-4 rounded-lg border-2 ${gorevAyarlari.paylasimIzni.aktif ? "border-green-400 bg-green-50" : "border-stone-200 bg-stone-50"}`}>
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <h3 className="font-semibold text-stone-800">📸 Paylaşım İzni Var Mı</h3>
-                      <p className="text-xs text-stone-500">Gelin bitişinden +2 saat sonra hatırlatma</p>
+                <div className={`p-3 rounded-lg border ${gorevAyarlari.paylasimIzni.aktif ? "border-green-400 bg-green-50" : "border-stone-200 bg-stone-50"}`}>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg">📸</span>
+                      <div>
+                        <h3 className="font-semibold text-stone-800 text-sm">Paylaşım İzni Var Mı</h3>
+                        <p className="text-xs text-stone-500">Bitiş + 2 saat</p>
+                      </div>
                     </div>
-                    {gorevAyarlari.paylasimIzni.aktif && (
-                      <span className="px-2 py-1 bg-green-500 text-white text-xs rounded-full">✓ Aktif</span>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3">
                     <div className="flex items-center gap-2">
-                      <label className="text-sm text-stone-600">Başlangıç:</label>
                       <input
                         type="date"
                         value={gorevAyarlari.paylasimIzni.baslangicTarihi}
@@ -820,41 +821,26 @@ export default function GorevlerPage() {
                           ...gorevAyarlari,
                           paylasimIzni: { ...gorevAyarlari.paylasimIzni, baslangicTarihi: e.target.value }
                         })}
-                        className="px-3 py-1.5 border border-stone-300 rounded-lg text-sm"
+                        className="px-2 py-1 border border-stone-300 rounded text-sm w-36"
                       />
+                      {gorevAyarlari.paylasimIzni.aktif && (
+                        <span className="px-2 py-0.5 bg-green-500 text-white text-xs rounded-full">✓</span>
+                      )}
                     </div>
-                    <button
-                      onClick={() => handleSenkronizeEt("paylasimIzni")}
-                      disabled={senkronizeLoading === "paylasimIzni"}
-                      className="px-4 py-1.5 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
-                    >
-                      {senkronizeLoading === "paylasimIzni" ? "⏳ İşleniyor..." : "🔄 Aktifleştir & Senkronize Et"}
-                    </button>
-                    {gorevAyarlari.paylasimIzni.aktif && (
-                      <button
-                        onClick={() => handlePasifEt("paylasimIzni")}
-                        className="px-3 py-1.5 bg-stone-400 text-white rounded-lg text-sm hover:bg-stone-500"
-                      >
-                        Pasifleştir
-                      </button>
-                    )}
                   </div>
                 </div>
 
                 {/* Yorum İstendi Mi */}
-                <div className={`p-4 rounded-lg border-2 ${gorevAyarlari.yorumIstendiMi.aktif ? "border-green-400 bg-green-50" : "border-stone-200 bg-stone-50"}`}>
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <h3 className="font-semibold text-stone-800">💬 Yorum İstendi Mi</h3>
-                      <p className="text-xs text-stone-500">Hatırlatma yok - Sadece görev listesinde görünür</p>
+                <div className={`p-3 rounded-lg border ${gorevAyarlari.yorumIstendiMi.aktif ? "border-green-400 bg-green-50" : "border-stone-200 bg-stone-50"}`}>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg">💬</span>
+                      <div>
+                        <h3 className="font-semibold text-stone-800 text-sm">Yorum İstendi Mi</h3>
+                        <p className="text-xs text-stone-500">Hatırlatma yok</p>
+                      </div>
                     </div>
-                    {gorevAyarlari.yorumIstendiMi.aktif && (
-                      <span className="px-2 py-1 bg-green-500 text-white text-xs rounded-full">✓ Aktif</span>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3">
                     <div className="flex items-center gap-2">
-                      <label className="text-sm text-stone-600">Başlangıç:</label>
                       <input
                         type="date"
                         value={gorevAyarlari.yorumIstendiMi.baslangicTarihi}
@@ -862,30 +848,28 @@ export default function GorevlerPage() {
                           ...gorevAyarlari,
                           yorumIstendiMi: { ...gorevAyarlari.yorumIstendiMi, baslangicTarihi: e.target.value }
                         })}
-                        className="px-3 py-1.5 border border-stone-300 rounded-lg text-sm"
+                        className="px-2 py-1 border border-stone-300 rounded text-sm w-36"
                       />
+                      {gorevAyarlari.yorumIstendiMi.aktif && (
+                        <span className="px-2 py-0.5 bg-green-500 text-white text-xs rounded-full">✓</span>
+                      )}
                     </div>
-                    <button
-                      onClick={() => handleSenkronizeEt("yorumIstendiMi")}
-                      disabled={senkronizeLoading === "yorumIstendiMi"}
-                      className="px-4 py-1.5 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
-                    >
-                      {senkronizeLoading === "yorumIstendiMi" ? "⏳ İşleniyor..." : "🔄 Aktifleştir & Senkronize Et"}
-                    </button>
-                    {gorevAyarlari.yorumIstendiMi.aktif && (
-                      <button
-                        onClick={() => handlePasifEt("yorumIstendiMi")}
-                        className="px-3 py-1.5 bg-stone-400 text-white rounded-lg text-sm hover:bg-stone-500"
-                      >
-                        Pasifleştir
-                      </button>
-                    )}
                   </div>
                 </div>
 
-                <p className="text-xs text-stone-500 mt-2">
-                  ℹ️ Senkronize Et: Seçilen tarihten önceki görevleri siler, sonraki gelinler için otomatik görev oluşturur.
-                </p>
+                {/* Tek Senkronize Butonu */}
+                <div className="pt-3 border-t border-stone-200">
+                  <button
+                    onClick={handleTumunuSenkronizeEt}
+                    disabled={senkronizeLoading !== null}
+                    className="w-full px-4 py-2.5 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 transition"
+                  >
+                    {senkronizeLoading ? "⏳ İşleniyor..." : "🔄 Tümünü Kaydet & Senkronize Et"}
+                  </button>
+                  <p className="text-xs text-stone-500 mt-2 text-center">
+                    Tarih girilen alanlar aktifleşir. Önceki görevler silinir, sonraki gelinler için görev oluşturulur.
+                  </p>
+                </div>
               </div>
             </div>
           )}
@@ -1169,15 +1153,9 @@ export default function GorevlerPage() {
                         const gelin = gelinler.find(g => g.id === gorev.gelinId);
                         if (!gelin) return <p className="text-xs text-stone-500">Gelin bulunamadı</p>;
                         return (
-                          <a 
-                            href={`/takvim`}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              // Takvime yönlendir - gelin tarihini localStorage'a kaydet
-                              localStorage.setItem('scrollToGelin', JSON.stringify({ id: gelin.id, tarih: gelin.tarih }));
-                              window.location.href = '/takvim';
-                            }}
-                            className="flex items-center gap-3 hover:bg-purple-100 p-2 rounded-lg transition cursor-pointer"
+                          <button 
+                            onClick={() => setSelectedGelinId(gelin.id)}
+                            className="w-full flex items-center gap-3 hover:bg-purple-100 p-2 rounded-lg transition cursor-pointer text-left"
                           >
                             <div className="w-10 h-10 bg-purple-200 rounded-lg flex items-center justify-center text-lg">
                               💍
@@ -1189,7 +1167,7 @@ export default function GorevlerPage() {
                               </p>
                             </div>
                             <span className="ml-auto text-purple-400">→</span>
-                          </a>
+                          </button>
                         );
                       })()}
                     </div>
@@ -1234,7 +1212,7 @@ export default function GorevlerPage() {
                   {/* Otomatik görevlerde bilgi notu */}
                   {gorev.otomatikMi && (
                     <div className="mt-3 text-xs text-purple-500 italic">
-                      ℹ️ Bu görev, takvimde "Yorum istensin mi" alanı doldurulunca otomatik olarak silinecek.
+                      ℹ️ Bu görev, takvimde ilgili alan doldurulunca otomatik olarak silinecek.
                     </div>
                   )}
                 </div>
@@ -1243,6 +1221,14 @@ export default function GorevlerPage() {
           </div>
         </main>
       </div>
+
+      {/* Gelin Modal */}
+      {selectedGelinId && gelinler.find(g => g.id === selectedGelinId) && (
+        <GelinModal
+          gelin={gelinler.find(g => g.id === selectedGelinId) as any}
+          onClose={() => setSelectedGelinId(null)}
+        />
+      )}
     </div>
   );
 }
