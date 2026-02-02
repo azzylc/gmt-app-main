@@ -17,7 +17,9 @@ import {
   where,
   getDocs,
   arrayRemove,
-  writeBatch
+  writeBatch,
+  setDoc,
+  getDoc
 } from "firebase/firestore";
 
 interface Konum {
@@ -50,6 +52,40 @@ interface Firma {
   olusturulmaTarihi: any;
   sonDuzenleme: any;
 }
+
+interface GenelAyarlar {
+  sirketAdi: string;
+  yoneticiInfo: string;
+  haftaSonuIzinDahil: boolean;
+  izinMailGonder: boolean;
+  mobilIzinTalep: boolean;
+  yoneticiOnOnay: boolean;
+  varsayilanSayfa: string;
+  qrKameraIzni: boolean;
+  konumKontrol: boolean;
+  kisiselQr: boolean;
+  girisCikisErisim: boolean;
+}
+
+interface RolYetkileri {
+  [rol: string]: string[];
+}
+
+// Menü listesi (Sidebar ile aynı)
+const menuListesi = [
+  { id: "genel-bakis", label: "📊 Genel Bakış" },
+  { id: "qr-giris", label: "📱 QR Giriş-Çıkış" },
+  { id: "giris-cikis-islemleri", label: "🔄 Giriş-Çıkış/Vardiya" },
+  { id: "duyurular", label: "📢 Duyurular" },
+  { id: "gorevler", label: "✅ Görevler" },
+  { id: "takvim", label: "📅 Takvim" },
+  { id: "gelinler", label: "👰 Gelinler" },
+  { id: "personel", label: "👤 Personel" },
+  { id: "izinler", label: "🏖️ İzinler" },
+  { id: "raporlar", label: "📈 Raporlar" },
+  { id: "yonetici-dashboard", label: "👔 Ekip Yönetimi" },
+  { id: "ayarlar", label: "⚙️ Ayarlar" },
+];
 
 export default function AyarlarPage() {
   const [user, setUser] = useState<any>(null);
@@ -100,11 +136,35 @@ export default function AyarlarPage() {
     sonDuzenleme: null
   });
 
+  // Genel Ayarlar state
+  const [genelAyarlar, setGenelAyarlar] = useState<GenelAyarlar>({
+    sirketAdi: "Gizem Yolcu Studio",
+    yoneticiInfo: "Gizem Yolcu - Kurucu",
+    haftaSonuIzinDahil: true,
+    izinMailGonder: true,
+    mobilIzinTalep: true,
+    yoneticiOnOnay: true,
+    varsayilanSayfa: "Genel Bakış",
+    qrKameraIzni: true,
+    konumKontrol: true,
+    kisiselQr: true,
+    girisCikisErisim: true
+  });
+  const [genelAyarlarLoading, setGenelAyarlarLoading] = useState(false);
+
+  // Rol Yetkileri state
+  const [rolYetkileri, setRolYetkileri] = useState<RolYetkileri>({
+    "Yönetici": ["genel-bakis", "qr-giris", "giris-cikis-islemleri", "duyurular", "gorevler", "takvim", "gelinler", "izinler", "raporlar", "yonetici-dashboard"],
+    "Personel": ["genel-bakis", "qr-giris", "duyurular", "gorevler", "takvim", "gelinler", "izinler"]
+  });
+  const [rolYetkileriLoading, setRolYetkileriLoading] = useState(false);
+
   const tabs = [
     { id: 0, label: "📋 Genel Ayarlar", icon: "📋" },
-    { id: 1, label: "🏢 Firmalar", icon: "🏢" },
-    { id: 2, label: "📍 Konumlar", icon: "📍" },
-    { id: 3, label: "🏷️ Grup Etiketleri", icon: "🏷️" }
+    { id: 1, label: "🔐 Rol Yetkileri", icon: "🔐" },
+    { id: 2, label: "🏢 Firmalar", icon: "🏢" },
+    { id: 3, label: "📍 Konumlar", icon: "📍" },
+    { id: 4, label: "🏷️ Grup Etiketleri", icon: "🏷️" }
   ];
 
   // Auth
@@ -146,6 +206,40 @@ export default function AyarlarPage() {
       setFirmalar(data);
     });
     return () => unsubscribe();
+  }, [user]);
+
+  // Genel Ayarları çek
+  useEffect(() => {
+    if (!user) return;
+    const fetchGenelAyarlar = async () => {
+      try {
+        const docRef = doc(db, "settings", "general");
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setGenelAyarlar(docSnap.data() as GenelAyarlar);
+        }
+      } catch (error) {
+        console.error("Genel ayarlar yüklenemedi:", error);
+      }
+    };
+    fetchGenelAyarlar();
+  }, [user]);
+
+  // Rol Yetkilerini çek
+  useEffect(() => {
+    if (!user) return;
+    const fetchRolYetkileri = async () => {
+      try {
+        const docRef = doc(db, "settings", "permissions");
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setRolYetkileri(docSnap.data() as RolYetkileri);
+        }
+      } catch (error) {
+        console.error("Rol yetkileri yüklenemedi:", error);
+      }
+    };
+    fetchRolYetkileri();
   }, [user]);
 
   // Grup Etiketlerini çek ve eksik field'ları otomatik düzelt
@@ -224,6 +318,46 @@ export default function AyarlarPage() {
     });
     return () => unsubscribe();
   }, [user]);
+
+  // GENEL AYARLAR KAYDET
+  const handleGenelAyarlarKaydet = async () => {
+    setGenelAyarlarLoading(true);
+    try {
+      await setDoc(doc(db, "settings", "general"), genelAyarlar);
+      alert("✅ Genel ayarlar kaydedildi!");
+    } catch (error) {
+      console.error("Genel ayarlar kaydedilemedi:", error);
+      alert("❌ Kaydetme hatası!");
+    } finally {
+      setGenelAyarlarLoading(false);
+    }
+  };
+
+  // ROL YETKİLERİ KAYDET
+  const handleRolYetkileriKaydet = async () => {
+    setRolYetkileriLoading(true);
+    try {
+      await setDoc(doc(db, "settings", "permissions"), rolYetkileri);
+      alert("✅ Rol yetkileri kaydedildi!");
+    } catch (error) {
+      console.error("Rol yetkileri kaydedilemedi:", error);
+      alert("❌ Kaydetme hatası!");
+    } finally {
+      setRolYetkileriLoading(false);
+    }
+  };
+
+  // Rol yetkisi toggle
+  const toggleRolYetki = (rol: string, menuId: string) => {
+    setRolYetkileri(prev => {
+      const mevcutYetkiler = prev[rol] || [];
+      if (mevcutYetkiler.includes(menuId)) {
+        return { ...prev, [rol]: mevcutYetkiler.filter(id => id !== menuId) };
+      } else {
+        return { ...prev, [rol]: [...mevcutYetkiler, menuId] };
+      }
+    });
+  };
 
   // KONUM İŞLEMLERİ
   const handleKonumAddEdit = async () => {
@@ -537,11 +671,21 @@ export default function AyarlarPage() {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Şirket Adı</label>
-                    <input type="text" defaultValue="Gizem Yolcu Studio" className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500" />
+                    <input 
+                      type="text" 
+                      value={genelAyarlar.sirketAdi} 
+                      onChange={(e) => setGenelAyarlar({...genelAyarlar, sirketAdi: e.target.value})}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500" 
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Yönetici Bilgileri</label>
-                    <textarea rows={3} defaultValue="Gizem Yolcu - Kurucu" className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500" />
+                    <textarea 
+                      rows={2} 
+                      value={genelAyarlar.yoneticiInfo}
+                      onChange={(e) => setGenelAyarlar({...genelAyarlar, yoneticiInfo: e.target.value})}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500" 
+                    />
                   </div>
                 </div>
               </div>
@@ -552,34 +696,54 @@ export default function AyarlarPage() {
                   <span>🏖️</span> İzin Ayarları
                 </h2>
                 <div className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={genelAyarlar.haftaSonuIzinDahil}
+                      onChange={(e) => setGenelAyarlar({...genelAyarlar, haftaSonuIzinDahil: e.target.checked})}
+                      className="w-5 h-5 text-pink-600 rounded mt-1" 
+                    />
                     <div>
                       <p className="text-sm font-medium text-gray-700">Hafta sonu günleri izin hesaplamalarına dahil</p>
                       <p className="text-xs text-gray-500">Cumartesi ve Pazar günleri izin hesabına dahil edilsin mi?</p>
                     </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
+                  </label>
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={genelAyarlar.izinMailGonder}
+                      onChange={(e) => setGenelAyarlar({...genelAyarlar, izinMailGonder: e.target.checked})}
+                      className="w-5 h-5 text-pink-600 rounded mt-1" 
+                    />
                     <div>
-                      <p className="text-sm font-medium text-gray-700">Hafta içi kapatan izinler için otomatik e-posta</p>
-                      <p className="text-xs text-gray-500">İzin onaylandığında personele otomatik mail gönder</p>
+                      <p className="text-sm font-medium text-gray-700">İzin onaylandığında otomatik e-posta</p>
+                      <p className="text-xs text-gray-500">Personele otomatik mail gönderilsin mi?</p>
                     </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
+                  </label>
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={genelAyarlar.mobilIzinTalep}
+                      onChange={(e) => setGenelAyarlar({...genelAyarlar, mobilIzinTalep: e.target.checked})}
+                      className="w-5 h-5 text-pink-600 rounded mt-1" 
+                    />
                     <div>
-                      <p className="text-sm font-medium text-gray-700">Mobil'de yıllık/saatlik izin talep etme</p>
+                      <p className="text-sm font-medium text-gray-700">Mobil'de izin talep etme</p>
                       <p className="text-xs text-gray-500">Personel mobil uygulamadan izin talebinde bulunabilsin mi?</p>
                     </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
+                  </label>
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={genelAyarlar.yoneticiOnOnay}
+                      onChange={(e) => setGenelAyarlar({...genelAyarlar, yoneticiOnOnay: e.target.checked})}
+                      className="w-5 h-5 text-pink-600 rounded mt-1" 
+                    />
                     <div>
-                      <p className="text-sm font-medium text-gray-700">İzin onaylarında yönetici ön onayı zorunlu</p>
+                      <p className="text-sm font-medium text-gray-700">Yönetici ön onayı zorunlu</p>
                       <p className="text-xs text-gray-500">İzin talebi önce yönetici onayından geçsin mi?</p>
                     </div>
-                  </div>
+                  </label>
                 </div>
               </div>
 
@@ -591,130 +755,141 @@ export default function AyarlarPage() {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Varsayılan Açılış Sayfası</label>
-                    <select className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 bg-white">
+                    <select 
+                      value={genelAyarlar.varsayilanSayfa}
+                      onChange={(e) => setGenelAyarlar({...genelAyarlar, varsayilanSayfa: e.target.value})}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 bg-white"
+                    >
                       <option>Genel Bakış</option>
                       <option>Gelinler</option>
                       <option>Takvim</option>
-                      <option>Personel</option>
+                      <option>Görevler</option>
                     </select>
                   </div>
-                  <div className="flex items-start gap-3">
-                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={genelAyarlar.qrKameraIzni}
+                      onChange={(e) => setGenelAyarlar({...genelAyarlar, qrKameraIzni: e.target.checked})}
+                      className="w-5 h-5 text-pink-600 rounded mt-1" 
+                    />
                     <div>
                       <p className="text-sm font-medium text-gray-700">QR kamera izni</p>
                       <p className="text-xs text-gray-500">QR kod okutma özelliği aktif olsun mu?</p>
                     </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
+                  </label>
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={genelAyarlar.konumKontrol}
+                      onChange={(e) => setGenelAyarlar({...genelAyarlar, konumKontrol: e.target.checked})}
+                      className="w-5 h-5 text-pink-600 rounded mt-1" 
+                    />
                     <div>
-                      <p className="text-sm font-medium text-gray-700">Konum tabanlı işlem izinleri</p>
+                      <p className="text-sm font-medium text-gray-700">Konum tabanlı işlem</p>
                       <p className="text-xs text-gray-500">Konum kontrolü yapılsın mı?</p>
                     </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
+                  </label>
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={genelAyarlar.kisiselQr}
+                      onChange={(e) => setGenelAyarlar({...genelAyarlar, kisiselQr: e.target.checked})}
+                      className="w-5 h-5 text-pink-600 rounded mt-1" 
+                    />
                     <div>
-                      <p className="text-sm font-medium text-gray-700">Kişisel QR kod ile işlem</p>
+                      <p className="text-sm font-medium text-gray-700">Kişisel QR kod</p>
                       <p className="text-xs text-gray-500">Her personel kendi QR kodu ile işlem yapabilsin mi?</p>
                     </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
+                  </label>
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={genelAyarlar.girisCikisErisim}
+                      onChange={(e) => setGenelAyarlar({...genelAyarlar, girisCikisErisim: e.target.checked})}
+                      className="w-5 h-5 text-pink-600 rounded mt-1" 
+                    />
                     <div>
-                      <p className="text-sm font-medium text-gray-700">Vardiya planları görüntüleme</p>
-                      <p className="text-xs text-gray-500">Personel vardiyalarını görebilsin mi?</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">İşlem geçmişi</p>
-                      <p className="text-xs text-gray-500">Personel kendi giriş-çıkış geçmişini görebilsin mi?</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">Profil fotoğrafı yükleme</p>
-                      <p className="text-xs text-gray-500">Personel profil fotoğrafı ekleyebilsin mi?</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">Mazeret bildirme</p>
-                      <p className="text-xs text-gray-500">Personel mazeret bildirimi yapabilsin mi?</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <input type="checkbox" className="w-5 h-5 text-pink-600 rounded mt-1" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">QR kameralı mola işlemi</p>
-                      <p className="text-xs text-gray-500">Mola için QR okutma zorunlu olsun mu?</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Bildirim Ayarları */}
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                  <span>🔔</span> Bildirim Ayarları
-                </h2>
-                <div className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">İşe giriş-çıkış hatırlatıcıları</p>
-                      <p className="text-xs text-gray-500">Personele giriş ve çıkış saatinde bildirim gönderilsin mi?</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Yetkili Ayarları */}
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                  <span>🔑</span> Yetkili Ayarları
-                </h2>
-                <div className="space-y-4">
-                  <p className="text-sm text-gray-600 mb-3">Yetkili grupları için menü erişim izinleri:</p>
-                  <div className="flex items-start gap-3">
-                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">"Raporlar" menüsü erişimi</p>
-                      <p className="text-xs text-gray-500">Yetkililer raporları görebilsin mi?</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">"İzinler" menüsü erişimi</p>
-                      <p className="text-xs text-gray-500">Yetkililer izin yönetimini görebilsin mi?</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <input type="checkbox" defaultChecked className="w-5 h-5 text-pink-600 rounded mt-1" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">"Giriş-Çıkış Ekle" erişimi</p>
+                      <p className="text-sm font-medium text-gray-700">Manuel giriş-çıkış ekleme</p>
                       <p className="text-xs text-gray-500">Yetkililer manuel giriş-çıkış ekleyebilsin mi?</p>
                     </div>
-                  </div>
+                  </label>
                 </div>
               </div>
 
               {/* Kaydet Butonu */}
               <div className="flex justify-end">
-                <button className="px-6 py-3 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition font-medium">
-                  💾 Ayarları Kaydet
+                <button 
+                  onClick={handleGenelAyarlarKaydet}
+                  disabled={genelAyarlarLoading}
+                  className="px-6 py-3 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition font-medium disabled:opacity-50"
+                >
+                  {genelAyarlarLoading ? "⏳ Kaydediliyor..." : "💾 Ayarları Kaydet"}
                 </button>
               </div>
             </div>
           )}
 
-          {/* TAB 2: Konumlar */}
-          {activeTab === 2 && (
+          {/* TAB 1: Rol Yetkileri */}
+          {activeTab === 1 && (
+            <div className="space-y-6">
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                <h2 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
+                  <span>🔐</span> Rol Yetkileri
+                </h2>
+                <p className="text-sm text-gray-500 mb-6">Yönetici ve Personel rollerinin hangi menülere erişebileceğini belirleyin. Kurucu her zaman tüm menülere erişebilir.</p>
+                
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Menü</th>
+                        <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700 w-32">Yönetici</th>
+                        <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700 w-32">Personel</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {menuListesi.map((menu) => (
+                        <tr key={menu.id} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-3 px-4 text-sm text-gray-700">{menu.label}</td>
+                          <td className="py-3 px-4 text-center">
+                            <input
+                              type="checkbox"
+                              checked={rolYetkileri["Yönetici"]?.includes(menu.id) || false}
+                              onChange={() => toggleRolYetki("Yönetici", menu.id)}
+                              className="w-5 h-5 text-pink-600 rounded cursor-pointer"
+                            />
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <input
+                              type="checkbox"
+                              checked={rolYetkileri["Personel"]?.includes(menu.id) || false}
+                              onChange={() => toggleRolYetki("Personel", menu.id)}
+                              className="w-5 h-5 text-pink-600 rounded cursor-pointer"
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Kaydet Butonu */}
+              <div className="flex justify-end">
+                <button 
+                  onClick={handleRolYetkileriKaydet}
+                  disabled={rolYetkileriLoading}
+                  className="px-6 py-3 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition font-medium disabled:opacity-50"
+                >
+                  {rolYetkileriLoading ? "⏳ Kaydediliyor..." : "💾 Yetkileri Kaydet"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: Konumlar */}
+          {activeTab === 3 && (
             <div>
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-lg font-bold text-gray-800">📍 Konumlar</h2>
@@ -795,8 +970,8 @@ export default function AyarlarPage() {
             </div>
           )}
 
-          {/* TAB 1: Firmalar */}
-          {activeTab === 1 && (
+          {/* TAB 2: Firmalar */}
+          {activeTab === 2 && (
             <div>
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-lg font-bold text-gray-800">🏢 Firmalar</h2>
@@ -859,8 +1034,8 @@ export default function AyarlarPage() {
             </div>
           )}
 
-          {/* TAB 3: Grup Etiketleri */}
-          {activeTab === 3 && (
+          {/* TAB 4: Grup Etiketleri */}
+          {activeTab === 4 && (
             <div>
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-lg font-bold text-gray-800">🏷️ Grup Etiketleri</h2>

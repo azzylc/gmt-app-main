@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth, db } from "../lib/firebase";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { collection, query, where, onSnapshot, doc, getDoc } from "firebase/firestore";
 
 // Sidebar Context - mobilde açık/kapalı durumu için
 const SidebarContext = createContext<{
@@ -26,6 +26,10 @@ function SidebarContent({ user }: SidebarProps) {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [personelData, setPersonelData] = useState<any>(null);
+  const [rolYetkileri, setRolYetkileri] = useState<{[key: string]: string[]}>({
+    "Yönetici": ["genel-bakis", "qr-giris", "giris-cikis-islemleri", "duyurular", "gorevler", "takvim", "gelinler", "izinler", "raporlar", "yonetici-dashboard"],
+    "Personel": ["genel-bakis", "qr-giris", "duyurular", "gorevler", "takvim", "gelinler", "izinler"]
+  });
 
   // Mobil kontrolü
   useEffect(() => {
@@ -39,6 +43,22 @@ function SidebarContent({ user }: SidebarProps) {
   useEffect(() => {
     setIsMobileOpen(false);
   }, [pathname]);
+
+  // Rol yetkilerini Firestore'dan çek
+  useEffect(() => {
+    const fetchRolYetkileri = async () => {
+      try {
+        const docRef = doc(db, "settings", "permissions");
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setRolYetkileri(docSnap.data() as {[key: string]: string[]});
+        }
+      } catch (error) {
+        console.error("Rol yetkileri yüklenemedi:", error);
+      }
+    };
+    fetchRolYetkileri();
+  }, []);
 
   // Kullanıcı gruplarını Firebase'den çek
   useEffect(() => {
@@ -64,7 +84,7 @@ function SidebarContent({ user }: SidebarProps) {
   const isYonetici = personelData?.kullaniciTuru === "Yönetici";
   const isPersonel = personelData?.kullaniciTuru === "Personel" || (!isKurucu && !isYonetici);
 
-  // Rol bazlı menü filtreleme
+  // Rol bazlı menü filtreleme - Firestore'dan dinamik
   const getFilteredMenuItems = () => {
     let items = [
       {
@@ -72,20 +92,18 @@ function SidebarContent({ user }: SidebarProps) {
         label: "Genel Bakış",
         icon: "📊",
         path: "/",
-        roles: ["Kurucu", "Yönetici", "Personel"],
       },
       {
         id: "qr-giris",
         label: "Giriş-Çıkış",
         icon: "📱",
         path: "/qr-giris",
-        roles: ["Yönetici", "Personel"], // Kurucu hariç
+        excludeKurucu: true, // Kurucu QR kullanmaz
       },
       {
         id: "giris-cikis-islemleri",
         label: "Giriş - Çıkış / Vardiya",
         icon: "🔄",
-        roles: ["Kurucu", "Yönetici"],
         submenu: [
           { label: "İşlem Listesi", path: "/giris-cikis/islem-listesi" },
           { label: "Manuel İşlem Ekle", path: "/giris-cikis/islem-ekle" },
@@ -100,34 +118,29 @@ function SidebarContent({ user }: SidebarProps) {
         label: "Duyurular",
         icon: "📢",
         path: "/duyurular",
-        roles: ["Kurucu", "Yönetici", "Personel"],
       },
       {
         id: "gorevler",
         label: "Görevler",
         icon: "✅",
         path: "/gorevler",
-        roles: ["Kurucu", "Yönetici", "Personel"],
       },
       {
         id: "takvim",
         label: "Takvim",
         icon: "📅",
         path: "/takvim",
-        roles: ["Kurucu", "Yönetici", "Personel"],
       },
       {
         id: "gelinler",
         label: "Gelinler",
         icon: "👰",
         path: "/gelinler",
-        roles: ["Kurucu", "Yönetici", "Personel"],
       },
       {
         id: "personel",
         label: "Personel",
         icon: "👤",
-        roles: ["Kurucu"], // Sadece Kurucu
         submenu: [
           { label: "Tüm Personel", path: "/personel" },
           { label: "Kurucular", path: "/personel?grup=kurucu" },
@@ -142,7 +155,6 @@ function SidebarContent({ user }: SidebarProps) {
         id: "izinler",
         label: "İzinler",
         icon: "🏖️",
-        roles: ["Kurucu", "Yönetici", "Personel"],
         submenu: [
           { label: "İzin Ekle", path: "/izinler/ekle" },
           { label: "İzin Listesi", path: "/izinler" },
@@ -157,7 +169,6 @@ function SidebarContent({ user }: SidebarProps) {
         id: "raporlar",
         label: "Raporlar",
         icon: "📈",
-        roles: ["Kurucu", "Yönetici"],
         submenu: [
           { label: "Günlük", type: "header" },
           { label: "Giriş - Çıkış Kayıtları", path: "/raporlar/giris-cikis-kayitlari" },
@@ -175,27 +186,37 @@ function SidebarContent({ user }: SidebarProps) {
         label: "Ekip Yönetimi",
         icon: "👔",
         path: "/yonetici-dashboard",
-        roles: ["Yönetici"],
       },
       {
         id: "yonetim",
         label: "Yönetim Paneli",
         icon: "👑",
         path: "/yonetim",
-        roles: ["Kurucu"],
       },
       {
         id: "ayarlar",
         label: "Ayarlar",
         icon: "⚙️",
         path: "/ayarlar",
-        roles: ["Kurucu"], // Sadece Kurucu tam ayarları görsün
       },
     ];
 
     // Kullanıcının rolüne göre filtrele
-    const userRole = personelData?.kullaniciTuru || "Personel";
-    return items.filter(item => item.roles.includes(userRole));
+    return items.filter(item => {
+      // Kurucu tüm menülere erişir (hariç: excludeKurucu olanlar)
+      if (isKurucu) {
+        return !(item as any).excludeKurucu;
+      }
+      // Yönetici: Firestore'dan gelen yetkiler
+      if (isYonetici) {
+        return rolYetkileri["Yönetici"]?.includes(item.id) || false;
+      }
+      // Personel: Firestore'dan gelen yetkiler
+      if (isPersonel) {
+        return rolYetkileri["Personel"]?.includes(item.id) || false;
+      }
+      return false;
+    });
   };
 
   const menuItems = getFilteredMenuItems();

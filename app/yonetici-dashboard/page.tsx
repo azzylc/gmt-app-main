@@ -241,16 +241,16 @@ export default function YoneticiDashboardPage() {
   useEffect(() => {
     if (!user || !currentPersonel || allPersoneller.length === 0) return;
 
-    // Yöneticinin sorumlu olduğu firmalar
+    // Kurucu tüm personelleri görür, Yönetici sadece kendi firmalarını
+    const isKurucu = currentPersonel.kullaniciTuru === "Kurucu";
     const yonettigiFirmalar = currentPersonel.yonettigiFirmalar || [];
     
-    // Bu firmalardaki personelleri filtrele (aktif olanlar, kendisi hariç)
-    const personelList = allPersoneller.filter(p => 
-      p.aktif && 
-      p.id !== currentPersonel.id && 
-      p.firma && 
-      yonettigiFirmalar.includes(p.firma)
-    );
+    // Personelleri filtrele
+    const personelList = allPersoneller.filter(p => {
+      if (!p.aktif || p.id === currentPersonel.id) return false;
+      if (isKurucu) return true; // Kurucu herkesi görür
+      return p.firma && yonettigiFirmalar.includes(p.firma); // Yönetici sadece kendi firmalarını
+    });
 
     // Her personel için metrikleri hesapla
     const ekipData: EkipUyesi[] = personelList.map(personel => {
