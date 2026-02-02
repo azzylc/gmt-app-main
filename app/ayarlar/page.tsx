@@ -41,6 +41,16 @@ interface GrupEtiketi {
   sonDuzenleme: any;
 }
 
+interface Firma {
+  id: string;
+  firmaAdi: string;
+  kisaltma: string;
+  renk: string;
+  aktif: boolean;
+  olusturulmaTarihi: any;
+  sonDuzenleme: any;
+}
+
 export default function AyarlarPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -76,10 +86,25 @@ export default function AyarlarPage() {
     sonDuzenleme: null
   });
 
+  // Firmalar state
+  const [firmalar, setFirmalar] = useState<Firma[]>([]);
+  const [showFirmaModal, setShowFirmaModal] = useState(false);
+  const [editingFirma, setEditingFirma] = useState<Firma | null>(null);
+  const [firmaFormData, setFirmaFormData] = useState<Firma>({
+    id: "",
+    firmaAdi: "",
+    kisaltma: "",
+    renk: "blue",
+    aktif: true,
+    olusturulmaTarihi: null,
+    sonDuzenleme: null
+  });
+
   const tabs = [
     { id: 0, label: "📋 Genel Ayarlar", icon: "📋" },
-    { id: 1, label: "📍 Konumlar", icon: "📍" },
-    { id: 2, label: "🏷️ Grup Etiketleri", icon: "🏷️" }
+    { id: 1, label: "🏢 Firmalar", icon: "🏢" },
+    { id: 2, label: "📍 Konumlar", icon: "📍" },
+    { id: 3, label: "🏷️ Grup Etiketleri", icon: "🏷️" }
   ];
 
   // Auth
@@ -105,6 +130,20 @@ export default function AyarlarPage() {
         ...doc.data()
       } as Konum));
       setKonumlar(data);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  // Firmaları çek
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, "companies"), orderBy("firmaAdi", "asc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Firma));
+      setFirmalar(data);
     });
     return () => unsubscribe();
   }, [user]);
@@ -368,6 +407,85 @@ export default function AyarlarPage() {
     });
   };
 
+  // =====================
+  // FİRMA FONKSİYONLARI
+  // =====================
+  const handleFirmaAddEdit = async () => {
+    if (!firmaFormData.firmaAdi.trim()) {
+      alert("Firma adı zorunludur!");
+      return;
+    }
+    if (!firmaFormData.kisaltma.trim()) {
+      alert("Kısaltma zorunludur!");
+      return;
+    }
+
+    try {
+      if (editingFirma) {
+        await updateDoc(doc(db, "companies", editingFirma.id), {
+          firmaAdi: firmaFormData.firmaAdi.trim(),
+          kisaltma: firmaFormData.kisaltma.trim().toUpperCase(),
+          renk: firmaFormData.renk,
+          aktif: firmaFormData.aktif,
+          sonDuzenleme: serverTimestamp()
+        });
+      } else {
+        await addDoc(collection(db, "companies"), {
+          firmaAdi: firmaFormData.firmaAdi.trim(),
+          kisaltma: firmaFormData.kisaltma.trim().toUpperCase(),
+          renk: firmaFormData.renk,
+          aktif: firmaFormData.aktif,
+          olusturulmaTarihi: serverTimestamp(),
+          sonDuzenleme: serverTimestamp()
+        });
+      }
+      setShowFirmaModal(false);
+      resetFirmaForm();
+    } catch (error) {
+      console.error("Firma kaydetme hatası:", error);
+      alert("Firma kaydedilemedi!");
+    }
+  };
+
+  const handleFirmaDelete = async (id: string, firmaAdi: string) => {
+    // Bu firmada çalışan personel var mı kontrol et
+    const personnelQuery = query(collection(db, "personnel"), where("firma", "==", id));
+    const personnelSnapshot = await getDocs(personnelQuery);
+    
+    if (!personnelSnapshot.empty) {
+      alert(`"${firmaAdi}" firmasında ${personnelSnapshot.size} personel çalışıyor. Önce personelleri başka firmaya taşıyın.`);
+      return;
+    }
+
+    if (confirm(`"${firmaAdi}" firmasını silmek istediğinize emin misiniz?`)) {
+      try {
+        await deleteDoc(doc(db, "companies", id));
+      } catch (error) {
+        console.error("Firma silme hatası:", error);
+        alert("Firma silinemedi!");
+      }
+    }
+  };
+
+  const openFirmaEditModal = (firma: Firma) => {
+    setEditingFirma(firma);
+    setFirmaFormData(firma);
+    setShowFirmaModal(true);
+  };
+
+  const resetFirmaForm = () => {
+    setEditingFirma(null);
+    setFirmaFormData({
+      id: "",
+      firmaAdi: "",
+      kisaltma: "",
+      renk: "blue",
+      aktif: true,
+      olusturulmaTarihi: null,
+      sonDuzenleme: null
+    });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -595,8 +713,8 @@ export default function AyarlarPage() {
             </div>
           )}
 
-          {/* TAB 1: Konumlar */}
-          {activeTab === 1 && (
+          {/* TAB 2: Konumlar */}
+          {activeTab === 2 && (
             <div>
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-lg font-bold text-gray-800">📍 Konumlar</h2>
@@ -677,8 +795,72 @@ export default function AyarlarPage() {
             </div>
           )}
 
-          {/* TAB 2: Grup Etiketleri */}
-          {activeTab === 2 && (
+          {/* TAB 1: Firmalar */}
+          {activeTab === 1 && (
+            <div>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-lg font-bold text-gray-800">🏢 Firmalar</h2>
+                <button
+                  onClick={() => { setShowFirmaModal(true); setEditingFirma(null); resetFirmaForm(); }}
+                  className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition"
+                >
+                  ➕ Yeni Firma
+                </button>
+              </div>
+
+              {firmalar.length === 0 ? (
+                <div className="bg-white rounded-2xl p-12 text-center text-gray-500 border border-gray-100">
+                  <p className="text-4xl mb-4">🏢</p>
+                  <p>Henüz firma eklenmemiş</p>
+                  <p className="text-sm mt-2">Yukarıdaki butona tıklayarak firma ekleyin</p>
+                </div>
+              ) : (
+                <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Firma</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kısaltma</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Durum</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">İşlem</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {firmalar.map((firma) => (
+                        <tr key={firma.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <span className={`w-3 h-3 rounded-full bg-${firma.renk}-500`}></span>
+                              <span className="font-medium text-gray-900">{firma.firmaAdi}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium bg-${firma.renk}-100 text-${firma.renk}-700`}>
+                              {firma.kisaltma}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`px-2 py-1 rounded-full text-xs ${firma.aktif ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                              {firma.aktif ? 'Aktif' : 'Pasif'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex gap-2">
+                              <button onClick={() => openFirmaEditModal(firma)} className="w-8 h-8 hover:bg-yellow-50 text-yellow-600 rounded" title="Düzenle">✏️</button>
+                              <button onClick={() => handleFirmaDelete(firma.id, firma.firmaAdi)} className="w-8 h-8 hover:bg-red-50 text-red-600 rounded" title="Sil">🗑️</button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 3: Grup Etiketleri */}
+          {activeTab === 3 && (
             <div>
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-lg font-bold text-gray-800">🏷️ Grup Etiketleri</h2>
@@ -834,6 +1016,96 @@ export default function AyarlarPage() {
             <div className="mt-6 flex gap-3">
               <button onClick={handleKonumAddEdit} className="flex-1 px-4 py-3 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition font-medium">💾 Kaydet</button>
               <button onClick={() => { setShowKonumModal(false); resetKonumForm(); }} className="flex-1 px-4 py-3 bg-gray-500 text-white rounded-xl hover:bg-gray-600 transition font-medium">↩️ İptal</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Firma Modal */}
+      {showFirmaModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-gray-800">{editingFirma ? "✏️ Firma Düzenle" : "➕ Yeni Firma"}</h3>
+              <button onClick={() => { setShowFirmaModal(false); resetFirmaForm(); }} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Firma Adı *</label>
+                <input 
+                  type="text" 
+                  value={firmaFormData.firmaAdi} 
+                  onChange={(e) => setFirmaFormData({ ...firmaFormData, firmaAdi: e.target.value })} 
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500" 
+                  placeholder="Gizem Yolcu Studio" 
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Kısaltma *</label>
+                <input 
+                  type="text" 
+                  value={firmaFormData.kisaltma} 
+                  onChange={(e) => setFirmaFormData({ ...firmaFormData, kisaltma: e.target.value.toUpperCase() })} 
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 uppercase" 
+                  placeholder="GYS" 
+                  maxLength={10}
+                />
+                <p className="text-xs text-gray-500 mt-1">Maksimum 10 karakter</p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Renk *</label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { id: 'red', color: 'bg-red-500' },
+                    { id: 'orange', color: 'bg-orange-500' },
+                    { id: 'yellow', color: 'bg-yellow-500' },
+                    { id: 'green', color: 'bg-green-500' },
+                    { id: 'teal', color: 'bg-teal-500' },
+                    { id: 'blue', color: 'bg-blue-500' },
+                    { id: 'indigo', color: 'bg-indigo-500' },
+                    { id: 'purple', color: 'bg-purple-500' },
+                    { id: 'pink', color: 'bg-pink-500' },
+                    { id: 'gray', color: 'bg-gray-500' },
+                  ].map((renk) => (
+                    <button
+                      key={renk.id}
+                      type="button"
+                      onClick={() => setFirmaFormData({ ...firmaFormData, renk: renk.id })}
+                      className={`w-8 h-8 rounded-full ${renk.color} ${firmaFormData.renk === renk.id ? 'ring-2 ring-offset-2 ring-gray-800' : 'hover:scale-110'} transition`}
+                    />
+                  ))}
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <input 
+                  type="checkbox" 
+                  checked={firmaFormData.aktif} 
+                  onChange={(e) => setFirmaFormData({ ...firmaFormData, aktif: e.target.checked })} 
+                  className="w-4 h-4 text-pink-600 rounded" 
+                />
+                <span className="text-sm text-gray-700">Aktif</span>
+              </div>
+              
+              {/* Önizleme */}
+              <div className="pt-2 border-t">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Önizleme</label>
+                <div className="flex items-center gap-3">
+                  <span className={`w-3 h-3 rounded-full bg-${firmaFormData.renk}-500`}></span>
+                  <span className="font-medium">{firmaFormData.firmaAdi || "Firma Adı"}</span>
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium bg-${firmaFormData.renk}-100 text-${firmaFormData.renk}-700`}>
+                    {firmaFormData.kisaltma || "KIS"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex gap-3">
+              <button onClick={handleFirmaAddEdit} className="flex-1 px-4 py-3 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition font-medium">💾 Kaydet</button>
+              <button onClick={() => { setShowFirmaModal(false); resetFirmaForm(); }} className="flex-1 px-4 py-3 bg-gray-500 text-white rounded-xl hover:bg-gray-600 transition font-medium">↩️ İptal</button>
             </div>
           </div>
         </div>

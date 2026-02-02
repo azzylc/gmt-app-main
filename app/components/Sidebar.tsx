@@ -60,124 +60,145 @@ function SidebarContent({ user }: SidebarProps) {
     return () => unsubscribe();
   }, [user?.email]);
 
-  const isKurucu = kullaniciGruplar.some(g => g.toLowerCase() === "kurucu");
-  const isYonetici = kullaniciGruplar.some(g => g.toLowerCase() === "yönetici" || g.toLowerCase() === "kurucu") || 
-                     personelData?.kullaniciTuru === "Yönetici" || 
-                     personelData?.kullaniciTuru === "Kurucu";
+  const isKurucu = personelData?.kullaniciTuru === "Kurucu";
+  const isYonetici = personelData?.kullaniciTuru === "Yönetici";
+  const isPersonel = personelData?.kullaniciTuru === "Personel" || (!isKurucu && !isYonetici);
 
-  const menuItems = [
-    {
-      id: "genel-bakis",
-      label: "Genel Bakış",
-      icon: "📊",
-      path: "/",
-    },
-    {
-      id: "qr-giris",
-      label: "Giriş-Çıkış",
-      icon: "📱",
-      path: "/qr-giris",
-    },
-    {
-      id: "giris-cikis-islemleri",
-      label: "Giriş - Çıkış / Vardiya",
-      icon: "🔄",
-      submenu: [
-        { label: "İşlem Listesi", path: "/giris-cikis/islem-listesi" },
-        { label: "Manuel İşlem Ekle", path: "/giris-cikis/islem-ekle" },
-        { label: "İşlem Ekle (Puantaj)", path: "/giris-cikis/puantaj" },
-        { label: "Vardiya Planı", path: "/giris-cikis/vardiya-plani" },
-        { label: "Toplu İşlem Ekle", path: "/giris-cikis/toplu-islem-ekle" },
-        { label: "Değişiklik Kayıtları", path: "/giris-cikis/degisiklik-kayitlari" },
-      ],
-    },
-    {
-      id: "duyurular",
-      label: "Duyurular",
-      icon: "📢",
-      path: "/duyurular",
-    },
-    {
-      id: "gorevler",
-      label: "Görevler",
-      icon: "✅",
-      path: "/gorevler",
-    },
-    {
-      id: "takvim",
-      label: "Takvim",
-      icon: "📅",
-      path: "/takvim",
-    },
-    {
-      id: "gelinler",
-      label: "Gelinler",
-      icon: "👰",
-      path: "/gelinler",
-    },
-    {
-      id: "personel",
-      label: "Personel",
-      icon: "👤",
-      submenu: [
-        { label: "Tüm Personel", path: "/personel" },
-        { label: "Kurucular", path: "/personel?grup=kurucu" },
-        { label: "Yöneticiler", path: "/personel?grup=yönetici" },
-        { label: "Ayrılanlar", path: "/personel?ayrilanlar=true" },
-        { label: "Giriş-Çıkış Kayıtları", path: "/giris-cikis" },
-        { label: "Vardiya Planları", path: "/vardiya" },
-        { label: "Çalışma Saatleri", path: "/calisma-saatleri" },
-      ],
-    },
-    {
-      id: "izinler",
-      label: "İzinler",
-      icon: "🏖️",
-      submenu: [
-        { label: "İzin Ekle", path: "/izinler/ekle" },
-        { label: "İzin Listesi", path: "/izinler" },
-        { label: "İzin Toplamları", path: "/izinler/toplamlar" },
-        { label: "İzin Talepleri", path: "/izinler/talepler" },
-        { label: "İzin Hakkı Ekle", path: "/izinler/hakki-ekle" },
-        { label: "İzin Haklarını Listele", path: "/izinler/haklar" },
-        { label: "İzin Değişiklik Kayıtları", path: "/izinler/degisiklikler" },
-      ],
-    },
-    {
-      id: "raporlar",
-      label: "Raporlar",
-      icon: "📈",
-      submenu: [
-        { label: "Günlük", type: "header" },
-        { label: "Giriş - Çıkış Kayıtları", path: "/raporlar/giris-cikis-kayitlari" },
-        { label: "Günlük Çalışma Süreleri", path: "/raporlar/gunluk-calisma-sureleri" },
-        { label: "Gelmeyenler", path: "/raporlar/gelmeyenler" },
-        { label: "Geç Kalanlar", path: "/raporlar/gec-kalanlar" },
-        { label: "Haftalık", type: "header" },
-        { label: "Toplam Çalışma Süreleri", path: "/raporlar/haftalik-calisma-sureleri" },
-        { label: "Diğer", type: "header" },
-        { label: "Gelin Raporları", path: "/gelin-raporlari" },
-      ],
-    },
-    ...(isYonetici ? [{
-      id: "yonetici-dashboard",
-      label: "Ekip Yönetimi",
-      icon: "👔",
-      path: "/yonetici-dashboard",
-    }] : []),
-    ...(isKurucu ? [{
-      id: "yonetim",
-      label: "Yönetim Paneli",
-      icon: "👑",
-      path: "/yonetim",
-    }] : []),
-    {
-      id: "ayarlar",
-      label: "Ayarlar",
-      icon: "⚙️",
-      path: "/ayarlar",
-    },
-  ];
+  // Rol bazlı menü filtreleme
+  const getFilteredMenuItems = () => {
+    let items = [
+      {
+        id: "genel-bakis",
+        label: "Genel Bakış",
+        icon: "📊",
+        path: "/",
+        roles: ["Kurucu", "Yönetici", "Personel"],
+      },
+      {
+        id: "qr-giris",
+        label: "Giriş-Çıkış",
+        icon: "📱",
+        path: "/qr-giris",
+        roles: ["Yönetici", "Personel"], // Kurucu hariç
+      },
+      {
+        id: "giris-cikis-islemleri",
+        label: "Giriş - Çıkış / Vardiya",
+        icon: "🔄",
+        roles: ["Kurucu", "Yönetici"],
+        submenu: [
+          { label: "İşlem Listesi", path: "/giris-cikis/islem-listesi" },
+          { label: "Manuel İşlem Ekle", path: "/giris-cikis/islem-ekle" },
+          { label: "İşlem Ekle (Puantaj)", path: "/giris-cikis/puantaj" },
+          { label: "Vardiya Planı", path: "/giris-cikis/vardiya-plani" },
+          { label: "Toplu İşlem Ekle", path: "/giris-cikis/toplu-islem-ekle" },
+          { label: "Değişiklik Kayıtları", path: "/giris-cikis/degisiklik-kayitlari" },
+        ],
+      },
+      {
+        id: "duyurular",
+        label: "Duyurular",
+        icon: "📢",
+        path: "/duyurular",
+        roles: ["Kurucu", "Yönetici", "Personel"],
+      },
+      {
+        id: "gorevler",
+        label: "Görevler",
+        icon: "✅",
+        path: "/gorevler",
+        roles: ["Kurucu", "Yönetici", "Personel"],
+      },
+      {
+        id: "takvim",
+        label: "Takvim",
+        icon: "📅",
+        path: "/takvim",
+        roles: ["Kurucu", "Yönetici", "Personel"],
+      },
+      {
+        id: "gelinler",
+        label: "Gelinler",
+        icon: "👰",
+        path: "/gelinler",
+        roles: ["Kurucu", "Yönetici", "Personel"],
+      },
+      {
+        id: "personel",
+        label: "Personel",
+        icon: "👤",
+        roles: ["Kurucu"], // Sadece Kurucu
+        submenu: [
+          { label: "Tüm Personel", path: "/personel" },
+          { label: "Kurucular", path: "/personel?grup=kurucu" },
+          { label: "Yöneticiler", path: "/personel?grup=yönetici" },
+          { label: "Ayrılanlar", path: "/personel?ayrilanlar=true" },
+          { label: "Giriş-Çıkış Kayıtları", path: "/giris-cikis" },
+          { label: "Vardiya Planları", path: "/vardiya" },
+          { label: "Çalışma Saatleri", path: "/calisma-saatleri" },
+        ],
+      },
+      {
+        id: "izinler",
+        label: "İzinler",
+        icon: "🏖️",
+        roles: ["Kurucu", "Yönetici", "Personel"],
+        submenu: [
+          { label: "İzin Ekle", path: "/izinler/ekle" },
+          { label: "İzin Listesi", path: "/izinler" },
+          { label: "İzin Toplamları", path: "/izinler/toplamlar" },
+          { label: "İzin Talepleri", path: "/izinler/talepler" },
+          { label: "İzin Hakkı Ekle", path: "/izinler/hakki-ekle" },
+          { label: "İzin Haklarını Listele", path: "/izinler/haklar" },
+          { label: "İzin Değişiklik Kayıtları", path: "/izinler/degisiklikler" },
+        ],
+      },
+      {
+        id: "raporlar",
+        label: "Raporlar",
+        icon: "📈",
+        roles: ["Kurucu", "Yönetici"],
+        submenu: [
+          { label: "Günlük", type: "header" },
+          { label: "Giriş - Çıkış Kayıtları", path: "/raporlar/giris-cikis-kayitlari" },
+          { label: "Günlük Çalışma Süreleri", path: "/raporlar/gunluk-calisma-sureleri" },
+          { label: "Gelmeyenler", path: "/raporlar/gelmeyenler" },
+          { label: "Geç Kalanlar", path: "/raporlar/gec-kalanlar" },
+          { label: "Haftalık", type: "header" },
+          { label: "Toplam Çalışma Süreleri", path: "/raporlar/haftalik-calisma-sureleri" },
+          { label: "Diğer", type: "header" },
+          { label: "Gelin Raporları", path: "/gelin-raporlari" },
+        ],
+      },
+      {
+        id: "yonetici-dashboard",
+        label: "Ekip Yönetimi",
+        icon: "👔",
+        path: "/yonetici-dashboard",
+        roles: ["Yönetici"],
+      },
+      {
+        id: "yonetim",
+        label: "Yönetim Paneli",
+        icon: "👑",
+        path: "/yonetim",
+        roles: ["Kurucu"],
+      },
+      {
+        id: "ayarlar",
+        label: "Ayarlar",
+        icon: "⚙️",
+        path: "/ayarlar",
+        roles: ["Kurucu"], // Sadece Kurucu tam ayarları görsün
+      },
+    ];
+
+    // Kullanıcının rolüne göre filtrele
+    const userRole = personelData?.kullaniciTuru || "Personel";
+    return items.filter(item => item.roles.includes(userRole));
+  };
+
+  const menuItems = getFilteredMenuItems();
 
   // Bottom nav için ana menüler
   const bottomNavItems = [
@@ -261,7 +282,7 @@ function SidebarContent({ user }: SidebarProps) {
             <p className="text-sm font-medium text-gray-800 truncate">
               {personelData?.ad ? `${personelData.ad} ${personelData.soyad || ''}` : user?.email?.split("@")[0] || "Admin"}
             </p>
-            <p className="text-xs text-gray-500">{isKurucu ? "Kurucu" : "Personel"}</p>
+            <p className="text-xs text-gray-500">{personelData?.kullaniciTuru || "Personel"}</p>
           </div>
         </div>
       </div>
