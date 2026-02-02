@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { auth, db } from "../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, query, where, onSnapshot, orderBy, Timestamp, addDoc, updateDoc, doc, serverTimestamp } from "firebase/firestore";
+import { collection, query, where, onSnapshot, orderBy, Timestamp, addDoc, updateDoc, doc, serverTimestamp, increment } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import Sidebar from "../components/Sidebar";
 
@@ -13,9 +13,31 @@ interface Personel {
   email: string;
   sicilNo: string;
   kullaniciTuru: string;
-  yoneticiId?: string;
+  firma?: string;
+  yonettigiFirmalar?: string[];
   aktif: boolean;
   grupEtiketleri: string[];
+}
+
+interface Firma {
+  id: string;
+  firmaAdi: string;
+  kisaltma: string;
+  renk: string;
+}
+
+interface IzinTalebi {
+  id: string;
+  personelId: string;
+  personelAd: string;
+  personelSoyad: string;
+  izinTuru: string;
+  baslangic: string;
+  bitis: string;
+  gunSayisi: number;
+  aciklama?: string;
+  talepTarihi: string;
+  durum: "Beklemede" | "Onaylandı" | "Reddedildi";
 }
 
 interface Gelin {
@@ -60,12 +82,16 @@ interface Gorev {
 
 export default function YoneticiDashboardPage() {
   const [user, setUser] = useState<any>(null);
+  const [currentPersonel, setCurrentPersonel] = useState<Personel | null>(null);
   const [loading, setLoading] = useState(true);
   const [yetkisiz, setYetkisiz] = useState(false);
   const [ekipUyeleri, setEkipUyeleri] = useState<EkipUyesi[]>([]);
   const [gelinler, setGelinler] = useState<Gelin[]>([]);
   const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const [firmalar, setFirmalar] = useState<Firma[]>([]);
+  const [izinTalepleri, setIzinTalepleri] = useState<IzinTalebi[]>([]);
+  const [allPersoneller, setAllPersoneller] = useState<Personel[]>([]);
   
   // Görev yönetimi state'leri
   const [gorevler, setGorevler] = useState<Gorev[]>([]);
@@ -99,7 +125,7 @@ export default function YoneticiDashboardPage() {
       if (user) {
         setUser(user);
         
-        // Kullanıcının yönetici veya kurucu olup olmadığını kontrol et
+        // Kullanıcının bilgilerini çek
         const q = query(
           collection(db, "personnel"),
           where("email", "==", user.email)
@@ -108,10 +134,9 @@ export default function YoneticiDashboardPage() {
         const unsubPersonel = onSnapshot(q, (snapshot) => {
           if (!snapshot.empty) {
             const data = snapshot.docs[0].data();
-            const gruplar = data.grupEtiketleri || [];
-            const isYonetici = gruplar.some((g: string) => 
-              g.toLowerCase() === "yönetici" || g.toLowerCase() === "kurucu"
-            ) || data.kullaniciTuru === "Yönetici" || data.kullaniciTuru === "Kurucu";
+            setCurrentPersonel({ id: snapshot.docs[0].id, ...data } as Personel);
+            
+            const isYonetici = data.kullaniciTuru === "Yönetici" || data.kullaniciTuru === "Kurucu";
             
             if (!isYonetici) {
               setYetkisiz(true);
@@ -130,6 +155,52 @@ export default function YoneticiDashboardPage() {
     
     return () => unsubscribe();
   }, [router]);
+
+  // Firmaları çek
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, "companies"), orderBy("firmaAdi", "asc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Firma));
+      setFirmalar(data);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  // Tüm personelleri çek (firma bazlı filtreleme için)
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, "personnel"), orderBy("ad", "asc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Personel));
+      setAllPersoneller(data);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  // İzin taleplerini çek
+  useEffect(() => {
+    if (!user) return;
+    const q = query(
+      collection(db, "izinTalepleri"),
+      where("durum", "==", "Beklemede"),
+      orderBy("talepTarihi", "desc")
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as IzinTalebi));
+      setIzinTalepleri(data);
+    });
+    return () => unsubscribe();
+  }, [user]);
 
   // ✅ Gelinler - Firestore'dan (real-time) - APPS SCRIPT YERİNE!
   useEffect(() => {
@@ -166,66 +237,122 @@ export default function YoneticiDashboardPage() {
     };
   }, [user]);
 
-  // Ekip üyelerini ve metriklerini çek
+  // Ekip üyelerini ve metriklerini hesapla (firma bazlı)
   useEffect(() => {
-    if (!user) return;
+    if (!user || !currentPersonel || allPersoneller.length === 0) return;
 
-    // Ekip üyelerini dinle (yoneticiId === user.uid olan personeller)
-    const qPersonel = query(
-      collection(db, "personnel"),
-      where("yoneticiId", "==", user.uid)
+    // Yöneticinin sorumlu olduğu firmalar
+    const yonettigiFirmalar = currentPersonel.yonettigiFirmalar || [];
+    
+    // Bu firmalardaki personelleri filtrele (aktif olanlar, kendisi hariç)
+    const personelList = allPersoneller.filter(p => 
+      p.aktif && 
+      p.id !== currentPersonel.id && 
+      p.firma && 
+      yonettigiFirmalar.includes(p.firma)
     );
 
-    const unsubPersonel = onSnapshot(qPersonel, (snapshot) => {
-      const personelList: Personel[] = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Personel));
+    // Her personel için metrikleri hesapla
+    const ekipData: EkipUyesi[] = personelList.map(personel => {
+      // Gelin sayıları
+      const personelGelinler = gelinler.filter(g => 
+        g.makyaj === `${personel.ad} ${personel.soyad}` || 
+        g.turban === `${personel.ad} ${personel.soyad}`
+      );
+      
+      const buAyGelinler = personelGelinler.filter(g => 
+        g.anlasildigiTarih && g.anlasildigiTarih.startsWith(buAy)
+      );
 
-      // Her personel için metrikleri hesapla
-      const ekipData: EkipUyesi[] = personelList.map(personel => {
-        // Gelin sayıları
-        const personelGelinler = gelinler.filter(g => 
-          g.makyaj === `${personel.ad} ${personel.soyad}` || 
-          g.turban === `${personel.ad} ${personel.soyad}`
-        );
-        
-        const buAyGelinler = personelGelinler.filter(g => 
-          g.anlasildigiTarih && g.anlasildigiTarih.startsWith(buAy)
-        );
+      // Çalışma saatleri (bu hafta)
+      const personelAttendance = attendanceData.filter(a => 
+        a.personelId === personel.id &&
+        a.tarih >= haftaBasiStr &&
+        a.tarih <= haftaSonuStr
+      );
 
-        // Çalışma saatleri (bu hafta)
-        const personelAttendance = attendanceData.filter(a => 
-          a.personelId === personel.id &&
-          a.tarih >= haftaBasiStr &&
-          a.tarih <= haftaSonuStr
-        );
+      const buHaftaCalismaGun = personelAttendance.length;
+      const buHaftaCalismadakika = personelAttendance.reduce((total, a) => {
+        if (a.girisSaati && a.cikisSaati) {
+          const giris = new Date(`2000-01-01T${a.girisSaati}`);
+          const cikis = new Date(`2000-01-01T${a.cikisSaati}`);
+          const fark = (cikis.getTime() - giris.getTime()) / 1000 / 60;
+          return total + (fark > 0 ? fark : 0);
+        }
+        return total;
+      }, 0);
 
-        const buHaftaCalismaGun = personelAttendance.length;
-        const buHaftaCalismadakika = personelAttendance.reduce((total, a) => {
-          if (a.girisSaati && a.cikisSaati) {
-            const giris = new Date(`2000-01-01T${a.girisSaati}`);
-            const cikis = new Date(`2000-01-01T${a.cikisSaati}`);
-            const fark = (cikis.getTime() - giris.getTime()) / 1000 / 60;
-            return total + (fark > 0 ? fark : 0);
-          }
-          return total;
-        }, 0);
-
-        return {
-          ...personel,
-          buAyGelinSayisi: buAyGelinler.length,
-          toplamGelinSayisi: personelGelinler.length,
-          buHaftaCalismaGun,
-          buHaftaCalismadakika
-        };
-      });
-
-      setEkipUyeleri(ekipData);
+      return {
+        ...personel,
+        buAyGelinSayisi: buAyGelinler.length,
+        toplamGelinSayisi: personelGelinler.length,
+        buHaftaCalismaGun,
+        buHaftaCalismadakika
+      };
     });
 
-    return () => unsubPersonel();
-  }, [user, gelinler, attendanceData, buAy, haftaBasiStr, haftaSonuStr]);
+    setEkipUyeleri(ekipData);
+  }, [user, currentPersonel, allPersoneller, gelinler, attendanceData, buAy, haftaBasiStr, haftaSonuStr]);
+
+  // Firma bazlı bekleyen izin talepleri
+  const bekleyenIzinTalepleri = izinTalepleri.filter(talep => {
+    const personel = allPersoneller.find(p => p.id === talep.personelId);
+    if (!personel || !currentPersonel) return false;
+    const yonettigiFirmalar = currentPersonel.yonettigiFirmalar || [];
+    return personel.firma && yonettigiFirmalar.includes(personel.firma);
+  });
+
+  // İzin talebini onayla
+  const handleIzinOnayla = async (talep: IzinTalebi) => {
+    if (!confirm(`${talep.personelAd} ${talep.personelSoyad} için izin talebini onaylamak istediğinize emin misiniz?`)) return;
+    
+    try {
+      await updateDoc(doc(db, "izinTalepleri", talep.id), {
+        durum: "Onaylandı",
+        onaylayanId: user?.uid,
+        onayTarihi: new Date().toISOString()
+      });
+      
+      // İzin kaydını oluştur
+      await addDoc(collection(db, "izinler"), {
+        personelId: talep.personelId,
+        personelAd: talep.personelAd,
+        personelSoyad: talep.personelSoyad,
+        izinTuru: talep.izinTuru,
+        baslangic: talep.baslangic,
+        bitis: talep.bitis,
+        gunSayisi: talep.gunSayisi,
+        aciklama: talep.aciklama || "",
+        onaylayanId: user?.uid,
+        olusturulmaTarihi: new Date().toISOString()
+      });
+      
+      alert("✅ İzin talebi onaylandı!");
+    } catch (error) {
+      console.error("İzin onaylama hatası:", error);
+      alert("İzin onaylanırken bir hata oluştu!");
+    }
+  };
+
+  // İzin talebini reddet
+  const handleIzinReddet = async (talep: IzinTalebi) => {
+    const sebep = prompt("Red sebebini yazın (opsiyonel):");
+    if (sebep === null) return; // İptal edildi
+    
+    try {
+      await updateDoc(doc(db, "izinTalepleri", talep.id), {
+        durum: "Reddedildi",
+        reddedilmeSebebi: sebep || "",
+        reddedenId: user?.uid,
+        redTarihi: new Date().toISOString()
+      });
+      
+      alert("İzin talebi reddedildi.");
+    } catch (error) {
+      console.error("İzin reddetme hatası:", error);
+      alert("İzin reddedilirken bir hata oluştu!");
+    }
+  };
 
   // Attendance verilerini çek (bu hafta)
   useEffect(() => {
@@ -511,6 +638,74 @@ export default function YoneticiDashboardPage() {
                         </div>
                       </div>
                     ))}
+                </div>
+              )}
+            </div>
+
+            {/* Bekleyen İzin Talepleri Paneli */}
+            <div className="mt-6 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                  <span>🏖️</span> Bekleyen İzin Talepleri ({bekleyenIzinTalepleri.length})
+                </h2>
+              </div>
+
+              {bekleyenIzinTalepleri.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <span className="text-4xl">✅</span>
+                  <p className="mt-3 font-medium">Bekleyen izin talebi yok</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {bekleyenIzinTalepleri.map((talep) => {
+                    const personel = allPersoneller.find(p => p.id === talep.personelId);
+                    const firma = firmalar.find(f => f.id === personel?.firma);
+                    
+                    return (
+                      <div
+                        key={talep.id}
+                        className="p-4 rounded-xl border-2 border-amber-200 bg-amber-50 transition hover:shadow-md"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h3 className="font-bold text-gray-800">
+                                {talep.personelAd} {talep.personelSoyad}
+                              </h3>
+                              {firma && (
+                                <span className={`px-2 py-0.5 text-xs rounded bg-${firma.renk}-100 text-${firma.renk}-700`}>
+                                  {firma.kisaltma}
+                                </span>
+                              )}
+                              <span className="px-2 py-1 bg-amber-100 text-amber-700 text-xs rounded-full">
+                                ⏳ Beklemede
+                              </span>
+                            </div>
+                            <div className="text-sm text-gray-600 space-y-1">
+                              <p><strong>İzin Türü:</strong> {talep.izinTuru}</p>
+                              <p><strong>Tarih:</strong> {new Date(talep.baslangic).toLocaleDateString('tr-TR')} - {new Date(talep.bitis).toLocaleDateString('tr-TR')} ({talep.gunSayisi} gün)</p>
+                              {talep.aciklama && <p><strong>Açıklama:</strong> {talep.aciklama}</p>}
+                              <p className="text-xs text-gray-400">Talep: {new Date(talep.talepTarihi).toLocaleDateString('tr-TR')}</p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2 ml-4">
+                            <button
+                              onClick={() => handleIzinOnayla(talep)}
+                              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition text-sm font-medium"
+                            >
+                              ✅ Onayla
+                            </button>
+                            <button
+                              onClick={() => handleIzinReddet(talep)}
+                              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition text-sm font-medium"
+                            >
+                              ❌ Reddet
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
