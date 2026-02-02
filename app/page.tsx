@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { auth, db } from "./lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { collection, query, onSnapshot, addDoc, doc, updateDoc, increment, orderBy, limit, where, Timestamp } from "firebase/firestore";
@@ -136,9 +136,48 @@ export default function HomePage() {
   const [duyurular, setDuyurular] = useState<Duyuru[]>([]);
   const [selectedDuyuru, setSelectedDuyuru] = useState<Duyuru | null>(null);
 
+  // Gelin Arama state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const mobileSearchRef = useRef<HTMLInputElement>(null);
+
+  // Arama sonuçları
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim() || searchQuery.length < 2) return [];
+    const query = searchQuery.toLowerCase().trim();
+    return gelinler
+      .filter(g => 
+        g.isim.toLowerCase().includes(query) ||
+        g.telefon?.includes(query) ||
+        g.makyaj?.toLowerCase().includes(query) ||
+        g.turban?.toLowerCase().includes(query)
+      )
+      .slice(0, 8); // Max 8 sonuç
+  }, [searchQuery, gelinler]);
+
+  // Dropdown dışına tıklanınca kapat
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowSearchDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Mobil arama açıldığında focus
+  useEffect(() => {
+    if (showMobileSearch && mobileSearchRef.current) {
+      mobileSearchRef.current.focus();
+    }
+  }, [showMobileSearch]);
+
   // Modal açıkken body scroll'u kilitle
   useEffect(() => {
-    const isAnyModalOpen = selectedGelin !== null || haftaModalOpen || gelinListeModal.open || selectedDuyuru !== null;
+    const isAnyModalOpen = selectedGelin !== null || haftaModalOpen || gelinListeModal.open || selectedDuyuru !== null || showMobileSearch;
     if (isAnyModalOpen) {
       document.body.style.overflow = 'hidden';
     } else {
@@ -147,7 +186,7 @@ export default function HomePage() {
     return () => {
       document.body.style.overflow = '';
     };
-  }, [selectedGelin, haftaModalOpen, gelinListeModal.open, selectedDuyuru]);
+  }, [selectedGelin, haftaModalOpen, gelinListeModal.open, selectedDuyuru, showMobileSearch]);
 
   // Aylık hedef state
   const [aylikHedef, setAylikHedef] = useState<number>(0);
@@ -156,7 +195,7 @@ export default function HomePage() {
   const [gelinGunSecim, setGelinGunSecim] = useState<'bugun' | 'yarin'>('bugun');
 
   // Layout Seçimi (1, 2, veya 3)
-  const [layoutSecim, setLayoutSecim] = useState<1 | 2 | 3>(1);
+  // Layout artık sabit: Üç sütun
 
   // Firebase'den çekilen izinler
   const [izinlerFirebase, setIzinlerFirebase] = useState<IzinKaydi[]>([]);
@@ -440,7 +479,8 @@ export default function HomePage() {
     const eksikler: EksikIzin[] = [];
     personeller.forEach((personel) => {
       if (!personel.iseBaslama) return;
-      if (personel.kullaniciTuru === "Yönetici") return;
+      // Kurucu ve Yönetici için izin takibi yapma
+      if (personel.kullaniciTuru === "Kurucu" || personel.kullaniciTuru === "Yönetici") return;
       const calismaYili = hesaplaCalismaYili(personel.iseBaslama);
       if (calismaYili < 1) return;
       const olmasiGereken = hesaplaIzinHakki(calismaYili);
@@ -692,12 +732,95 @@ export default function HomePage() {
 
       <div className="md:ml-64 pb-20 md:pb-0">
         <header className="bg-white border-b px-4 md:px-6 py-3 md:py-4 sticky top-0 z-40">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex-shrink-0">
               <h1 className="text-lg md:text-xl font-bold text-gray-800">Merhaba, {user?.email?.split('@')[0]}!</h1>
               <p className="text-xs md:text-sm text-gray-500">{formatTarihUzun(bugun)} • {formatGun(bugun)}</p>
             </div>
-            <div className="flex items-center gap-2 md:gap-4">
+            
+            {/* Gelin Arama */}
+            <div ref={searchRef} className="hidden md:block flex-1 max-w-md relative">
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setShowSearchDropdown(true);
+                  }}
+                  onFocus={() => setShowSearchDropdown(true)}
+                  placeholder="Gelin ara... (isim, telefon)"
+                  className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent focus:bg-white transition"
+                />
+                {searchQuery && (
+                  <button 
+                    onClick={() => { setSearchQuery(""); setShowSearchDropdown(false); }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+              
+              {/* Arama Sonuçları Dropdown */}
+              {showSearchDropdown && searchQuery.length >= 2 && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 max-h-[400px] overflow-y-auto">
+                  {searchResults.length === 0 ? (
+                    <div className="px-4 py-8 text-center text-gray-500">
+                      <span className="text-3xl block mb-2">🔍</span>
+                      <p className="text-sm">"{searchQuery}" için sonuç bulunamadı</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="px-3 py-2 bg-gray-50 border-b text-xs text-gray-500 font-medium">
+                        {searchResults.length} sonuç bulundu
+                      </div>
+                      {searchResults.map((gelin) => (
+                        <div
+                          key={gelin.id}
+                          onClick={() => {
+                            setSelectedGelin(gelin);
+                            setSearchQuery("");
+                            setShowSearchDropdown(false);
+                          }}
+                          className="px-4 py-3 hover:bg-pink-50 cursor-pointer border-b border-gray-50 last:border-0 transition"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium text-gray-800">{gelin.isim}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-xs text-gray-500">📅 {new Date(gelin.tarih).toLocaleDateString('tr-TR')}</span>
+                                <span className="text-xs text-gray-500">🕐 {gelin.saat}</span>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="flex items-center gap-1 text-xs text-gray-500">
+                                {gelin.makyaj && <span className="bg-pink-100 text-pink-700 px-1.5 py-0.5 rounded">💄 {gelin.makyaj.split(' ')[0]}</span>}
+                                {gelin.turban && <span className="bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">🧕 {gelin.turban.split(' ')[0]}</span>}
+                              </div>
+                              {gelin.kalan > 0 && (
+                                <p className="text-xs text-red-500 mt-1">{gelin.kalan.toLocaleString('tr-TR')} ₺ kalan</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Mobil Arama Butonu */}
+            <button 
+              onClick={() => setShowMobileSearch(true)}
+              className="md:hidden w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-gray-600 hover:bg-gray-200 transition"
+            >
+              🔍
+            </button>
+
+            <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
               {lastUpdate && (
                 <div className="hidden md:block bg-green-50 px-3 py-1.5 rounded-lg border border-green-200">
                   <span className="text-green-700 text-sm font-medium">✓ Anlık: {lastUpdate}</span>
@@ -711,232 +834,9 @@ export default function HomePage() {
         </header>
 
         <main className="p-4 md:p-6">
-          {/* Layout Seçim Tabları */}
-          <div className="mb-6 flex items-center gap-3 bg-white p-2 rounded-xl shadow-sm border border-gray-100">
-            <span className="text-sm font-medium text-gray-600 pl-2">Görünüm:</span>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setLayoutSecim(1)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                  layoutSecim === 1 
-                    ? 'bg-pink-500 text-white shadow-sm' 
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                📊 Kompakt Grid
-              </button>
-              <button
-                onClick={() => setLayoutSecim(2)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                  layoutSecim === 2 
-                    ? 'bg-pink-500 text-white shadow-sm' 
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                🎨 Üç Sütun
-              </button>
-              <button
-                onClick={() => setLayoutSecim(3)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                  layoutSecim === 3 
-                    ? 'bg-pink-500 text-white shadow-sm' 
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                💎 Minimal
-              </button>
-            </div>
-          </div>
 
-          {/* SEÇENEK 1: KOMPAKT GRID */}
-          {layoutSecim === 1 && (
-            <div className="max-w-[1400px] mx-auto">
-              {/* Duyurular Banner */}
-          {duyurular.length > 0 && (
-            <div className="mb-4 md:mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-3 md:p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-xl">📢</span>
-                  <h3 className="font-semibold text-amber-800">Duyurular</h3>
-                  <span className="bg-amber-200 text-amber-800 text-xs px-2 py-0.5 rounded-full">{duyurular.length}</span>
-                </div>
-                <a href="/duyurular" className="text-amber-600 hover:text-amber-700 text-xs font-medium">
-                  Tümünü gör →
-                </a>
-              </div>
-              <div className="space-y-2 max-h-[180px] overflow-y-auto">
-                {duyurular.map((d) => (
-                  <div 
-                    key={d.id} 
-                    onClick={() => setSelectedDuyuru(d)}
-                    className={`p-2.5 rounded-lg cursor-pointer hover:shadow-sm transition ${d.important ? 'bg-white/80 border border-amber-300' : 'bg-white/50 hover:bg-white/70'}`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-amber-900 truncate">{d.title}</p>
-                        <p className="text-xs text-amber-700 mt-0.5 line-clamp-1">{d.content}</p>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {d.important && <span className="text-xs">🔥</span>}
-                        <span className="text-xs text-amber-500">→</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
-          {/* DİKKAT EDİLECEKLER PANEL - DikkatPanel Component */}
-          {toplamDikkat > 0 && (
-            <div className="mb-4 md:mb-6">
-              <DikkatPanel
-                islenmemisUcretler={islenmemisUcretler}
-                eksikIzinler={eksikIzinler}
-                onGelinClick={setSelectedGelin}
-                onIzinEkle={handleIzinEkle}
-                onTumIzinleriEkle={handleTumIzinleriEkle}
-                izinEkleniyor={izinEkleniyor}
-                onIslenmemisUcretlerClick={() => router.push('/gelinler?filtre=islenmemis')}
-              />
-            </div>
-          )}
-
-          {/* Üst Kartlar - MetricCard Component */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mb-6">
-            <MetricCard
-              title={gelinGunSecim === 'bugun' ? 'Bugün' : 'Yarın'}
-              value={gelinGunSecim === 'bugun' ? bugunGelinler.length : yarinGelinler.length}
-              subtitle="gelin"
-              icon="💄"
-              color="pink"
-              onClick={() => setGelinListeModal({ 
-                open: true, 
-                title: gelinGunSecim === 'bugun' ? "Bugünkü Gelinler" : "Yarının Gelinleri", 
-                gelinler: gelinGunSecim === 'bugun' ? bugunGelinler : yarinGelinler 
-              })}
-            />
-
-            <MetricCard
-              title="Bu Hafta"
-              value={buHaftaGelinler.length}
-              subtitle="gelin"
-              icon="📅"
-              color="purple"
-              onClick={() => setGelinListeModal({ open: true, title: "Bu Haftaki Gelinler", gelinler: buHaftaGelinler })}
-            />
-
-            <div className="col-span-2 md:col-span-1">
-              <MetricCard
-                title={ayIsimleri[bugunDate.getMonth()]}
-                value={buAyGelinler.length}
-                subtitle="gelin"
-                icon="👰"
-                color="blue"
-                onClick={() => setGelinListeModal({ open: true, title: `${ayIsimleri[bugunDate.getMonth()]} Ayı Gelinleri`, gelinler: buAyGelinler })}
-                progress={aylikHedef > 0 ? { current: buAyGelinler.length, target: aylikHedef } : undefined}
-              />
-            </div>
-          </div>
-
-          {/* 3 Kolon Layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-            
-            {/* Sol Kolon */}
-            <div className="lg:col-span-2 space-y-4 md:space-y-6">
-              
-              {/* Bugünün/Yarının İşleri - GelinListPanel Component */}
-              <GelinListPanel
-                title={gelinGunSecim === 'bugun' ? "Bugünün İşleri" : "Yarının İşleri"}
-                gelinler={gelinGunSecim === 'bugun' ? bugunGelinler : yarinGelinler}
-                loading={dataLoading}
-                onGelinClick={setSelectedGelin}
-                showToggle={true}
-                toggleValue={gelinGunSecim}
-                onToggleChange={setGelinGunSecim}
-              />
-
-              {/* Bu Haftanın Programı */}
-              <div 
-                className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden cursor-pointer hover:shadow-md transition"
-                onClick={() => setHaftaModalOpen(true)}
-              >
-                <div className="px-3 md:px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-                  <h2 className="font-semibold text-gray-800 flex items-center gap-2 text-sm">
-                    <span>🗓️</span> Bu Haftanın Programı
-                    <span className="bg-pink-100 text-pink-600 text-xs px-2 py-0.5 rounded-full">{buHaftaGelinler.length}</span>
-                  </h2>
-                  <div className="flex items-center gap-2">
-                    {haftaIzinliler.length > 0 && (
-                      <span className="text-xs text-orange-500 bg-orange-50 px-2 py-1 rounded-full hidden md:inline">
-                        {haftaIzinliler.length} izinli
-                      </span>
-                    )}
-                    <span className="text-gray-400 text-xs">Büyütmek için tıkla →</span>
-                  </div>
-                </div>
-                <div className="p-3 md:p-4">
-                  <div className="overflow-x-auto">
-                    {renderHaftaTakvimi(false)}
-                  </div>
-                </div>
-              </div>
-
-              {/* Personel Durumu - PersonelDurumPanel Component */}
-              <PersonelDurumPanel
-                aktifPersoneller={suAnCalisanlar}
-                bugunGelenler={bugunGelenler}
-                izinliler={bugunIzinliler}
-                tumPersoneller={personeller}
-              />
-
-              {/* Sakin Günler - SakinGunlerPanel Component */}
-              <SakinGunlerPanel
-                sakinGunler={sakinGunler}
-                filtre={sakinGunFiltre}
-                onFiltreChange={setSakinGunFiltre}
-              />
-
-              {/* Doğum Günleri */}
-              {yaklasanDogumGunleri.length > 0 && (
-                <Panel icon="🎂" title="Yaklaşan Doğum Günleri">
-                  <div className="space-y-2">
-                    {yaklasanDogumGunleri.map((p) => (
-                      <div key={p.id} className="flex items-center gap-3 p-2 bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg">
-                        <span className="text-xl">{p.emoji}</span>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-800">{p.isim}</p>
-                          <p className="text-xs text-gray-500">{formatTarih(p.yaklasanTarih)}</p>
-                        </div>
-                        {p.kalanGun === 0 ? (
-                          <span className="text-pink-600 text-xs font-bold">Bugün! 🎉</span>
-                        ) : (
-                          <span className="text-gray-400 text-xs">{p.kalanGun} gün</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </Panel>
-              )}
-
-              {/* Resmi Tatiller */}
-              <Panel icon="🏛️" title="Önümüzdeki Resmi Tatiller">
-                <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                  {yaklasanTatiller.slice(0, 15).map((t) => (
-                    <div key={t.tarih} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                      <span className="text-sm text-gray-700">{t.isim}</span>
-                      <span className="text-xs text-gray-500">{formatTarih(t.tarih)}</span>
-                    </div>
-                  ))}
-                </div>
-              </Panel>
-            </div>
-          </div>
-            </div>
-          )}
-
-          {/* SEÇENEK 2: ÜÇ SÜTUN DASHBOARD */}
-          {layoutSecim === 2 && (
+          {/* ÜÇ SÜTUN DASHBOARD */}
             <div className="max-w-[1600px] mx-auto">
               
               {/* Duyurular Banner */}
@@ -1378,121 +1278,86 @@ export default function HomePage() {
                 </div>
               </div>
             </div>
-          )}
+        </main>
+      </div>
 
-          {/* SEÇENEK 3: MODERN MINIMAL */}
-          {layoutSecim === 3 && (
-            <div className="max-w-[1200px] mx-auto">
-              {/* Kompakt Metrikler */}
-              <div className="grid grid-cols-4 gap-3 mb-6">
-                <div className="bg-pink-100 p-3 rounded-xl text-center cursor-pointer hover:shadow-md transition"
-                  onClick={() => setGelinListeModal({ open: true, title: "Bugünkü Gelinler", gelinler: bugunGelinler })}>
-                  <div className="text-3xl">💄</div>
-                  <div className="text-2xl font-bold text-pink-600">{bugunGelinler.length}</div>
-                  <div className="text-xs text-pink-700">Bugün</div>
+      {/* Mobil Arama Modal */}
+      {showMobileSearch && (
+        <div className="fixed inset-0 bg-black/50 z-50 md:hidden" onClick={() => setShowMobileSearch(false)}>
+          <div className="bg-white w-full" onClick={e => e.stopPropagation()}>
+            <div className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="relative flex-1">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+                  <input
+                    ref={mobileSearchRef}
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    autoFocus
+                    placeholder="Gelin ara... (isim, telefon)"
+                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                  />
                 </div>
-                <div className="bg-purple-100 p-3 rounded-xl text-center cursor-pointer hover:shadow-md transition"
-                  onClick={() => setGelinListeModal({ open: true, title: "Yarının Gelinler", gelinler: yarinGelinler })}>
-                  <div className="text-3xl">🎯</div>
-                  <div className="text-2xl font-bold text-purple-600">{yarinGelinler.length}</div>
-                  <div className="text-xs text-purple-700">Yarın</div>
-                </div>
-                <div className="bg-blue-100 p-3 rounded-xl text-center cursor-pointer hover:shadow-md transition"
-                  onClick={() => setHaftaModalOpen(true)}>
-                  <div className="text-3xl">📅</div>
-                  <div className="text-2xl font-bold text-blue-600">{buHaftaGelinler.length}</div>
-                  <div className="text-xs text-blue-700">Bu Hafta</div>
-                </div>
-                <div className="bg-green-100 p-3 rounded-xl text-center">
-                  <div className="text-3xl">🟢</div>
-                  <div className="text-2xl font-bold text-green-600">{suAnCalisanlar.length}</div>
-                  <div className="text-xs text-green-700">Aktif</div>
-                </div>
-              </div>
-
-              {/* Toggle + Bugünün İşleri */}
-              <div className="mb-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-lg font-semibold text-gray-800">📊 {gelinGunSecim === 'bugun' ? 'Bugünün İşleri' : 'Yarının İşleri'}</h2>
-                  <div className="flex gap-2">
-                    <button onClick={() => setGelinGunSecim('bugun')}
-                      className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
-                        gelinGunSecim === 'bugun' ? 'bg-pink-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}>
-                      Bugün
-                    </button>
-                    <button onClick={() => setGelinGunSecim('yarin')}
-                      className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
-                        gelinGunSecim === 'yarin' ? 'bg-pink-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}>
-                      Yarın
-                    </button>
-                  </div>
-                </div>
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                  <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                    {(gelinGunSecim === 'bugun' ? bugunGelinler : yarinGelinler).map(gelin => (
-                      <GelinRow key={gelin.id} gelin={gelin} onClick={() => setSelectedGelin(gelin)} />
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Haftalık Program - Accordion */}
-              <div className="mb-4 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <button 
-                  onClick={() => setHaftaModalOpen(!haftaModalOpen)}
-                  className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">📅</span>
-                    <span className="font-semibold text-gray-800">Bu Haftanın Programı</span>
-                    <span className="bg-blue-100 text-blue-600 text-xs px-2 py-0.5 rounded-full">{buHaftaGelinler.length}</span>
-                  </div>
-                  <span className="text-gray-400">→</span>
+                  onClick={() => { setShowMobileSearch(false); setSearchQuery(""); }}
+                  className="px-4 py-3 text-gray-600 font-medium"
+                >
+                  İptal
                 </button>
               </div>
-
-              {/* Duyurular + Dikkat - Accordion */}
-              {duyurular.length > 0 && (
-                <div className="mb-4 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                  <div className="px-4 py-3 border-b border-gray-100">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">📢</span>
-                      <span className="font-semibold text-gray-800">Duyurular</span>
-                      <span className="bg-amber-100 text-amber-600 text-xs px-2 py-0.5 rounded-full">{duyurular.length}</span>
-                    </div>
+            </div>
+            
+            {/* Mobil Arama Sonuçları */}
+            {searchQuery.length >= 2 && (
+              <div className="max-h-[70vh] overflow-y-auto border-t border-gray-100">
+                {searchResults.length === 0 ? (
+                  <div className="px-4 py-12 text-center text-gray-500">
+                    <span className="text-4xl block mb-3">🔍</span>
+                    <p>"{searchQuery}" için sonuç bulunamadı</p>
                   </div>
-                  <div className="p-4 space-y-2 max-h-[200px] overflow-y-auto">
-                    {duyurular.slice(0, 3).map(d => (
-                      <div key={d.id} onClick={() => setSelectedDuyuru(d)}
-                        className="p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition">
-                        <p className="text-sm font-medium text-gray-800">{d.title}</p>
+                ) : (
+                  <div>
+                    <div className="px-4 py-2 bg-gray-50 text-xs text-gray-500 font-medium sticky top-0">
+                      {searchResults.length} sonuç bulundu
+                    </div>
+                    {searchResults.map((gelin) => (
+                      <div
+                        key={gelin.id}
+                        onClick={() => {
+                          setSelectedGelin(gelin);
+                          setSearchQuery("");
+                          setShowMobileSearch(false);
+                        }}
+                        className="px-4 py-4 border-b border-gray-100 active:bg-pink-50"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-semibold text-gray-800">{gelin.isim}</p>
+                            <div className="flex items-center gap-3 mt-1.5">
+                              <span className="text-sm text-gray-500">📅 {new Date(gelin.tarih).toLocaleDateString('tr-TR')}</span>
+                              <span className="text-sm text-gray-500">🕐 {gelin.saat}</span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="flex items-center gap-1 text-xs">
+                              {gelin.makyaj && <span className="bg-pink-100 text-pink-700 px-2 py-1 rounded">💄</span>}
+                              {gelin.turban && <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded">🧕</span>}
+                            </div>
+                            {gelin.kalan > 0 && (
+                              <p className="text-sm text-red-500 mt-1 font-medium">{gelin.kalan.toLocaleString('tr-TR')} ₺</p>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
-
-              {/* Aktif Personel */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-lg">🟢</span>
-                  <span className="font-semibold text-gray-800">Şu An Çalışanlar</span>
-                  <span className="bg-green-100 text-green-600 text-xs px-2 py-0.5 rounded-full">{suAnCalisanlar.length}</span>
-                </div>
-                <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                  {suAnCalisanlar.map(p => (
-                    <div key={p.personelId} className="flex items-center justify-between p-2 bg-green-50 rounded-lg">
-                      <span className="text-sm font-medium text-gray-800">{p.personelAd}</span>
-                      <span className="text-xs text-green-600">{p.girisSaati}</span>
-                    </div>
-                  ))}
-                </div>
+                )}
               </div>
-            </div>
-          )}
-        </main>
-      </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Duyuru Detay Modal */}
       {selectedDuyuru && (
