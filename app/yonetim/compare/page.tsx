@@ -4,7 +4,7 @@ import { auth, db } from "../../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Sidebar from "../../components/Sidebar";
-import { collection, getDocs, orderBy, query, where } from "firebase/firestore";
+import { collection, getDocs, orderBy, query, where, onSnapshot } from "firebase/firestore";
 
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyr_9fBVzkVXf-Fx4s-DUjFTPhHlxm54oBGrrG3UGfNengHOp8rQbXKdX8pOk4reH8/exec";
 
@@ -29,25 +29,29 @@ export default function ComparePage() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
-        // Personel bilgisini kontrol et
-        const { doc, getDoc } = await import("firebase/firestore");
-        const personelDoc = await getDoc(doc(db, "personeller", currentUser.uid));
-        
-        if (personelDoc.exists()) {
-          const data = personelDoc.data();
-          if (data.rol === "Kurucu") {
-            setUser(currentUser);
-            setYetkisiz(false);
+        setUser(currentUser);
+        // Kullanıcı grup kontrolü (yönetim sayfasıyla aynı)
+        const q = query(
+          collection(db, "personnel"),
+          where("email", "==", currentUser.email)
+        );
+        const unsubPersonel = onSnapshot(q, (snapshot) => {
+          if (!snapshot.empty) {
+            const data = snapshot.docs[0].data();
+            const gruplar = data.grupEtiketleri || [];
+            const isKurucu = gruplar.some((g: string) => g.toLowerCase() === "kurucu");
+            if (!isKurucu) {
+              setYetkisiz(true);
+            }
           } else {
             setYetkisiz(true);
           }
-        } else {
-          setYetkisiz(true);
-        }
+          setLoading(false);
+        });
+        return () => unsubPersonel();
       } else {
         router.push("/login");
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();
