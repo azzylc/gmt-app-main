@@ -27,8 +27,8 @@ function SidebarContent({ user }: SidebarProps) {
   const [isMobile, setIsMobile] = useState(false);
   const [personelData, setPersonelData] = useState<any>(null);
   const [rolYetkileri, setRolYetkileri] = useState<{[key: string]: string[]}>({
-    "Yönetici": ["genel-bakis", "qr-giris", "giris-cikis-islemleri", "duyurular", "gorevler", "takvim", "gelinler", "izinler", "raporlar", "yonetici-dashboard"],
-    "Personel": ["genel-bakis", "qr-giris", "duyurular", "gorevler", "takvim", "gelinler", "izinler"]
+    "Yönetici": ["genel-bakis", "qr-giris", "giris-cikis-islemleri", "duyurular", "gorevler", "takvim", "izinler", "raporlar", "yonetici-dashboard"],
+    "Personel": ["genel-bakis", "qr-giris", "duyurular", "gorevler", "takvim", "izinler"]
   });
 
   // Mobil kontrolü
@@ -132,12 +132,6 @@ function SidebarContent({ user }: SidebarProps) {
         path: "/takvim",
       },
       {
-        id: "gelinler",
-        label: "Gelinler",
-        icon: "👰",
-        path: "/gelinler",
-      },
-      {
         id: "personel",
         label: "Personel",
         icon: "👤",
@@ -225,7 +219,7 @@ function SidebarContent({ user }: SidebarProps) {
   const bottomNavItems = [
     { icon: "🏠", label: "Ana Sayfa", path: "/" },
     { icon: "📱", label: "Giriş-Çıkış", path: "/qr-giris" },
-    { icon: "👰", label: "Gelinler", path: "/gelinler" },
+    { icon: "📅", label: "Takvim", path: "/takvim" },
     { icon: "✅", label: "Görevler", path: "/gorevler" },
     { icon: "☰", label: "Menü", action: "menu" },
   ];

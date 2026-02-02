@@ -37,6 +37,12 @@ interface Gorev {
   gelinId?: string; // İlgili gelin
   otomatikMi?: boolean; // Sistem tarafından oluşturuldu mu?
   gorevTuru?: "yorumIstesinMi" | "paylasimIzni" | "yorumIstendiMi"; // Görev türü
+  // Embedded gelin bilgisi - ekstra okuma yapmamak için
+  gelinBilgi?: {
+    isim: string;
+    tarih: string;
+    saat: string;
+  };
 }
 
 interface Gelin {
@@ -49,10 +55,10 @@ interface Gelin {
   yorumIstesinMi?: string;
   paylasimIzni?: boolean;
   yorumIstendiMi?: boolean;
-  // GelinModal için ek alanlar
-  ucret?: number;
-  kapora?: number;
-  kalan?: number;
+  // GelinModal için ek alanlar (zorunlu)
+  ucret: number;
+  kapora: number;
+  kalan: number;
   telefon?: string;
   esiTelefon?: string;
   instagram?: string;
@@ -96,7 +102,6 @@ export default function GorevlerPage() {
   const [loading, setLoading] = useState(true);
   const [gorevler, setGorevler] = useState<Gorev[]>([]);
   const [tumGorevler, setTumGorevler] = useState<Gorev[]>([]); // Kurucu/Yönetici için
-  const [gelinler, setGelinler] = useState<Gelin[]>([]);
   const [personeller, setPersoneller] = useState<Personel[]>([]);
   const [filtreliGorevler, setFiltreliGorevler] = useState<Gorev[]>([]);
   const [filtre, setFiltre] = useState<"hepsi" | "bekliyor" | "devam-ediyor" | "tamamlandi">("hepsi");
@@ -145,57 +150,51 @@ export default function GorevlerPage() {
     fetchAyarlar();
   }, [user]);
 
-  // ✅ Gelinler - Firestore'dan (real-time)
-  useEffect(() => {
-    if (!user) return;
+  // ⚡ Gelinler artık toplu çekilmiyor - Firebase okuma tasarrufu!
+  // GelinModal açılınca sadece o tek gelin çekilecek
+  const [selectedGelin, setSelectedGelin] = useState<Gelin | null>(null);
+  const [gelinLoading, setGelinLoading] = useState(false);
 
-    console.log('🔄 Firestore gelinler listener başlatılıyor (Görevler)...');
-    
-    const q = query(
-      collection(db, "gelinler"),
-      orderBy("tarih", "asc")
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        isim: doc.data().isim || "",
-        tarih: doc.data().tarih || "",
-        saat: doc.data().saat || "",
-        makyaj: doc.data().makyaj || "",
-        turban: doc.data().turban || "",
-        yorumIstesinMi: doc.data().yorumIstesinMi || "",
-        paylasimIzni: doc.data().paylasimIzni || false,
-        yorumIstendiMi: doc.data().yorumIstendiMi || false,
-        // GelinModal için ek alanlar
-        ucret: doc.data().ucret || 0,
-        kapora: doc.data().kapora || 0,
-        kalan: doc.data().kalan || 0,
-        telefon: doc.data().telefon || "",
-        esiTelefon: doc.data().esiTelefon || "",
-        instagram: doc.data().instagram || "",
-        fotografci: doc.data().fotografci || "",
-        modaevi: doc.data().modaevi || "",
-        kinaGunu: doc.data().kinaGunu || "",
-        not: doc.data().not || "",
-        bilgilendirmeGonderildiMi: doc.data().bilgilendirmeGonderildiMi || false,
-        anlasmaYazildiMi: doc.data().anlasmaYazildiMi || false,
-        malzemeGonderildiMi: doc.data().malzemeGonderildiMi || false,
-        yorumIstendiMi2: doc.data().yorumIstendiMi2 || false,
-        anlastigiTarih: doc.data().anlastigiTarih || "",
-      } as Gelin));
-
-      console.log(`✅ ${data.length} gelin Firestore'dan yüklendi (Görevler, real-time)`);
-      setGelinler(data);
-    }, (error) => {
-      console.error('❌ Firestore listener hatası (Görevler):', error);
-    });
-
-    return () => {
-      console.log('🛑 Firestore gelinler listener kapatılıyor (Görevler)...');
-      unsubscribe();
-    };
-  }, [user]);
+  // Tek gelin çek (GelinModal için)
+  const fetchSingleGelin = async (gelinId: string) => {
+    setGelinLoading(true);
+    try {
+      const gelinDoc = await getDoc(doc(db, "gelinler", gelinId));
+      if (gelinDoc.exists()) {
+        const data = gelinDoc.data();
+        setSelectedGelin({
+          id: gelinDoc.id,
+          isim: data.isim || "",
+          tarih: data.tarih || "",
+          saat: data.saat || "",
+          makyaj: data.makyaj || "",
+          turban: data.turban || "",
+          yorumIstesinMi: data.yorumIstesinMi || "",
+          paylasimIzni: data.paylasimIzni || false,
+          yorumIstendiMi: data.yorumIstendiMi || false,
+          ucret: data.ucret || 0,
+          kapora: data.kapora || 0,
+          kalan: data.kalan || 0,
+          telefon: data.telefon || "",
+          esiTelefon: data.esiTelefon || "",
+          instagram: data.instagram || "",
+          fotografci: data.fotografci || "",
+          modaevi: data.modaevi || "",
+          kinaGunu: data.kinaGunu || "",
+          not: data.not || "",
+          bilgilendirmeGonderildiMi: data.bilgilendirmeGonderildiMi || false,
+          anlasmaYazildiMi: data.anlasmaYazildiMi || false,
+          malzemeGonderildiMi: data.malzemeGonderildiMi || false,
+          yorumIstendiMi2: data.yorumIstendiMi2 || false,
+          anlastigiTarih: data.anlastigiTarih || "",
+        });
+      }
+    } catch (error) {
+      console.error("Gelin çekilemedi:", error);
+    } finally {
+      setGelinLoading(false);
+    }
+  };
 
   // Personelleri dinle
   useEffect(() => {
@@ -268,173 +267,10 @@ export default function GorevlerPage() {
     return () => unsubscribe();
   }, [user, userRole]);
 
-  // Otomatik Görev Oluşturma Kontrolü - Ayarlara Bağlı
-  useEffect(() => {
-    if (!user || gelinler.length === 0 || personeller.length === 0) return;
-
-    const simdi = new Date();
-
-    // Her görev türü için kontrol
-    const gorevTurleri: ("yorumIstesinMi" | "paylasimIzni" | "yorumIstendiMi")[] = ["yorumIstesinMi", "paylasimIzni", "yorumIstendiMi"];
-
-    gorevTurleri.forEach(gorevTuru => {
-      const ayar = gorevAyarlari[gorevTuru];
-      
-      // Ayar aktif değilse veya başlangıç tarihi yoksa atla
-      if (!ayar.aktif || !ayar.baslangicTarihi) return;
-
-      const baslangicTarihi = new Date(ayar.baslangicTarihi);
-
-      gelinler.forEach(async (gelin) => {
-        const gelinTarih = new Date(gelin.tarih);
-        
-        // Başlangıç tarihinden önceki gelinleri atla
-        if (gelinTarih < baslangicTarihi) return;
-
-        // Alan dolu mu kontrol et
-        let alanBos = false;
-        if (gorevTuru === "yorumIstesinMi") {
-          alanBos = !gelin.yorumIstesinMi || gelin.yorumIstesinMi.trim() === "";
-        } else if (gorevTuru === "paylasimIzni") {
-          alanBos = !gelin.paylasimIzni;
-        } else if (gorevTuru === "yorumIstendiMi") {
-          alanBos = !gelin.yorumIstendiMi;
-        }
-
-        if (!alanBos) return; // Alan doluysa atla
-
-        const gelinSaat = gelin.saat?.split(":") || ["10", "00"];
-        const gelinDateTime = new Date(gelin.tarih);
-        gelinDateTime.setHours(parseInt(gelinSaat[0]), parseInt(gelinSaat[1]));
-        
-        // Bitiş saati: +4 saat
-        const bitisSaati = new Date(gelinDateTime.getTime() + 4 * 60 * 60 * 1000);
-        
-        // Hatırlatma zamanı: Bitiş + ayardaki saat farkı
-        const hatirlatmaZamani = new Date(bitisSaati.getTime() + ayar.saatFarki * 60 * 60 * 1000);
-
-        // Yorum istendi mi için zaman kontrolü yok
-        if (gorevTuru !== "yorumIstendiMi" && simdi < hatirlatmaZamani) return;
-
-        // Makyajcı ve türbancıyı bul
-        const makyajci = personeller.find(p => 
-          p.ad.toLocaleLowerCase('tr-TR') === gelin.makyaj?.toLocaleLowerCase('tr-TR') ||
-          `${p.ad} ${p.soyad}`.toLocaleLowerCase('tr-TR') === gelin.makyaj?.toLocaleLowerCase('tr-TR')
-        );
-        const turbanci = personeller.find(p => 
-          p.ad.toLocaleLowerCase('tr-TR') === gelin.turban?.toLocaleLowerCase('tr-TR') ||
-          `${p.ad} ${p.soyad}`.toLocaleLowerCase('tr-TR') === gelin.turban?.toLocaleLowerCase('tr-TR')
-        );
-
-        const ayniKisi = makyajci?.email === turbanci?.email;
-        const kisiler: { email: string; ad: string; rol: string }[] = [];
-
-        if (makyajci?.email) {
-          kisiler.push({ email: makyajci.email, ad: `${makyajci.ad} ${makyajci.soyad}`, rol: "Makyaj" });
-        }
-        if (turbanci?.email && !ayniKisi) {
-          kisiler.push({ email: turbanci.email, ad: `${turbanci.ad} ${turbanci.soyad}`, rol: "Türban" });
-        }
-
-        const gorevBasliklar: Record<string, string> = {
-          yorumIstesinMi: "Yorum istensin mi alanını doldur",
-          paylasimIzni: "Paylaşım izni alanını doldur",
-          yorumIstendiMi: "Yorum istendi mi alanını doldur"
-        };
-
-        for (const kisi of kisiler) {
-          // Bu gelin + bu kişi + bu tür için zaten görev var mı?
-          const gorevlerRef = collection(db, "gorevler");
-          const mevcutGorevQuery = query(
-            gorevlerRef,
-            where("gelinId", "==", gelin.id),
-            where("atanan", "==", kisi.email),
-            where("gorevTuru", "==", gorevTuru),
-            where("otomatikMi", "==", true)
-          );
-          
-          const mevcutSnapshot = await getDocs(mevcutGorevQuery);
-          
-          if (mevcutSnapshot.empty) {
-            await addDoc(collection(db, "gorevler"), {
-              baslik: `${gelin.isim} - ${gorevBasliklar[gorevTuru]}`,
-              aciklama: `${gelin.isim} için "${gorevBasliklar[gorevTuru]}" alanı boş. Takvimden doldurun. (${kisi.rol})`,
-              atayan: "Sistem",
-              atayanAd: "Sistem (Otomatik)",
-              atanan: kisi.email,
-              atananAd: kisi.ad,
-              durum: "bekliyor",
-              oncelik: "yuksek",
-              olusturulmaTarihi: serverTimestamp(),
-              gelinId: gelin.id,
-              otomatikMi: true,
-              gorevTuru: gorevTuru
-            });
-
-            console.log(`✅ Otomatik görev oluşturuldu: ${gelin.isim} → ${kisi.ad} (${kisi.rol}) [${gorevTuru}]`);
-          }
-        }
-      });
-    });
-  }, [user, gelinler, personeller, gorevAyarlari]);
-
-  // Alan doldurulunca otomatik görevleri SİL
-  useEffect(() => {
-    if (!user || gelinler.length === 0 || gorevler.length === 0) return;
-
-    gelinler.forEach(async (gelin) => {
-      // Yorum istensin mi DOLUYSA
-      if (gelin.yorumIstesinMi && gelin.yorumIstesinMi.trim() !== "") {
-        const silinecekler = gorevler.filter(g => 
-          g.gelinId === gelin.id && 
-          g.otomatikMi === true &&
-          g.gorevTuru === "yorumIstesinMi"
-        );
-        for (const gorev of silinecekler) {
-          try {
-            await deleteDoc(doc(db, "gorevler", gorev.id));
-            console.log(`🗑️ Otomatik görev silindi: ${gelin.isim} [yorumIstesinMi]`);
-          } catch (error) {
-            console.error("Otomatik görev silinemedi:", error);
-          }
-        }
-      }
-
-      // Paylaşım izni DOLUYSA
-      if (gelin.paylasimIzni === true) {
-        const silinecekler = gorevler.filter(g => 
-          g.gelinId === gelin.id && 
-          g.otomatikMi === true &&
-          g.gorevTuru === "paylasimIzni"
-        );
-        for (const gorev of silinecekler) {
-          try {
-            await deleteDoc(doc(db, "gorevler", gorev.id));
-            console.log(`🗑️ Otomatik görev silindi: ${gelin.isim} [paylasimIzni]`);
-          } catch (error) {
-            console.error("Otomatik görev silinemedi:", error);
-          }
-        }
-      }
-
-      // Yorum istendi mi DOLUYSA
-      if (gelin.yorumIstendiMi === true) {
-        const silinecekler = gorevler.filter(g => 
-          g.gelinId === gelin.id && 
-          g.otomatikMi === true &&
-          g.gorevTuru === "yorumIstendiMi"
-        );
-        for (const gorev of silinecekler) {
-          try {
-            await deleteDoc(doc(db, "gorevler", gorev.id));
-            console.log(`🗑️ Otomatik görev silindi: ${gelin.isim} [yorumIstendiMi]`);
-          } catch (error) {
-            console.error("Otomatik görev silinemedi:", error);
-          }
-        }
-      }
-    });
-  }, [user, gelinler, gorevler]);
+  // ⚡ NOT: Otomatik görev oluşturma ve silme artık Cloud Function tarafından yapılıyor
+  // - checkAndCreateTasks: Her 15 dakikada bir çalışır
+  // - onGelinUpdate: Gelin güncellendiğinde çalışır
+  // Bu sayede sayfa açılışında yüzlerce gereksiz okuma yapılmıyor
 
   // Ekip personellerini hesapla (Yönetici için kendi ekibi, Kurucu için herkes)
   const ekipPersonelleri = personeller.filter(p => {
@@ -476,13 +312,13 @@ export default function GorevlerPage() {
       sonuc = sonuc.filter(g => g.durum === filtre);
     }
 
-    // Sıralama uygula (gelin tarihine göre)
+    // Sıralama uygula (embedded gelin tarihine göre)
     sonuc.sort((a, b) => {
-      const gelinA = gelinler.find(g => g.id === a.gelinId);
-      const gelinB = gelinler.find(g => g.id === b.gelinId);
-      
-      const tarihA = gelinA ? new Date(gelinA.tarih).getTime() : 0;
-      const tarihB = gelinB ? new Date(gelinB.tarih).getTime() : 0;
+      // gelinBilgi varsa onu kullan, yoksa oluşturulma tarihine göre sırala
+      const tarihA = a.gelinBilgi?.tarih ? new Date(a.gelinBilgi.tarih).getTime() : 
+                     (a.olusturulmaTarihi?.toDate?.()?.getTime() || 0);
+      const tarihB = b.gelinBilgi?.tarih ? new Date(b.gelinBilgi.tarih).getTime() : 
+                     (b.olusturulmaTarihi?.toDate?.()?.getTime() || 0);
       
       if (siralama === "yenidenEskiye") {
         return tarihB - tarihA; // Yeniden eskiye
@@ -492,7 +328,7 @@ export default function GorevlerPage() {
     });
     
     setFiltreliGorevler(sonuc);
-  }, [gorevler, tumGorevler, filtre, aktifSekme, seciliPersoneller, otomatikAltSekme, siralama, gelinler]);
+  }, [gorevler, tumGorevler, filtre, aktifSekme, seciliPersoneller, otomatikAltSekme, siralama]);
 
   // Görev durumu değiştir
   const handleDurumDegistir = async (gorevId: string, yeniDurum: Gorev["durum"]) => {
@@ -541,6 +377,18 @@ export default function GorevlerPage() {
         toplamSilinen++;
       }
 
+      // 🔄 Gelinleri sadece bu fonksiyon için çek - 01.01.2025'ten itibaren
+      const gelinlerQuery = query(
+        collection(db, "gelinler"),
+        where("tarih", ">=", "2025-01-01"),
+        orderBy("tarih", "asc")
+      );
+      const gelinlerSnapshot = await getDocs(gelinlerQuery);
+      const gelinlerData = gelinlerSnapshot.docs.map(d => ({
+        id: d.id,
+        ...d.data()
+      })) as Gelin[];
+
       // Her görev türü için yeni görevler oluştur
       const gorevTurleri: ("yorumIstesinMi" | "paylasimIzni" | "yorumIstendiMi")[] = ["yorumIstesinMi", "paylasimIzni", "yorumIstendiMi"];
       const yeniAyarlar = { ...gorevAyarlari };
@@ -554,7 +402,7 @@ export default function GorevlerPage() {
         const baslangic = new Date(ayar.baslangicTarihi);
 
         // Yeni görevler oluştur
-        for (const gelin of gelinler) {
+        for (const gelin of gelinlerData) {
           const gelinTarih = new Date(gelin.tarih);
           if (gelinTarih < baslangic) continue;
 
@@ -618,7 +466,13 @@ export default function GorevlerPage() {
               olusturulmaTarihi: serverTimestamp(),
               gelinId: gelin.id,
               otomatikMi: true,
-              gorevTuru: gorevTuru
+              gorevTuru: gorevTuru,
+              // Embedded gelin bilgisi - ekstra okuma yapmamak için
+              gelinBilgi: {
+                isim: gelin.isim,
+                tarih: gelin.tarih,
+                saat: gelin.saat
+              }
             });
             toplamOlusturulan++;
           }
@@ -1157,27 +1011,28 @@ export default function GorevlerPage() {
                   {gorev.otomatikMi && gorev.gelinId && (
                     <div className="mt-3 p-3 bg-purple-50 rounded-lg border border-purple-100">
                       <p className="text-xs text-purple-600 mb-1">📅 Gelin Bilgisi:</p>
-                      {(() => {
-                        const gelin = gelinler.find(g => g.id === gorev.gelinId);
-                        if (!gelin) return <p className="text-xs text-stone-500">Gelin bulunamadı</p>;
-                        return (
-                          <button 
-                            onClick={() => setSelectedGelinId(gelin.id)}
-                            className="w-full flex items-center gap-3 hover:bg-purple-100 p-2 rounded-lg transition cursor-pointer text-left"
-                          >
-                            <div className="w-10 h-10 bg-purple-200 rounded-lg flex items-center justify-center text-lg">
-                              💍
-                            </div>
-                            <div>
-                              <p className="font-medium text-purple-800">{gelin.isim}</p>
-                              <p className="text-xs text-purple-600">
-                                📆 {new Date(gelin.tarih).toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} • 🕐 {gelin.saat}
-                              </p>
-                            </div>
-                            <span className="ml-auto text-purple-400">→</span>
-                          </button>
-                        );
-                      })()}
+                      {gorev.gelinBilgi ? (
+                        <button 
+                          onClick={() => {
+                            fetchSingleGelin(gorev.gelinId!);
+                            setSelectedGelinId(gorev.gelinId!);
+                          }}
+                          className="w-full flex items-center gap-3 hover:bg-purple-100 p-2 rounded-lg transition cursor-pointer text-left"
+                        >
+                          <div className="w-10 h-10 bg-purple-200 rounded-lg flex items-center justify-center text-lg">
+                            💍
+                          </div>
+                          <div>
+                            <p className="font-medium text-purple-800">{gorev.gelinBilgi.isim}</p>
+                            <p className="text-xs text-purple-600">
+                              📆 {new Date(gorev.gelinBilgi.tarih).toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} • 🕐 {gorev.gelinBilgi.saat}
+                            </p>
+                          </div>
+                          <span className="ml-auto text-purple-400">→</span>
+                        </button>
+                      ) : (
+                        <p className="text-xs text-stone-500">Gelin bilgisi yükleniyor...</p>
+                      )}
                     </div>
                   )}
 
@@ -1231,11 +1086,23 @@ export default function GorevlerPage() {
       </div>
 
       {/* Gelin Modal */}
-      {selectedGelinId && gelinler.find(g => g.id === selectedGelinId) && (
+      {selectedGelinId && selectedGelin && (
         <GelinModal
-          gelin={gelinler.find(g => g.id === selectedGelinId) as any}
-          onClose={() => setSelectedGelinId(null)}
+          gelin={selectedGelin}
+          onClose={() => {
+            setSelectedGelinId(null);
+            setSelectedGelin(null);
+          }}
         />
+      )}
+
+      {/* Gelin yüklenirken */}
+      {selectedGelinId && gelinLoading && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg">
+            <p className="text-stone-600">⏳ Gelin bilgisi yükleniyor...</p>
+          </div>
+        </div>
       )}
     </div>
   );

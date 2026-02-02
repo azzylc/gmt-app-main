@@ -248,19 +248,30 @@ export default function HomePage() {
     return () => unsubscribe();
   }, [router]);
 
-  // Firestore Real-time Listener - Gelinler
+  // Firestore Real-time Listener - Gelinler (14 gün önce → 30 gün sonra)
   useEffect(() => {
     if (!user) return;
 
-    console.log("🔥 Firestore listener başlatılıyor...");
+    // 🎯 Akıllı Tarih Penceresi: Geçen hafta + Bu hafta + Önümüzdeki 1 ay
+    const onDortGunOnce = new Date();
+    onDortGunOnce.setDate(onDortGunOnce.getDate() - 14);
+    const onDortGunOnceStr = onDortGunOnce.toISOString().split('T')[0];
+
+    const otuzGunSonra = new Date();
+    otuzGunSonra.setDate(otuzGunSonra.getDate() + 30);
+    const otuzGunSonraStr = otuzGunSonra.toISOString().split('T')[0];
+
+    console.log(`🔥 Firestore listener: ${onDortGunOnceStr} → ${otuzGunSonraStr}`);
 
     const gelinlerQuery = query(
       collection(db, "gelinler"),
+      where("tarih", ">=", onDortGunOnceStr),
+      where("tarih", "<=", otuzGunSonraStr),
       orderBy("tarih", "asc")
     );
 
     const unsubscribe = onSnapshot(gelinlerQuery, (snapshot) => {
-      console.log("📡 Firestore güncelleme geldi:", snapshot.size, "gelin");
+      console.log(`📡 Firestore: ${snapshot.size} gelin (${onDortGunOnceStr} → ${otuzGunSonraStr})`);
       
       const data = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -907,7 +918,7 @@ export default function HomePage() {
                             ))}
                             {islenmemisUcretler.length > 3 && (
                               <button 
-                                onClick={() => router.push('/gelinler?filtre=islenmemis')}
+                                onClick={() => router.push('/takvim')}
                                 className="text-amber-600 text-[10px] font-medium hover:text-amber-700 w-full text-center pt-1"
                               >
                                 +{islenmemisUcretler.length - 3} daha gör →

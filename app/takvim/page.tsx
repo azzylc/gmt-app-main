@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Sidebar from "../components/Sidebar";
 import GelinModal from "../components/GelinModal";
 import { resmiTatiller } from "../lib/data";
-import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
+import { collection, onSnapshot, query, orderBy, where } from "firebase/firestore";
 
 interface Personel {
   id: string;
@@ -55,6 +55,7 @@ export default function TakvimPage() {
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [showGoogleCalendar, setShowGoogleCalendar] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -92,14 +93,41 @@ export default function TakvimPage() {
     return () => unsubscribe();
   }, [user]);
 
-  // ✅ Gelin verisi - Firestore'dan (real-time) - APPS SCRIPT YERİNE!
+  // ✅ Gelin verisi - Sadece görüntülenen ay (dinamik, real-time)
   useEffect(() => {
     if (!user) return;
 
-    console.log('🔄 Firestore gelinler listener başlatılıyor...');
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const today = new Date();
+    const todayYear = today.getFullYear();
+    const todayMonth = today.getMonth();
+
+    // Kaç ay ileride/geride olduğumuzu hesapla
+    const monthDiff = (year - todayYear) * 12 + (month - todayMonth);
+
+    // 3+ ay ilerideyse veya 2025 öncesiyse Google Calendar göster
+    if (monthDiff >= 3 || year < 2025) {
+      setGelinler([]);
+      setDataLoading(false);
+      setShowGoogleCalendar(true);
+      return;
+    }
+
+    setShowGoogleCalendar(false);
+
+    // Bu ay için tarih aralığı
+    const ayBasi = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    const sonrakiAy = month === 11 ? 0 : month + 1;
+    const sonrakiYil = month === 11 ? year + 1 : year;
+    const sonrakiAyBasi = `${sonrakiYil}-${String(sonrakiAy + 1).padStart(2, '0')}-01`;
+
+    console.log(`🔄 Firestore: ${ayBasi} → ${sonrakiAyBasi} arası çekiliyor...`);
     
     const q = query(
       collection(db, "gelinler"),
+      where("tarih", ">=", ayBasi),
+      where("tarih", "<", sonrakiAyBasi),
       orderBy("tarih", "asc")
     );
 
@@ -109,7 +137,7 @@ export default function TakvimPage() {
         ...doc.data()
       } as Gelin));
 
-      console.log(`✅ ${data.length} gelin Firestore'dan yüklendi (real-time)`);
+      console.log(`✅ ${data.length} gelin yüklendi (${year}-${String(month + 1).padStart(2, '0')})`);
       setGelinler(data);
       setDataLoading(false);
     }, (error) => {
@@ -121,7 +149,7 @@ export default function TakvimPage() {
       console.log('🛑 Firestore gelinler listener kapatılıyor...');
       unsubscribe();
     };
-  }, [user]);
+  }, [user, currentDate]); // 🔄 currentDate değişince yeniden çek!
 
   // Click outside - arama dropdown'ı kapat
   useEffect(() => {
@@ -330,7 +358,29 @@ export default function TakvimPage() {
             </div>
           </div>
 
-          {/* Calendar */}
+          {/* 🗓️ Google Calendar Embed - 3+ ay ileri veya 2025 öncesi için */}
+          {showGoogleCalendar ? (
+            <div className="bg-white rounded-lg shadow-sm border border-stone-100 overflow-hidden">
+              <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
+                <div className="flex items-center gap-2 text-blue-700">
+                  <span className="text-xl">🗓️</span>
+                  <span className="font-medium">Google Takvim Görünümü</span>
+                </div>
+                <p className="text-sm text-blue-600 mt-1">
+                  Bu ay için detaylı görünüm. Gelin detayları için yakın aylara dönün.
+                </p>
+              </div>
+              <iframe 
+                src={`https://calendar.google.com/calendar/embed?src=${encodeURIComponent(process.env.NEXT_PUBLIC_GOOGLE_CALENDAR_ID || '')}&ctz=Europe/Istanbul&mode=MONTH&dates=${year}${String(month + 1).padStart(2, '0')}01/${year}${String(month + 1).padStart(2, '0')}28`}
+                style={{ border: 0 }}
+                width="100%"
+                height="600"
+                frameBorder="0"
+                scrolling="no"
+              />
+            </div>
+          ) : (
+          /* Calendar - Firestore'dan */
           <div className="bg-white rounded-lg shadow-sm border border-stone-100 overflow-hidden">
             <div className="grid grid-cols-7 bg-neutral-cream border-b">
               {gunler.map((gun) => (
@@ -439,6 +489,7 @@ export default function TakvimPage() {
               </div>
             )}
           </div>
+          )}
         </main>
       </div>
 
