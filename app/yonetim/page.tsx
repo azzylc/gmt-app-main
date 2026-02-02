@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { auth, db } from "../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
@@ -46,6 +46,9 @@ export default function YonetimPage() {
   const [saving, setSaving] = useState(false);
   const [refreshing2025, setRefreshing2025] = useState(false);
   const router = useRouter();
+  
+  // Bugünkü ay satırı için ref
+  const bugunAyRef = useRef<HTMLDivElement>(null);
 
   const bugun = new Date().toISOString().split('T')[0];
   const buAy = new Date().toISOString().slice(0, 7);
@@ -210,6 +213,18 @@ export default function YonetimPage() {
     return () => unsubscribe();
   }, [user]);
 
+  // Sayfa yüklendiğinde bugünkü aya scroll yap
+  useEffect(() => {
+    if (!loading && bugunAyRef.current && gelinler.length > 0) {
+      setTimeout(() => {
+        bugunAyRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        });
+      }, 300);
+    }
+  }, [loading, gelinler]);
+
   // Hedef kaydet
   const handleHedefKaydet = async () => {
     if (!selectedAy || !hedefInput) {
@@ -238,9 +253,9 @@ export default function YonetimPage() {
   const getAyVerileri = (ayStr: string) => {
     const ayGelinler = gelinler.filter(g => g.tarih.startsWith(ayStr));
     const toplamGelin = ayGelinler.length;
-    const toplamUcret = ayGelinler.reduce((sum, g) => sum + (g.ucret > 0 ? g.ucret : 0), 0);
-    const toplamKapora = ayGelinler.reduce((sum, g) => sum + (g.kapora > 0 ? g.kapora : 0), 0);
-    const toplamKalan = ayGelinler.reduce((sum, g) => sum + (g.kalan > 0 ? g.kalan : 0), 0);
+    const toplamUcret = ayGelinler.reduce((sum, g) => sum + Number(g.ucret || 0), 0);
+    const toplamKapora = ayGelinler.reduce((sum, g) => sum + Number(g.kapora || 0), 0);
+    const toplamKalan = ayGelinler.reduce((sum, g) => sum + Number(g.kalan || 0), 0);
     const hedef = hedefler.find(h => h.ay === ayStr)?.hedef || 0;
     
     return { toplamGelin, toplamUcret, toplamKapora, toplamKalan, hedef };
@@ -254,12 +269,12 @@ export default function YonetimPage() {
       const ayBasi = buAy + "-01";
       return anlasmaTarihi >= ayBasi && anlasmaTarihi <= bugun;
     })
-    .reduce((sum, g) => sum + (g.kapora > 0 ? g.kapora : 0), 0);
+    .reduce((sum, g) => sum + Number(g.kapora || 0), 0);
 
   // Bugün ve sonrası için kalan bakiye
   const buAyKalanBakiye = gelinler
     .filter(g => g.tarih.startsWith(buAy) && g.tarih >= bugun)
-    .reduce((sum, g) => sum + (g.kalan > 0 ? g.kalan : 0), 0);
+    .reduce((sum, g) => sum + Number(g.kalan || 0), 0);
 
   // Bugün ödeme bekleyenler
   const bugunGelinler = gelinler.filter(g => g.tarih === bugun);
@@ -276,11 +291,11 @@ export default function YonetimPage() {
     return d.toISOString().slice(0, 7);
   });
 
-  // Son 6 ay
-  const son6Ay = Array.from({ length: 6 }, (_, i) => {
+  // Bugünden itibaren önümüzdeki 12 ay + geçmişten 6 ay (scroll için)
+  const tumAylar = Array.from({ length: 18 }, (_, i) => {
     const d = new Date();
     d.setDate(1);
-    d.setMonth(d.getMonth() - (5 - i));
+    d.setMonth(d.getMonth() - 6 + i);
     return d.toISOString().slice(0, 7);
   });
 
@@ -502,7 +517,7 @@ export default function YonetimPage() {
                         <p className="text-xs text-gray-500">{g.saat}</p>
                       </div>
                       <span className="text-lg font-bold text-red-600">
-                        {g.kalan.toLocaleString('tr-TR')} ₺
+                        {Number(g.kalan || 0).toLocaleString('tr-TR')} ₺
                       </span>
                     </div>
                   ))}
@@ -510,7 +525,7 @@ export default function YonetimPage() {
                     <div className="flex items-center justify-between">
                       <span className="font-medium text-gray-600">Toplam</span>
                       <span className="text-xl font-bold text-red-600">
-                        {bugunOdemeBekleyen.reduce((sum, g) => sum + g.kalan, 0).toLocaleString('tr-TR')} ₺
+                        {bugunOdemeBekleyen.reduce((sum, g) => sum + Number(g.kalan || 0), 0).toLocaleString('tr-TR')} ₺
                       </span>
                     </div>
                   </div>
@@ -525,64 +540,65 @@ export default function YonetimPage() {
               <span>📊</span> Aylık Finansal Özet
             </h2>
             
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ay</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Gelin</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Hedef</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Toplam Ücret</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Kapora</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Kalan</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {son6Ay.map(ay => {
-                    const veri = getAyVerileri(ay);
-                    const isBuAy = ay === buAy;
-                    return (
-                      <tr key={ay} className={isBuAy ? 'bg-pink-50' : 'hover:bg-gray-50'}>
-                        <td className="px-4 py-3">
-                          <span className={`font-medium ${isBuAy ? 'text-pink-600' : 'text-gray-700'}`}>
-                            {formatAy(ay)}
+            {/* Header - SCROLL DIŞINDA */}
+            <div className="flex bg-gray-50 px-4 py-3 border-b border-gray-200 rounded-t-lg">
+              <div className="w-[15%] text-left text-xs font-medium text-gray-500 uppercase">Ay</div>
+              <div className="w-[10%] text-center text-xs font-medium text-gray-500 uppercase">Gelin</div>
+              <div className="w-[15%] text-center text-xs font-medium text-gray-500 uppercase">Hedef</div>
+              <div className="w-[20%] text-right text-xs font-medium text-gray-500 uppercase">Toplam Ücret</div>
+              <div className="w-[20%] text-right text-xs font-medium text-gray-500 uppercase">Kapora</div>
+              <div className="w-[20%] text-right text-xs font-medium text-gray-500 uppercase">Kalan</div>
+            </div>
+
+            {/* Body - SADECE BU KISIM SCROLL */}
+            <div className="max-h-[400px] overflow-y-auto divide-y divide-gray-200">
+              {tumAylar.map(ay => {
+                const veri = getAyVerileri(ay);
+                const isBuAy = ay === buAy;
+                return (
+                  <div
+                    key={ay}
+                    ref={isBuAy ? bugunAyRef : null}
+                    className={`flex px-4 py-3 ${isBuAy ? 'bg-pink-50' : 'hover:bg-gray-50'}`}
+                  >
+                    <div className="w-[15%] text-left">
+                      <span className={`font-medium ${isBuAy ? 'text-pink-600' : 'text-gray-700'}`}>
+                        {formatAy(ay)}
+                      </span>
+                    </div>
+                    <div className="w-[10%] text-center">
+                      <span className={`font-bold ${isBuAy ? 'text-pink-600' : 'text-gray-800'}`}>
+                        {veri.toplamGelin}
+                      </span>
+                    </div>
+                    <div className="w-[15%] text-center">
+                      {veri.hedef > 0 ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <span className="text-gray-600">{veri.hedef}</span>
+                          <span className={`text-xs px-1.5 py-0.5 rounded whitespace-nowrap ${
+                            veri.toplamGelin >= veri.hedef 
+                              ? 'bg-green-100 text-green-700' 
+                              : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            %{Math.round((veri.toplamGelin / veri.hedef) * 100)}
                           </span>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`font-bold ${isBuAy ? 'text-pink-600' : 'text-gray-800'}`}>
-                            {veri.toplamGelin}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          {veri.hedef > 0 ? (
-                            <div className="flex items-center justify-center gap-2">
-                              <span className="text-gray-600">{veri.hedef}</span>
-                              <span className={`text-xs px-1.5 py-0.5 rounded ${
-                                veri.toplamGelin >= veri.hedef 
-                                  ? 'bg-green-100 text-green-700' 
-                                  : 'bg-gray-100 text-gray-600'
-                              }`}>
-                                %{Math.round((veri.toplamGelin / veri.hedef) * 100)}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-gray-400">-</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-right font-medium text-gray-800">
-                          {veri.toplamUcret.toLocaleString('tr-TR')} ₺
-                        </td>
-                        <td className="px-4 py-3 text-right font-medium text-green-600">
-                          {veri.toplamKapora.toLocaleString('tr-TR')} ₺
-                        </td>
-                        <td className="px-4 py-3 text-right font-medium text-red-600">
-                          {veri.toplamKalan.toLocaleString('tr-TR')} ₺
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </div>
+                    <div className="w-[20%] text-right font-medium text-gray-800">
+                      {veri.toplamUcret.toLocaleString('tr-TR')} ₺
+                    </div>
+                    <div className="w-[20%] text-right font-medium text-green-600">
+                      {veri.toplamKapora.toLocaleString('tr-TR')} ₺
+                    </div>
+                    <div className="w-[20%] text-right font-medium text-red-600">
+                      {veri.toplamKalan.toLocaleString('tr-TR')} ₺
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </main>
