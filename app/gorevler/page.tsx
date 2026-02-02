@@ -50,7 +50,7 @@ interface Personel {
   ad: string;
   soyad: string;
   email: string;
-  rol?: string;
+  kullaniciTuru?: string;
 }
 
 export default function GorevlerPage() {
@@ -125,14 +125,14 @@ export default function GorevlerPage() {
         ad: doc.data().ad || "",
         soyad: doc.data().soyad || "",
         email: doc.data().email || "",
-        rol: doc.data().rol || ""
+        kullaniciTuru: doc.data().kullaniciTuru || ""
       } as Personel));
       setPersoneller(data);
       
       // Kullanıcının rolünü bul
       const currentUser = data.find(p => p.email === user.email);
-      if (currentUser?.rol) {
-        setUserRole(currentUser.rol);
+      if (currentUser?.kullaniciTuru) {
+        setUserRole(currentUser.kullaniciTuru);
       }
     });
 
@@ -162,7 +162,7 @@ export default function GorevlerPage() {
 
   // Kurucu için TÜM görevleri dinle
   useEffect(() => {
-    if (!user || userRole !== "kurucu") return;
+    if (!user || userRole !== "Kurucu") return;
 
     const q = query(
       collection(db, "gorevler"),
@@ -413,7 +413,7 @@ export default function GorevlerPage() {
             </button>
             
             {/* Kurucu için Tüm Görevler sekmesi */}
-            {userRole === "kurucu" && (
+            {userRole === "Kurucu" && (
               <button
                 onClick={() => { setAktifSekme("tumgorevler"); setFiltre("hepsi"); }}
                 className={`px-4 py-2.5 font-medium text-sm transition border-b-2 whitespace-nowrap ${
