@@ -210,17 +210,17 @@ export default function CompareGelinlerPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-stone-50 p-8">
       <div className="max-w-6xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">🔍 Firestore vs Excel Karşılaştırma</h1>
-          <p className="text-gray-600 mb-2">2025-01-01 ve sonrası tarihli gelinleri karşılaştır</p>
-          <p className="text-sm text-gray-500 mb-6">Firestore'da fazla olan gelinleri bul ve analiz et</p>
+        <div className="bg-white rounded-lg shadow-sm border border-stone-100 p-8">
+          <h1 className="text-3xl font-bold text-stone-800 mb-2">🔍 Firestore vs Excel Karşılaştırma</h1>
+          <p className="text-stone-600 mb-2">2025-01-01 ve sonrası tarihli gelinleri karşılaştır</p>
+          <p className="text-sm text-stone-500 mb-6">Firestore'da fazla olan gelinleri bul ve analiz et</p>
 
           <button
             onClick={karsilastir}
             disabled={loading}
-            className="px-6 py-3 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-3 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? '⏳ Karşılaştırılıyor...' : '🚀 Karşılaştırmayı Başlat'}
           </button>
@@ -228,31 +228,31 @@ export default function CompareGelinlerPage() {
           {sonuc && (
             <div className="mt-8">
               {sonuc.error ? (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-6">
                   <h2 className="text-xl font-bold text-red-800 mb-2">❌ Hata</h2>
                   <p className="text-red-600">{sonuc.details}</p>
                 </div>
               ) : (
                 <>
                   {/* Özet */}
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-6">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
                     <h2 className="text-xl font-bold text-blue-800 mb-2">📊 Özet</h2>
-                    <p className="text-sm text-gray-600 mb-4">
+                    <p className="text-sm text-stone-600 mb-4">
                       📅 Tarih Filtresi: <span className="font-semibold">{sonuc.minTarih} ve sonrası</span>
                     </p>
                     <div className="grid grid-cols-3 gap-4 mb-4">
                       <div>
-                        <p className="text-sm text-gray-600">Firestore</p>
+                        <p className="text-sm text-stone-600">Firestore</p>
                         <p className="text-3xl font-bold text-blue-600">{sonuc.toplam.firestore}</p>
-                        <p className="text-xs text-gray-500">({sonuc.toplamOrijinal.firestore} toplam)</p>
+                        <p className="text-xs text-stone-500">({sonuc.toplamOrijinal.firestore} toplam)</p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-600">Excel</p>
+                        <p className="text-sm text-stone-600">Excel</p>
                         <p className="text-3xl font-bold text-green-600">{sonuc.toplam.excel}</p>
-                        <p className="text-xs text-gray-500">({sonuc.toplamOrijinal.excel} toplam)</p>
+                        <p className="text-xs text-stone-500">({sonuc.toplamOrijinal.excel} toplam)</p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-600">Fark</p>
+                        <p className="text-sm text-stone-600">Fark</p>
                         <p className={`text-3xl font-bold ${sonuc.toplam.fark === 0 ? 'text-green-600' : 'text-red-600'}`}>
                           {sonuc.toplam.fark > 0 ? '+' : ''}{sonuc.toplam.fark}
                         </p>
@@ -263,7 +263,7 @@ export default function CompareGelinlerPage() {
                   {/* Fazla Gelinler */}
                   {sonuc.fazlaGelinlerSayisi > 0 ? (
                     <>
-                      <div className="bg-red-50 border border-red-200 rounded-xl p-6 mb-6">
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
                         <h2 className="text-xl font-bold text-red-800 mb-4">
                           🔴 Firestore'da Fazla Olan {sonuc.fazlaGelinlerSayisi} Gelin
                         </h2>
@@ -271,7 +271,7 @@ export default function CompareGelinlerPage() {
                         {/* İsim Analizi */}
                         {sonuc.nedenler.isimAnaliz && (
                           <div className="mb-4">
-                            <h3 className="font-semibold text-gray-800 mb-2">İsim Analizi:</h3>
+                            <h3 className="font-semibold text-stone-800 mb-2">İsim Analizi:</h3>
                             <div className="flex flex-wrap gap-2">
                               {Object.entries(sonuc.nedenler.isimAnaliz)
                                 .filter(([_, count]) => (count as number) > 0)
@@ -296,17 +296,17 @@ export default function CompareGelinlerPage() {
                       </div>
 
                       {/* Tarihe Göre Liste */}
-                      <div className="bg-white border border-gray-200 rounded-xl p-6">
-                        <h2 className="text-xl font-bold text-gray-800 mb-4">📅 Tarihe Göre Detay</h2>
+                      <div className="bg-white border border-stone-200 rounded-lg p-6">
+                        <h2 className="text-xl font-bold text-stone-800 mb-4">📅 Tarihe Göre Detay</h2>
                         <div className="space-y-4">
                           {Object.entries(sonuc.tarihGruplari)
                             .sort(([a], [b]) => a.localeCompare(b))
                             .map(([tarih, gelinler]) => (
-                              <div key={tarih} className="border-l-4 border-pink-500 pl-4">
-                                <h3 className="font-semibold text-gray-800 mb-2">{tarih}</h3>
+                              <div key={tarih} className="border-l-4 border-rose-500 pl-4">
+                                <h3 className="font-semibold text-stone-800 mb-2">{tarih}</h3>
                                 <div className="space-y-1">
                                   {(gelinler as any[]).map((gelin, idx) => (
-                                    <div key={idx} className="text-sm text-gray-600">
+                                    <div key={idx} className="text-sm text-stone-600">
                                       • {gelin.isim} ({gelin.saat}) - Makyaj: {gelin.makyaj}, Türban: {gelin.turban}
                                     </div>
                                   ))}
@@ -320,14 +320,14 @@ export default function CompareGelinlerPage() {
                       <div className="mt-6">
                         <button
                           onClick={downloadJSON}
-                          className="px-6 py-3 bg-gray-800 text-white rounded-xl hover:bg-gray-900 transition font-medium"
+                          className="px-6 py-3 bg-stone-800 text-white rounded-lg hover:bg-stone-900 transition font-medium"
                         >
                           💾 JSON Olarak İndir
                         </button>
                       </div>
                     </>
                   ) : (
-                    <div className="bg-green-50 border border-green-200 rounded-xl p-6">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-6">
                       <h2 className="text-xl font-bold text-green-800 mb-2">✅ Tamamen Senkron!</h2>
                       <p className="text-green-700">Firestore ve Excel'deki veriler birebir aynı.</p>
                     </div>

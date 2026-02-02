@@ -93,7 +93,7 @@ export default function IzinTalepleri() {
       case "Reddedildi":
         return "bg-red-100 text-red-800";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-stone-100 text-stone-800";
     }
   };
 
@@ -186,30 +186,30 @@ export default function IzinTalepleri() {
     <div className="flex min-h-screen bg-neutral-warm">
       <Sidebar user={user} />
 
-      <main className="flex-1 p-4 lg:p-6 md:ml-64 pb-20 md:pb-0">
+      <main className="flex-1 p-4 lg:p-6 md:ml-56 pb-20 md:pb-0">
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold text-gray-800">İzin Talepleri</h1>
+            <h1 className="text-xl font-bold text-stone-800">İzin Talepleri</h1>
             {bekleyenSayisi > 0 && (
               <span className="px-2 py-1 bg-amber-100 text-amber-800 text-xs font-semibold rounded-full">
                 {bekleyenSayisi} Bekleyen
               </span>
             )}
           </div>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-stone-500">
             Personellerin izin taleplerini görüntüleyebilir, onaylayabilir veya reddedebilirsiniz.
           </p>
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-4">
+        <div className="bg-white rounded-lg shadow-sm border border-stone-100 p-4 mb-4">
           <div className="flex flex-wrap items-center gap-3">
             {/* Durum Filtresi */}
             <select
               value={filterDurum}
               onChange={(e) => setFilterDurum(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+              className="px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
             >
               <option value="Tümü">Tüm Talepler</option>
               <option value="Beklemede">Beklemede</option>
@@ -236,27 +236,27 @@ export default function IzinTalepleri() {
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-lg shadow-sm border border-stone-100 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600">#</th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600">Personel</th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600">İzin Türü</th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600">Başlangıç</th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600">Bitiş</th>
-                  <th className="px-3 py-3 text-center text-xs font-semibold text-gray-600">Gün</th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600">Açıklama</th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600">Talep Tarihi</th>
-                  <th className="px-3 py-3 text-center text-xs font-semibold text-gray-600">Durum</th>
-                  <th className="px-3 py-3 text-center text-xs font-semibold text-gray-600">İşlemler</th>
+                <tr className="bg-stone-50 border-b border-stone-100">
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-stone-600">#</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-stone-600">Personel</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-stone-600">İzin Türü</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-stone-600">Başlangıç</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-stone-600">Bitiş</th>
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-stone-600">Gün</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-stone-600">Açıklama</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-stone-600">Talep Tarihi</th>
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-stone-600">Durum</th>
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-stone-600">İşlemler</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredTalepler.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-3 py-8 text-center text-gray-500">
+                    <td colSpan={10} className="px-3 py-8 text-center text-stone-500">
                       {talepler.length === 0
                         ? "Henüz izin talebi bulunmuyor."
                         : "Filtreyle eşleşen talep bulunamadı."}
@@ -266,32 +266,32 @@ export default function IzinTalepleri() {
                   filteredTalepler.map((talep, index) => (
                     <tr
                       key={talep.id}
-                      className={`border-b border-gray-50 transition-colors ${
+                      className={`border-b border-stone-50 transition-colors ${
                         talep.durum === "Beklemede" ? "bg-amber-50/30" : ""
-                      } hover:bg-gray-50/50`}
+                      } hover:bg-stone-50/50`}
                     >
-                      <td className="px-3 py-3 text-sm text-gray-500">
+                      <td className="px-3 py-3 text-sm text-stone-500">
                         {index + 1}
                       </td>
-                      <td className="px-3 py-3 text-sm font-medium text-gray-800">
+                      <td className="px-3 py-3 text-sm font-medium text-stone-800">
                         {talep.personelAd} {talep.personelSoyad}
                       </td>
-                      <td className="px-3 py-3 text-sm text-gray-600">
+                      <td className="px-3 py-3 text-sm text-stone-600">
                         {talep.izinTuru}
                       </td>
-                      <td className="px-3 py-3 text-sm text-gray-600">
+                      <td className="px-3 py-3 text-sm text-stone-600">
                         {formatDate(talep.baslangic)}
                       </td>
-                      <td className="px-3 py-3 text-sm text-gray-600">
+                      <td className="px-3 py-3 text-sm text-stone-600">
                         {formatDate(talep.bitis)}
                       </td>
-                      <td className="px-3 py-3 text-sm text-center font-semibold text-gray-800">
+                      <td className="px-3 py-3 text-sm text-center font-semibold text-stone-800">
                         {talep.gunSayisi}
                       </td>
-                      <td className="px-3 py-3 text-sm text-gray-600 max-w-[150px] truncate">
+                      <td className="px-3 py-3 text-sm text-stone-600 max-w-[150px] truncate">
                         {talep.aciklama || "-"}
                       </td>
-                      <td className="px-3 py-3 text-sm text-gray-500">
+                      <td className="px-3 py-3 text-sm text-stone-500">
                         {formatDateTime(talep.talepTarihi)}
                       </td>
                       <td className="px-3 py-3 text-center">
@@ -321,7 +321,7 @@ export default function IzinTalepleri() {
                           <div className="flex items-center justify-center">
                             <button
                               onClick={() => {/* Detay göster */}}
-                              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                              className="p-1.5 text-stone-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
                               title="Detay"
                             >
                               🔍

@@ -100,7 +100,7 @@ export default function IzinDegisiklikKayitlari() {
       case "İzin Silindi":
         return "bg-red-50/70 hover:bg-red-100/70";
       default:
-        return "hover:bg-gray-50";
+        return "hover:bg-stone-50";
     }
   };
 
@@ -114,7 +114,7 @@ export default function IzinDegisiklikKayitlari() {
       case "İzin Silindi":
         return "text-red-700";
       default:
-        return "text-gray-700";
+        return "text-stone-700";
     }
   };
 
@@ -130,17 +130,17 @@ export default function IzinDegisiklikKayitlari() {
     <div className="flex min-h-screen bg-neutral-warm">
       <Sidebar user={user} />
 
-      <main className="flex-1 p-4 lg:p-6 md:ml-64 pb-20 md:pb-0">
+      <main className="flex-1 p-4 lg:p-6 md:ml-56 pb-20 md:pb-0">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-xl font-bold text-gray-800">İzin Değişiklik Kayıtları</h1>
-          <p className="text-sm text-gray-500">
+          <h1 className="text-xl font-bold text-stone-800">İzin Değişiklik Kayıtları</h1>
+          <p className="text-sm text-stone-500">
             Bu sayfada, izin işlemleri üzerinde yapılan işlemlerin kayıtlarını görüntüleyebilirsiniz.
           </p>
         </div>
 
         {/* Filters & Actions */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-4">
+        <div className="bg-white rounded-lg shadow-sm border border-stone-100 p-4 mb-4">
           <div className="flex flex-wrap items-center gap-3">
             {/* Arama */}
             <div className="flex-1 min-w-[200px]">
@@ -149,7 +149,7 @@ export default function IzinDegisiklikKayitlari() {
                 placeholder="Ara..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
               />
             </div>
 
@@ -157,7 +157,7 @@ export default function IzinDegisiklikKayitlari() {
             <select
               value={filterTur}
               onChange={(e) => setFilterTur(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+              className="px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
             >
               <option value="Tümü">Tümünde</option>
               <option value="İzin Eklendi">İzin Eklendi</option>
@@ -184,25 +184,25 @@ export default function IzinDegisiklikKayitlari() {
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-lg shadow-sm border border-stone-100 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600">#</th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600">Değişikliği Yapan</th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600">↓ Değişiklik Tarihi</th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600">Değişiklik Türü</th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600">Değişiklik Öncesi</th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600">Değişiklik Sonrası</th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600">Kullanıcı Adı</th>
-                  <th className="px-3 py-3 text-center text-xs font-semibold text-gray-600"></th>
+                <tr className="bg-stone-50 border-b border-stone-100">
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-stone-600">#</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-stone-600">Değişikliği Yapan</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-stone-600">↓ Değişiklik Tarihi</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-stone-600">Değişiklik Türü</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-stone-600">Değişiklik Öncesi</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-stone-600">Değişiklik Sonrası</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-stone-600">Kullanıcı Adı</th>
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-stone-600"></th>
                 </tr>
               </thead>
               <tbody>
                 {filteredKayitlar.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-3 py-8 text-center text-gray-500">
+                    <td colSpan={8} className="px-3 py-8 text-center text-stone-500">
                       {kayitlar.length === 0
                         ? "Henüz değişiklik kaydı bulunmuyor."
                         : "Aramanızla eşleşen kayıt bulunamadı."}
@@ -212,9 +212,9 @@ export default function IzinDegisiklikKayitlari() {
                   filteredKayitlar.map((kayit, index) => (
                     <tr
                       key={kayit.id}
-                      className={`border-b border-gray-50 transition-colors ${getRowClass(kayit.degisiklikTuru)}`}
+                      className={`border-b border-stone-50 transition-colors ${getRowClass(kayit.degisiklikTuru)}`}
                     >
-                      <td className="px-3 py-3 text-sm text-gray-500">
+                      <td className="px-3 py-3 text-sm text-stone-500">
                         {index + 1}
                       </td>
                       <td className={`px-3 py-3 text-sm font-medium ${getTextClass(kayit.degisiklikTuru)}`}>
@@ -238,7 +238,7 @@ export default function IzinDegisiklikKayitlari() {
                       <td className="px-3 py-3">
                         <button
                           onClick={() => {/* Detay modal açılabilir */}}
-                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                          className="p-1.5 text-stone-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
                           title="Görüntüle"
                         >
                           🔍
@@ -253,8 +253,8 @@ export default function IzinDegisiklikKayitlari() {
 
           {/* Footer */}
           {filteredKayitlar.length > 0 && (
-            <div className="px-4 py-3 border-t border-gray-100 bg-gray-50">
-              <div className="flex items-center justify-between text-sm text-gray-600">
+            <div className="px-4 py-3 border-t border-stone-100 bg-stone-50">
+              <div className="flex items-center justify-between text-sm text-stone-600">
                 <span>Toplam <span className="font-semibold">{filteredKayitlar.length}</span> kayıt</span>
                 <div className="flex items-center gap-4">
                   <span className="flex items-center gap-1">
@@ -276,7 +276,7 @@ export default function IzinDegisiklikKayitlari() {
         </div>
 
         {/* Legend */}
-        <div className="mt-4 flex items-center gap-6 text-xs text-gray-500">
+        <div className="mt-4 flex items-center gap-6 text-xs text-stone-500">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-green-100 border border-green-300 rounded"></div>
             <span>İzin Eklendi</span>

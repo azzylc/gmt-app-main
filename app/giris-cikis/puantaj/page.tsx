@@ -619,7 +619,7 @@ export default function PuantajPage() {
 
   // Hücre rengi
   const getHucreClass = (kayit: GunKayit, tip: "giris" | "cikis"): string => {
-    const base = "px-2 py-3 text-xs text-center border-r border-gray-100 transition cursor-pointer hover:bg-pink-50 relative group min-w-[50px]";
+    const base = "px-2 py-3 text-xs text-center border-r border-stone-100 transition cursor-pointer hover:bg-rose-50 relative group min-w-[50px]";
     
     if (kayit.durum === "haftaTatili") return base + " bg-orange-300 text-orange-900 font-medium";
     if (kayit.durum === "izin") return base + " bg-yellow-300 text-yellow-900 font-medium cursor-not-allowed";
@@ -635,7 +635,7 @@ export default function PuantajPage() {
     if (tip === "giris" && kayit.giris) return base + " bg-green-50 text-green-800 font-medium";
     if (tip === "cikis" && kayit.cikis) return base + " bg-red-50 text-red-800 font-medium";
     
-    return base + " bg-white text-gray-400 hover:text-pink-500";
+    return base + " bg-white text-stone-400 hover:text-rose-500";
   };
 
   // Hücre içeriği
@@ -718,22 +718,22 @@ export default function PuantajPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500"></div>
+      <div className="min-h-screen flex items-center justify-center bg-stone-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-stone-50">
       <Sidebar user={user} />
 
-      <div className="md:ml-64 pb-20 md:pb-0">
+      <div className="md:ml-56 pb-20 md:pb-0">
         <header className="bg-white border-b px-4 md:px-6 py-4 sticky top-0 z-30">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h1 className="text-xl font-bold text-gray-800">{aylar[seciliAy]} {seciliYil} - İşlem Ekle (Puantaj)</h1>
-              <p className="text-sm text-gray-500 mt-1">Hücrelere tıklayarak giriş/çıkış saati veya hafta tatili ekleyebilirsiniz.</p>
+              <h1 className="text-xl font-bold text-stone-800">{aylar[seciliAy]} {seciliYil} - İşlem Ekle (Puantaj)</h1>
+              <p className="text-sm text-stone-500 mt-1">Hücrelere tıklayarak giriş/çıkış saati veya hafta tatili ekleyebilirsiniz.</p>
             </div>
             <div className="flex items-center gap-3 text-xs">
               <div className="flex items-center gap-1"><span className="w-3 h-3 bg-orange-300 rounded"></span> Hafta Tatili</div>
@@ -745,14 +745,14 @@ export default function PuantajPage() {
 
         <main className="p-4 md:p-6">
           {/* Ay Seçimi ve Filtreler */}
-          <div className="bg-white rounded-xl shadow-sm border p-4 mb-6">
+          <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
             <div className="flex flex-wrap items-center gap-4">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Ay</label>
+                <label className="block text-xs text-stone-500 mb-1">Ay</label>
                 <select
                   value={seciliAy}
                   onChange={(e) => setSeciliAy(Number(e.target.value))}
-                  className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  className="px-4 py-2 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
                 >
                   {aylar.map((ay, i) => (
                     <option key={i} value={i}>{ay}</option>
@@ -760,11 +760,11 @@ export default function PuantajPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Yıl</label>
+                <label className="block text-xs text-stone-500 mb-1">Yıl</label>
                 <select
                   value={seciliYil}
                   onChange={(e) => setSeciliYil(Number(e.target.value))}
-                  className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  className="px-4 py-2 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
                 >
                   {[2024, 2025, 2026, 2027].map(yil => (
                     <option key={yil} value={yil}>{yil}</option>
@@ -772,15 +772,15 @@ export default function PuantajPage() {
                 </select>
               </div>
               
-              <div className="h-8 w-px bg-gray-200 hidden sm:block"></div>
+              <div className="h-8 w-px bg-stone-200 hidden sm:block"></div>
               
               {/* Grup Filtresi */}
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Grup</label>
+                <label className="block text-xs text-stone-500 mb-1">Grup</label>
                 <select
                   value={seciliGrup}
                   onChange={(e) => setSeciliGrup(e.target.value)}
-                  className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  className="px-4 py-2 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
                 >
                   <option value="tumu">Tüm Gruplar</option>
                   {grupEtiketleri.map(grup => (
@@ -791,13 +791,13 @@ export default function PuantajPage() {
               
               {/* Kurucu Filtresi */}
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Kurucular</label>
+                <label className="block text-xs text-stone-500 mb-1">Kurucular</label>
                 <button
                   onClick={() => setYoneticileriGoster(!yoneticileriGoster)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                     yoneticileriGoster 
-                      ? "bg-pink-500 text-white" 
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      ? "bg-rose-500 text-white" 
+                      : "bg-stone-100 text-stone-600 hover:bg-stone-200"
                   }`}
                 >
                   {yoneticileriGoster ? "Göster ✓" : "Gizli"}
@@ -808,30 +808,30 @@ export default function PuantajPage() {
 
           {/* Puantaj Tablosu */}
           {dataLoading ? (
-            <div className="bg-white rounded-xl shadow-sm border p-12 text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto"></div>
-              <p className="text-gray-500 mt-4">Veriler yükleniyor...</p>
+            <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500 mx-auto"></div>
+              <p className="text-stone-500 mt-4">Veriler yükleniyor...</p>
             </div>
           ) : (
-            <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+            <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-stone-50">
                     <tr>
-                      <th rowSpan={2} className="px-3 py-3 text-left font-medium text-gray-600 border-b border-r sticky left-0 bg-gray-50 z-10 min-w-[100px]">Sicil No</th>
-                      <th rowSpan={2} className="px-3 py-3 text-left font-medium text-gray-600 border-b border-r sticky left-[100px] bg-gray-50 z-10 min-w-[140px]">Ad Soyad</th>
+                      <th rowSpan={2} className="px-3 py-3 text-left font-medium text-stone-600 border-b border-r sticky left-0 bg-stone-50 z-10 min-w-[100px]">Sicil No</th>
+                      <th rowSpan={2} className="px-3 py-3 text-left font-medium text-stone-600 border-b border-r sticky left-[100px] bg-stone-50 z-10 min-w-[140px]">Ad Soyad</th>
                       {Array.from({ length: gunSayisi }, (_, i) => i + 1).map(gun => {
                         const tarih = new Date(seciliYil, seciliAy, gun);
                         const gunIsmi = gunIsimleri[tarih.getDay()];
                         return (
                           <th key={gun} colSpan={2} className="px-2 py-2 text-center font-medium border-b border-r min-w-[100px]">
-                            <div className="text-xs text-gray-600">{gun} {aylar[seciliAy].substring(0, 3)}</div>
-                            <div className="text-xs text-gray-400">{gunIsmi}</div>
+                            <div className="text-xs text-stone-600">{gun} {aylar[seciliAy].substring(0, 3)}</div>
+                            <div className="text-xs text-stone-400">{gunIsmi}</div>
                           </th>
                         );
                       })}
                     </tr>
-                    <tr className="bg-gray-100">
+                    <tr className="bg-stone-100">
                       {Array.from({ length: gunSayisi }, (_, i) => i + 1).map(gun => (
                         <React.Fragment key={gun}>
                           <th className="px-2 py-2 text-center text-xs text-green-600 border-b border-r font-medium">Giriş</th>
@@ -840,7 +840,7 @@ export default function PuantajPage() {
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-stone-100">
                     {puantajData
                       .filter(personel => {
                         const p = personeller.find(per => per.id === personel.personelId);
@@ -852,9 +852,9 @@ export default function PuantajPage() {
                         return true;
                       })
                       .map(personel => (
-                      <tr key={personel.personelId} className="hover:bg-gray-50">
-                        <td className="px-3 py-3 text-gray-600 sticky left-0 bg-white z-10 border-r text-sm">{personel.sicilNo}</td>
-                        <td className="px-3 py-3 font-medium text-gray-800 sticky left-[100px] bg-white z-10 border-r whitespace-nowrap">{personel.personelAd}</td>
+                      <tr key={personel.personelId} className="hover:bg-stone-50">
+                        <td className="px-3 py-3 text-stone-600 sticky left-0 bg-white z-10 border-r text-sm">{personel.sicilNo}</td>
+                        <td className="px-3 py-3 font-medium text-stone-800 sticky left-[100px] bg-white z-10 border-r whitespace-nowrap">{personel.personelAd}</td>
                         {Array.from({ length: gunSayisi }, (_, i) => i + 1).map(gun => {
                           const kayit = personel.gunler[gun] || { durum: "normal" };
                           const girisIcerik = getHucreIcerik(kayit, "giris");
@@ -970,7 +970,7 @@ export default function PuantajPage() {
 
           {/* Eksik Çıkış Uyarısı */}
           {eksikCikislar.length > 0 && (
-            <div className="mt-6 bg-red-50 border border-red-200 rounded-xl p-4">
+            <div className="mt-6 bg-red-50 border border-red-200 rounded-lg p-4">
               <h3 className="text-red-800 font-semibold mb-3 flex items-center gap-2">
                 ⚠️ Çıkış Kaydı Eksik ({eksikCikislar.length} kayıt)
               </h3>
@@ -989,8 +989,8 @@ export default function PuantajPage() {
                   return (
                     <div key={i} className="flex items-center justify-between bg-white p-2 rounded-lg border border-red-100 gap-2">
                       <div className="text-sm flex-1">
-                        <span className="font-medium text-gray-800">{eksik.personelAd}</span>
-                        <span className="text-gray-500 ml-2">
+                        <span className="font-medium text-stone-800">{eksik.personelAd}</span>
+                        <span className="text-stone-500 ml-2">
                           {eksik.gun} {aylar[seciliAy]} - Giriş: {eksik.girisSaat}
                         </span>
                       </div>
@@ -998,7 +998,7 @@ export default function PuantajPage() {
                         type="time"
                         value={secilenSaat}
                         onChange={(e) => setEksikCikisSaatleri(prev => ({ ...prev, [key]: e.target.value }))}
-                        className="px-2 py-1 border border-gray-200 rounded text-sm w-24"
+                        className="px-2 py-1 border border-stone-200 rounded text-sm w-24"
                       />
                       <button
                         onClick={async () => {
@@ -1040,7 +1040,7 @@ export default function PuantajPage() {
                             alert("Çıkış eklenirken hata oluştu!");
                           }
                         }}
-                        className="text-xs bg-pink-500 hover:bg-pink-600 text-white px-3 py-1 rounded-lg transition whitespace-nowrap"
+                        className="text-xs bg-rose-500 hover:bg-rose-600 text-white px-3 py-1 rounded-lg transition whitespace-nowrap"
                       >
                         Ekle
                       </button>
@@ -1052,7 +1052,7 @@ export default function PuantajPage() {
           )}
 
           {/* Notlar */}
-          <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
+          <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-700">
             <p><strong>💡 İpucu:</strong> Hücrelere tıklayarak giriş/çıkış saati veya hafta tatili ekleyebilirsiniz. Kayıtların üzerine gelince silme butonu çıkar.</p>
           </div>
 
@@ -1060,7 +1060,7 @@ export default function PuantajPage() {
           <div className="flex flex-col md:flex-row gap-3 justify-center mt-6">
             <button
               onClick={() => window.print()}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-medium transition flex items-center justify-center gap-2"
+              className="bg-stone-100 hover:bg-stone-200 text-stone-700 px-6 py-3 rounded-lg font-medium transition flex items-center justify-center gap-2"
             >
               🖨️ Yazdır / PDF
             </button>
@@ -1077,12 +1077,12 @@ export default function PuantajPage() {
       {/* İşlem Modal */}
       {islemModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">İşlem Ekle</h3>
+          <div className="bg-white rounded-lg max-w-sm w-full p-6">
+            <h3 className="text-lg font-bold text-stone-800 mb-4">İşlem Ekle</h3>
             
-            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600"><strong>Personel:</strong> {islemModal.personelAd}</p>
-              <p className="text-sm text-gray-600"><strong>Tarih:</strong> {islemModal.gun} {aylar[seciliAy]} {seciliYil}</p>
+            <div className="mb-4 p-3 bg-stone-50 rounded-lg">
+              <p className="text-sm text-stone-600"><strong>Personel:</strong> {islemModal.personelAd}</p>
+              <p className="text-sm text-stone-600"><strong>Tarih:</strong> {islemModal.gun} {aylar[seciliAy]} {seciliYil}</p>
             </div>
 
             {/* İşlem Tipi Seçimi */}
@@ -1092,8 +1092,8 @@ export default function PuantajPage() {
                   onClick={() => setIslemTipi("giriscikis")}
                   className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
                     islemTipi === "giriscikis" 
-                      ? "bg-pink-500 text-white" 
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      ? "bg-rose-500 text-white" 
+                      : "bg-stone-100 text-stone-700 hover:bg-stone-200"
                   }`}
                 >
                   🟢🔴 Giriş & Çıkış
@@ -1103,7 +1103,7 @@ export default function PuantajPage() {
                   className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
                     islemTipi === "haftaTatili" 
                       ? "bg-orange-500 text-white" 
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      : "bg-stone-100 text-stone-700 hover:bg-stone-200"
                   }`}
                 >
                   🟠 Hafta Tatili
@@ -1134,11 +1134,11 @@ export default function PuantajPage() {
               <div className="mb-6 space-y-4">
                 {/* Konum Seçimi */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">📍 Konum</label>
+                  <label className="block text-sm font-medium text-stone-700 mb-2">📍 Konum</label>
                   <select
                     value={seciliKonum}
                     onChange={(e) => setSeciliKonum(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
+                    className="w-full px-4 py-3 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 text-sm"
                   >
                     <option value="">Konum Seçiniz</option>
                     {konumlar.map(k => (
@@ -1192,7 +1192,7 @@ export default function PuantajPage() {
                     )}
                   </div>
                 </div>
-                <p className="text-xs text-gray-500 text-center">💡 Saatleri değiştirince yanda öneri çıkar, basarsan uygular</p>
+                <p className="text-xs text-stone-500 text-center">💡 Saatleri değiştirince yanda öneri çıkar, basarsan uygular</p>
               </div>
             )}
 
@@ -1205,14 +1205,14 @@ export default function PuantajPage() {
             <div className="flex gap-3">
               <button
                 onClick={() => setIslemModal(null)}
-                className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition"
+                className="flex-1 px-4 py-2 border border-stone-200 rounded-lg text-stone-600 hover:bg-stone-50 transition"
               >
                 İptal
               </button>
               <button
                 onClick={handleKaydet}
                 disabled={saving}
-                className="flex-1 px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition disabled:opacity-50"
+                className="flex-1 px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition disabled:opacity-50"
               >
                 {saving ? "Kaydediliyor..." : "Kaydet"}
               </button>

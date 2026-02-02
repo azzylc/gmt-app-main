@@ -134,23 +134,23 @@ export default function GelinRaporlariPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500"></div>
+      <div className="min-h-screen flex items-center justify-center bg-stone-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-stone-50">
       <Sidebar user={user} />
       
-      <div className="md:ml-64 pb-20 md:pb-0">
+      <div className="md:ml-56 pb-20 md:pb-0">
         {/* Header */}
         <header className="bg-white border-b px-6 py-4 sticky top-0 z-30">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-bold text-gray-800">📊 Gelin Raporları</h1>
-              <p className="text-sm text-gray-500">Personel ve hizmet türü bazında iş dağılımı (Firestore Real-time)</p>
+              <h1 className="text-xl font-bold text-stone-800">📊 Gelin Raporları</h1>
+              <p className="text-sm text-stone-500">Personel ve hizmet türü bazında iş dağılımı (Firestore Real-time)</p>
             </div>
             <div className="flex items-center gap-4">
               <div className="bg-green-50 px-3 py-1.5 rounded-lg border border-green-200">
@@ -162,18 +162,18 @@ export default function GelinRaporlariPage() {
 
         <main className="p-6">
           {/* Filtreler */}
-          <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mb-6">
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-stone-100 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Personel Filtresi */}
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-2 block">Personel:</label>
+                <label className="text-sm font-medium text-stone-700 mb-2 block">Personel:</label>
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => setSelectedPersonel("hepsi")}
-                    className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                       selectedPersonel === "hepsi"
-                        ? "bg-pink-500 text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        ? "bg-rose-500 text-white"
+                        : "bg-stone-100 text-stone-700 hover:bg-stone-200"
                     }`}
                   >
                     👥 Hepsi
@@ -182,10 +182,10 @@ export default function GelinRaporlariPage() {
                     <button
                       key={p.id}
                       onClick={() => setSelectedPersonel(p.isim)}
-                      className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                         selectedPersonel === p.isim
-                          ? "bg-pink-500 text-white"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          ? "bg-rose-500 text-white"
+                          : "bg-stone-100 text-stone-700 hover:bg-stone-200"
                       }`}
                     >
                       {p.isim}
@@ -196,14 +196,14 @@ export default function GelinRaporlariPage() {
 
               {/* Ay Filtresi */}
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-2 block">Ay:</label>
+                <label className="text-sm font-medium text-stone-700 mb-2 block">Ay:</label>
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => setSelectedAy("hepsi")}
-                    className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                       selectedAy === "hepsi"
-                        ? "bg-pink-500 text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        ? "bg-rose-500 text-white"
+                        : "bg-stone-100 text-stone-700 hover:bg-stone-200"
                     }`}
                   >
                     📅 Tümü
@@ -212,10 +212,10 @@ export default function GelinRaporlariPage() {
                     <button
                       key={ay.value}
                       onClick={() => setSelectedAy(ay.value)}
-                      className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                         selectedAy === ay.value
-                          ? "bg-pink-500 text-white"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          ? "bg-rose-500 text-white"
+                          : "bg-stone-100 text-stone-700 hover:bg-stone-200"
                       }`}
                     >
                       {ay.label}
@@ -228,21 +228,21 @@ export default function GelinRaporlariPage() {
 
           {dataLoading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rose-500"></div>
             </div>
           ) : (
             <>
               {/* Özet İstatistikler */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                  <div className="text-3xl font-bold text-pink-600">{filteredGelinler.length}</div>
-                  <div className="text-sm text-gray-500 mt-1">Toplam İş</div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border border-stone-100">
+                  <div className="text-3xl font-bold text-rose-600">{filteredGelinler.length}</div>
+                  <div className="text-sm text-stone-500 mt-1">Toplam İş</div>
                 </div>
                 
                 {hizmetTurleri.slice(0, 3).map(ht => (
-                  <div key={ht.value} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                    <div className="text-3xl font-bold text-gray-800">{hizmetStats[ht.value] || 0}</div>
-                    <div className="text-sm text-gray-500 mt-1 flex items-center gap-1">
+                  <div key={ht.value} className="bg-white p-4 rounded-lg shadow-sm border border-stone-100">
+                    <div className="text-3xl font-bold text-stone-800">{hizmetStats[ht.value] || 0}</div>
+                    <div className="text-sm text-stone-500 mt-1 flex items-center gap-1">
                       <span>{ht.emoji}</span>
                       <span>{ht.label}</span>
                     </div>
@@ -251,10 +251,10 @@ export default function GelinRaporlariPage() {
               </div>
 
               {/* Personel Bazlı Raporlar */}
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100">
-                  <h2 className="text-lg font-semibold text-gray-800">Personel Bazlı İstatistikler</h2>
-                  <p className="text-sm text-gray-500">
+              <div className="bg-white rounded-lg shadow-sm border border-stone-100 overflow-hidden">
+                <div className="px-6 py-4 border-b border-stone-100">
+                  <h2 className="text-lg font-semibold text-stone-800">Personel Bazlı İstatistikler</h2>
+                  <p className="text-sm text-stone-500">
                     {selectedAy === "hepsi" ? "Tüm aylar" : aylar.find(a => a.value === selectedAy)?.label} - 
                     {selectedPersonel === "hepsi" ? " Tüm personel" : ` ${selectedPersonel}`}
                   </p>
@@ -262,16 +262,16 @@ export default function GelinRaporlariPage() {
                 
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-stone-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase tracking-wider">
                           Personel
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase tracking-wider">
                           Toplam İş
                         </th>
                         {hizmetTurleri.map(ht => (
-                          <th key={ht.value} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th key={ht.value} className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase tracking-wider">
                             <span className="flex items-center gap-1">
                               <span>{ht.emoji}</span>
                               <span>{ht.label}</span>
@@ -280,23 +280,23 @@ export default function GelinRaporlariPage() {
                         ))}
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-white divide-y divide-stone-200">
                       {personeller.map(personel => {
                         const stats = getPersonelStats(personel.isim);
                         if (selectedPersonel !== "hepsi" && selectedPersonel !== personel.isim) return null;
                         if (stats.toplam === 0) return null;
                         
                         return (
-                          <tr key={personel.id} className="hover:bg-gray-50">
+                          <tr key={personel.id} className="hover:bg-stone-50">
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="font-medium text-gray-900">{personel.isim}</div>
+                              <div className="font-medium text-stone-900">{personel.isim}</div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-lg font-bold text-pink-600">{stats.toplam}</div>
+                              <div className="text-lg font-bold text-rose-600">{stats.toplam}</div>
                             </td>
                             {hizmetTurleri.map(ht => (
                               <td key={ht.value} className="px-6 py-4 whitespace-nowrap">
-                                <div className={`text-sm ${stats[ht.value] > 0 ? 'font-semibold' : 'text-gray-400'}`}>
+                                <div className={`text-sm ${stats[ht.value] > 0 ? 'font-semibold' : 'text-stone-400'}`}>
                                   {stats[ht.value] || '-'}
                                 </div>
                               </td>
@@ -310,19 +310,19 @@ export default function GelinRaporlariPage() {
               </div>
 
               {/* Detaylı Liste */}
-              <div className="mt-6 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100">
-                  <h2 className="text-lg font-semibold text-gray-800">Detaylı Liste</h2>
-                  <p className="text-sm text-gray-500">{filteredGelinler.length} kayıt</p>
+              <div className="mt-6 bg-white rounded-lg shadow-sm border border-stone-100 overflow-hidden">
+                <div className="px-6 py-4 border-b border-stone-100">
+                  <h2 className="text-lg font-semibold text-stone-800">Detaylı Liste</h2>
+                  <p className="text-sm text-stone-500">{filteredGelinler.length} kayıt</p>
                 </div>
                 
-                <div className="divide-y divide-gray-100">
+                <div className="divide-y divide-stone-100">
                   {filteredGelinler.map(gelin => (
-                    <div key={gelin.id} className="px-6 py-4 hover:bg-gray-50">
+                    <div key={gelin.id} className="px-6 py-4 hover:bg-stone-50">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <div className="font-medium text-gray-900">{gelin.isim}</div>
-                          <div className="text-sm text-gray-500 mt-1">
+                          <div className="font-medium text-stone-900">{gelin.isim}</div>
+                          <div className="text-sm text-stone-500 mt-1">
                             {new Date(gelin.tarih).toLocaleDateString('tr-TR', { 
                               day: 'numeric', 
                               month: 'long',
@@ -332,14 +332,14 @@ export default function GelinRaporlariPage() {
                         </div>
                         <div className="flex items-center gap-4">
                           <div className="text-sm">
-                            <span className="text-gray-500">Makyaj:</span>{' '}
+                            <span className="text-stone-500">Makyaj:</span>{' '}
                             <span className="font-medium">{gelin.makyaj}</span>
                           </div>
                           <div className="text-sm">
-                            <span className="text-gray-500">Türban:</span>{' '}
+                            <span className="text-stone-500">Türban:</span>{' '}
                             <span className="font-medium">{gelin.turban}</span>
                           </div>
-                          <div className="px-3 py-1 rounded-full text-xs font-medium bg-pink-100 text-pink-700">
+                          <div className="px-3 py-1 rounded-full text-xs font-medium bg-rose-100 text-rose-700">
                             {gelin.hizmetTuru}
                           </div>
                         </div>

@@ -167,26 +167,26 @@ export default function DuyurularPage() {
 
   if (loading || grupLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500"></div>
+      <div className="min-h-screen flex items-center justify-center bg-stone-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-stone-50">
       <Sidebar user={user} />
       
-      <div className="md:ml-64 pb-20 md:pb-0">
+      <div className="md:ml-56 pb-20 md:pb-0">
         <header className="bg-white border-b px-6 py-4 sticky top-0 z-30">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-xl font-bold text-gray-800">📢 Duyurular</h1>
-              <p className="text-sm text-gray-500">Ekip için önemli duyurular</p>
+              <h1 className="text-xl font-bold text-stone-800">📢 Duyurular</h1>
+              <p className="text-sm text-stone-500">Ekip için önemli duyurular</p>
             </div>
             <button
               onClick={() => setShowModal(true)}
-              className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition"
+              className="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
             >
               ➕ Yeni Duyuru
             </button>
@@ -196,10 +196,10 @@ export default function DuyurularPage() {
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => setActiveFilter("tumu")}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                 activeFilter === "tumu"
-                  ? "bg-gray-800 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  ? "bg-stone-800 text-white"
+                  : "bg-stone-100 text-stone-600 hover:bg-stone-200"
               }`}
             >
               Tümü ({counts.tumu})
@@ -210,10 +210,10 @@ export default function DuyurularPage() {
                 <button
                   key={grup.id}
                   onClick={() => setActiveFilter(grup.grupAdi)}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2 ${
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
                     activeFilter === grup.grupAdi
                       ? `${stiller.bg} text-white`
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      : "bg-stone-100 text-stone-600 hover:bg-stone-200"
                   }`}
                 >
                   <span className={`w-2 h-2 rounded-full ${activeFilter === grup.grupAdi ? "bg-white" : stiller.bg}`}></span>
@@ -226,12 +226,12 @@ export default function DuyurularPage() {
 
         <main className="p-6">
           {filteredAnnouncements.length === 0 ? (
-            <div className="bg-white rounded-2xl p-12 text-center text-gray-500 border border-gray-100">
+            <div className="bg-white rounded-lg p-12 text-center text-stone-500 border border-stone-100">
               <span className="text-5xl mb-4 block">📭</span>
               <p className="text-lg font-medium">
                 {activeFilter === "tumu" ? "Henüz duyuru yok" : `${activeFilter} grubunda duyuru yok`}
               </p>
-              <p className="text-sm text-gray-400 mt-2">Yeni duyuru eklemek için yukarıdaki butona tıklayın</p>
+              <p className="text-sm text-stone-400 mt-2">Yeni duyuru eklemek için yukarıdaki butona tıklayın</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -240,7 +240,7 @@ export default function DuyurularPage() {
                 return (
                   <div 
                     key={announcement.id}
-                    className={`bg-white rounded-2xl shadow-sm border overflow-hidden ${
+                    className={`bg-white rounded-lg shadow-sm border overflow-hidden ${
                       announcement.important 
                         ? 'border-red-300 ring-2 ring-red-100' 
                         : groupInfo.stiller.border
@@ -258,17 +258,17 @@ export default function DuyurularPage() {
                               🔥 ÖNEMLİ
                             </span>
                           )}
-                          <h3 className="text-lg font-semibold text-gray-800">{announcement.title}</h3>
+                          <h3 className="text-lg font-semibold text-stone-800">{announcement.title}</h3>
                         </div>
                         <button
                           onClick={() => handleDeleteAnnouncement(announcement.id)}
-                          className="text-gray-400 hover:text-red-500 transition text-lg"
+                          className="text-stone-400 hover:text-red-500 transition text-lg"
                         >
                           🗑️
                         </button>
                       </div>
-                      <p className="text-gray-600 mb-4 whitespace-pre-wrap">{announcement.content}</p>
-                      <div className="flex items-center justify-between text-sm text-gray-500">
+                      <p className="text-stone-600 mb-4 whitespace-pre-wrap">{announcement.content}</p>
+                      <div className="flex items-center justify-between text-sm text-stone-500">
                         <span className="flex items-center gap-1">
                           👤 {announcement.author}
                         </span>
@@ -288,13 +288,13 @@ export default function DuyurularPage() {
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowModal(false)}>
-          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6" onClick={e => e.stopPropagation()}>
-            <h3 className="text-xl font-bold text-gray-800 mb-4">📢 Yeni Duyuru</h3>
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6" onClick={e => e.stopPropagation()}>
+            <h3 className="text-xl font-bold text-stone-800 mb-4">📢 Yeni Duyuru</h3>
             
             <div className="space-y-4">
               {/* Grup Seçimi */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Grup</label>
+                <label className="block text-sm font-medium text-stone-700 mb-2">Grup</label>
                 <div className="flex flex-wrap gap-2">
                   {grupEtiketleri.map(grup => {
                     const stiller = getRenkStilleri(grup.renk);
@@ -303,10 +303,10 @@ export default function DuyurularPage() {
                         key={grup.id}
                         type="button"
                         onClick={() => setNewAnnouncement({...newAnnouncement, group: grup.grupAdi})}
-                        className={`px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2 ${
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
                           newAnnouncement.group === grup.grupAdi
                             ? `${stiller.bg} text-white`
-                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                            : "bg-stone-100 text-stone-600 hover:bg-stone-200"
                         }`}
                       >
                         <span className={`w-2 h-2 rounded-full ${newAnnouncement.group === grup.grupAdi ? "bg-white" : stiller.bg}`}></span>
@@ -318,23 +318,23 @@ export default function DuyurularPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Başlık</label>
+                <label className="block text-sm font-medium text-stone-700 mb-2">Başlık</label>
                 <input
                   type="text"
                   value={newAnnouncement.title}
                   onChange={(e) => setNewAnnouncement({...newAnnouncement, title: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
                   placeholder="Duyuru başlığı..."
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">İçerik</label>
+                <label className="block text-sm font-medium text-stone-700 mb-2">İçerik</label>
                 <textarea
                   value={newAnnouncement.content}
                   onChange={(e) => setNewAnnouncement({...newAnnouncement, content: e.target.value})}
                   rows={4}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
                   placeholder="Duyuru içeriği..."
                 />
               </div>
@@ -347,19 +347,19 @@ export default function DuyurularPage() {
                   onChange={(e) => setNewAnnouncement({...newAnnouncement, important: e.target.checked})}
                   className="rounded"
                 />
-                <label htmlFor="important" className="text-sm text-gray-700">🔥 Önemli duyuru olarak işaretle</label>
+                <label htmlFor="important" className="text-sm text-stone-700">🔥 Önemli duyuru olarak işaretle</label>
               </div>
 
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={handleAddAnnouncement}
-                  className="flex-1 bg-pink-500 hover:bg-pink-600 text-white py-2.5 rounded-xl font-medium transition"
+                  className="flex-1 bg-rose-500 hover:bg-rose-600 text-white py-2.5 rounded-lg font-medium transition"
                 >
                   Ekle
                 </button>
                 <button
                   onClick={() => setShowModal(false)}
-                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2.5 rounded-xl font-medium transition"
+                  className="flex-1 bg-stone-100 hover:bg-stone-200 text-stone-700 py-2.5 rounded-lg font-medium transition"
                 >
                   İptal
                 </button>

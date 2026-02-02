@@ -63,51 +63,51 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50 flex items-center justify-center p-4">
-      <div className="max-w-md w-full">
+    <div className="min-h-screen bg-[#fef7f0] flex items-center justify-center p-4">
+      <div className="max-w-sm w-full">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-gradient-to-br from-pink-200 to-purple-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <span className="text-4xl">💄</span>
+        <div className="text-center mb-6">
+          <div className="w-14 h-14 bg-amber-400 rounded-lg flex items-center justify-center mx-auto mb-3">
+            <span className="text-2xl">💄</span>
           </div>
-          <h1 className="text-3xl font-bold text-gray-800">GMT App</h1>
-          <p className="text-gray-500 mt-2">Gizem Yolcu Studio Yönetim Paneli</p>
+          <h1 className="text-xl font-semibold text-stone-800">GYS Studio</h1>
+          <p className="text-stone-500 text-xs mt-1">Gizem Yolcu Studio Yönetim Paneli</p>
         </div>
 
         {/* Login Form */}
-        <div className="bg-white rounded-3xl shadow-xl p-8">
-          <form onSubmit={handleLogin} className="space-y-6">
+        <div className="bg-white rounded-lg shadow-sm border border-stone-100 p-5">
+          <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">E-posta</label>
+              <label className="block text-xs font-medium text-stone-700 mb-1">E-posta</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition"
+                className="w-full px-3 py-2 rounded-lg border border-stone-200 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-300 transition text-sm"
                 placeholder="admin@gmt.com"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Şifre</label>
+              <label className="block text-xs font-medium text-stone-700 mb-1">Şifre</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition"
+                className="w-full px-3 py-2 rounded-lg border border-stone-200 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-300 transition text-sm"
                 placeholder="••••••••"
                 required
               />
             </div>
 
             {error && (
-              <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm text-center">
+              <div className="bg-red-50 text-red-600 p-2 rounded-lg text-xs text-center">
                 {error}
               </div>
             )}
 
             {success && (
-              <div className="bg-green-50 text-green-600 p-3 rounded-xl text-sm text-center">
+              <div className="bg-green-50 text-green-600 p-2 rounded-lg text-xs text-center">
                 {success}
               </div>
             )}
@@ -115,11 +115,11 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-pink-500 to-purple-500 text-white py-3 rounded-xl font-semibold hover:from-pink-600 hover:to-purple-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full bg-amber-400 text-stone-900 py-2 rounded-lg font-medium hover:bg-amber-500 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
             >
               {loading ? (
                 <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-stone-900"></div>
                   Giriş yapılıyor...
                 </>
               ) : (
@@ -131,7 +131,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => { setShowResetModal(true); setResetEmail(email); setError(""); setSuccess(""); }}
-              className="w-full text-pink-500 hover:text-pink-600 text-sm font-medium transition"
+              className="w-full text-stone-500 hover:text-stone-700 text-xs font-medium transition"
             >
               Şifremi Unuttum
             </button>
@@ -139,61 +139,61 @@ export default function LoginPage() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-gray-400 text-sm mt-6">
+        <p className="text-center text-stone-400 text-[10px] mt-4">
           © 2026 Gizem Yolcu Studio
         </p>
       </div>
 
       {/* Şifremi Unuttum Modal */}
       {showResetModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-gray-800">🔑 Şifre Sıfırlama</h3>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-sm w-full p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-stone-800">🔑 Şifre Sıfırlama</h3>
               <button 
                 onClick={() => { setShowResetModal(false); setError(""); }}
-                className="text-gray-400 hover:text-gray-600 text-2xl"
+                className="text-stone-400 hover:text-stone-600 text-xl"
               >
                 ×
               </button>
             </div>
 
-            <p className="text-gray-600 mb-4">
+            <p className="text-stone-600 text-xs mb-3">
               E-posta adresinizi girin, şifre sıfırlama talebinizi yöneticinize iletelim.
             </p>
 
-            <form onSubmit={handleResetPassword} className="space-y-4">
+            <form onSubmit={handleResetPassword} className="space-y-3">
               <input
                 type="email"
                 value={resetEmail}
                 onChange={(e) => setResetEmail(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition"
+                className="w-full px-3 py-2 rounded-lg border border-stone-200 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-300 transition text-sm"
                 placeholder="E-posta adresiniz"
                 required
               />
 
               {error && (
-                <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm text-center">
+                <div className="bg-red-50 text-red-600 p-2 rounded-lg text-xs text-center">
                   {error}
                 </div>
               )}
 
-              <div className="flex gap-3">
+              <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => { setShowResetModal(false); setError(""); }}
-                  className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition font-medium"
+                  className="flex-1 px-3 py-2 border border-stone-200 text-stone-700 rounded-lg hover:bg-stone-50 transition text-xs font-medium"
                 >
                   İptal
                 </button>
                 <button
                   type="submit"
                   disabled={resetLoading}
-                  className="flex-1 px-4 py-3 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 px-3 py-2 bg-amber-400 text-stone-900 rounded-lg hover:bg-amber-500 transition text-xs font-medium disabled:opacity-50 flex items-center justify-center gap-1"
                 >
                   {resetLoading ? (
                     <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-stone-900"></div>
                       Gönderiliyor...
                     </>
                   ) : (

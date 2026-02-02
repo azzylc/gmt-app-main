@@ -209,8 +209,8 @@ export default function GorevlerPage() {
       case "acil": return "border-red-500 bg-red-50";
       case "yuksek": return "border-orange-500 bg-orange-50";
       case "normal": return "border-blue-500 bg-blue-50";
-      case "dusuk": return "border-gray-500 bg-gray-50";
-      default: return "border-gray-300 bg-white";
+      case "dusuk": return "border-stone-500 bg-stone-50";
+      default: return "border-stone-300 bg-white";
     }
   };
 
@@ -219,8 +219,8 @@ export default function GorevlerPage() {
       case "bekliyor": return "bg-yellow-100 text-yellow-800";
       case "devam-ediyor": return "bg-blue-100 text-blue-800";
       case "tamamlandi": return "bg-green-100 text-green-800";
-      case "iptal": return "bg-gray-100 text-gray-800";
-      default: return "bg-gray-100 text-gray-800";
+      case "iptal": return "bg-stone-100 text-stone-800";
+      default: return "bg-stone-100 text-stone-800";
     }
   };
 
@@ -236,20 +236,20 @@ export default function GorevlerPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500"></div>
+      <div className="min-h-screen flex items-center justify-center bg-stone-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-stone-50 flex">
       <Sidebar user={user} />
-      <div className="flex-1 md:ml-64">
-        <header className="bg-white shadow-sm sticky top-0 z-10 border-b border-gray-200">
+      <div className="flex-1 md:ml-56">
+        <header className="bg-white shadow-sm sticky top-0 z-10 border-b border-stone-200">
           <div className="px-4 md:px-6 py-4">
-            <h1 className="text-xl md:text-2xl font-bold text-gray-800">✅ Görevlerim</h1>
-            <p className="text-sm text-gray-500 mt-1">Firestore Real-time</p>
+            <h1 className="text-xl md:text-2xl font-bold text-stone-800">✅ Görevlerim</h1>
+            <p className="text-sm text-stone-500 mt-1">Firestore Real-time</p>
           </div>
         </header>
 
@@ -260,8 +260,8 @@ export default function GorevlerPage() {
               onClick={() => setFiltre("hepsi")}
               className={`px-4 py-2 rounded-lg font-medium transition ${
                 filtre === "hepsi"
-                  ? "bg-pink-500 text-white"
-                  : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+                  ? "bg-rose-500 text-white"
+                  : "bg-white text-stone-600 hover:bg-stone-50 border border-stone-200"
               }`}
             >
               Hepsi ({gorevler.length})
@@ -270,8 +270,8 @@ export default function GorevlerPage() {
               onClick={() => setFiltre("bekliyor")}
               className={`px-4 py-2 rounded-lg font-medium transition ${
                 filtre === "bekliyor"
-                  ? "bg-pink-500 text-white"
-                  : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+                  ? "bg-rose-500 text-white"
+                  : "bg-white text-stone-600 hover:bg-stone-50 border border-stone-200"
               }`}
             >
               ⏳ Bekliyor ({gorevler.filter(g => g.durum === "bekliyor").length})
@@ -280,8 +280,8 @@ export default function GorevlerPage() {
               onClick={() => setFiltre("devam-ediyor")}
               className={`px-4 py-2 rounded-lg font-medium transition ${
                 filtre === "devam-ediyor"
-                  ? "bg-pink-500 text-white"
-                  : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+                  ? "bg-rose-500 text-white"
+                  : "bg-white text-stone-600 hover:bg-stone-50 border border-stone-200"
               }`}
             >
               🔄 Devam Ediyor ({gorevler.filter(g => g.durum === "devam-ediyor").length})
@@ -290,8 +290,8 @@ export default function GorevlerPage() {
               onClick={() => setFiltre("tamamlandi")}
               className={`px-4 py-2 rounded-lg font-medium transition ${
                 filtre === "tamamlandi"
-                  ? "bg-pink-500 text-white"
-                  : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+                  ? "bg-rose-500 text-white"
+                  : "bg-white text-stone-600 hover:bg-stone-50 border border-stone-200"
               }`}
             >
               ✅ Tamamlandı ({gorevler.filter(g => g.durum === "tamamlandi").length})
@@ -301,21 +301,21 @@ export default function GorevlerPage() {
           {/* Görev Listesi */}
           <div className="space-y-4">
             {filtreliGorevler.length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-2xl shadow-sm border border-gray-100">
+              <div className="text-center py-12 bg-white rounded-lg shadow-sm border border-stone-100">
                 <span className="text-6xl">📋</span>
-                <p className="text-gray-500 mt-4">Henüz görev yok</p>
+                <p className="text-stone-500 mt-4">Henüz görev yok</p>
               </div>
             ) : (
               filtreliGorevler.map((gorev) => (
                 <div
                   key={gorev.id}
-                  className={`bg-white rounded-xl shadow-sm border-2 p-4 md:p-5 transition hover:shadow-md ${oncelikRenk(gorev.oncelik)}`}
+                  className={`bg-white rounded-lg shadow-sm border-2 p-4 md:p-5 transition hover:shadow-md ${oncelikRenk(gorev.oncelik)}`}
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       {/* Başlık + Otomatik Badge */}
                       <div className="flex items-start gap-2 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-800 flex-1">{gorev.baslik}</h3>
+                        <h3 className="text-lg font-semibold text-stone-800 flex-1">{gorev.baslik}</h3>
                         {gorev.otomatikMi && (
                           <span className="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full font-medium shrink-0">
                             🤖 Otomatik
@@ -324,10 +324,10 @@ export default function GorevlerPage() {
                       </div>
 
                       {/* Açıklama */}
-                      <p className="text-sm text-gray-600 mb-3">{gorev.aciklama}</p>
+                      <p className="text-sm text-stone-600 mb-3">{gorev.aciklama}</p>
 
                       {/* Meta Bilgiler */}
-                      <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-stone-500">
                         <div className="flex items-center gap-1">
                           <span>👤</span>
                           <span>
@@ -345,7 +345,7 @@ export default function GorevlerPage() {
                         {gorev.gelinId && (
                           <div className="flex items-center gap-1">
                             <span>💄</span>
-                            <span className="text-pink-600">Gelin görevi</span>
+                            <span className="text-rose-600">Gelin görevi</span>
                           </div>
                         )}
                       </div>
@@ -380,7 +380,7 @@ export default function GorevlerPage() {
                     {gorev.durum !== "tamamlandi" && (
                       <button
                         onClick={() => handleDurumDegistir(gorev.id, "iptal")}
-                        className="px-4 py-2 bg-gray-400 text-white rounded-lg text-sm font-medium hover:bg-gray-500 transition"
+                        className="px-4 py-2 bg-stone-400 text-white rounded-lg text-sm font-medium hover:bg-stone-500 transition"
                       >
                         ❌ İptal Et
                       </button>

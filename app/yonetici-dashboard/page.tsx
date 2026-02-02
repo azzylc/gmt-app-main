@@ -462,22 +462,22 @@ export default function YoneticiDashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500"></div>
+      <div className="min-h-screen flex items-center justify-center bg-stone-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500"></div>
       </div>
     );
   }
 
   if (yetkisiz) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-stone-50">
         <div className="text-center">
           <span className="text-6xl">🚫</span>
-          <h2 className="text-2xl font-bold text-gray-800 mt-4">Yetkisiz Erişim</h2>
-          <p className="text-gray-600 mt-2">Bu sayfaya erişim yetkiniz yok.</p>
+          <h2 className="text-2xl font-bold text-stone-800 mt-4">Yetkisiz Erişim</h2>
+          <p className="text-stone-600 mt-2">Bu sayfaya erişim yetkiniz yok.</p>
           <button
             onClick={() => router.push("/")}
-            className="mt-6 px-6 py-3 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition"
+            className="mt-6 px-6 py-3 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition"
           >
             Ana Sayfaya Dön
           </button>
@@ -487,43 +487,43 @@ export default function YoneticiDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-stone-50">
       <Sidebar user={user} />
       <div className="lg:ml-64">
         <main className="p-4 md:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
             {/* Başlık */}
             <div className="mb-6">
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-3">
+              <h1 className="text-2xl md:text-3xl font-bold text-stone-800 flex items-center gap-3">
                 <span>👔</span> Yönetici Dashboard
               </h1>
-              <p className="text-gray-600 mt-1">Ekibinizi yönetin ve performansı takip edin (Firestore Real-time)</p>
+              <p className="text-stone-600 mt-1">Ekibinizi yönetin ve performansı takip edin (Firestore Real-time)</p>
             </div>
 
             {/* Ekip Performans Özeti */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+              <div className="bg-white rounded-lg p-5 shadow-sm border border-stone-100">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-2xl">👥</span>
-                  <span className="text-xs text-gray-500">Bu Ay</span>
+                  <span className="text-xs text-stone-500">Bu Ay</span>
                 </div>
-                <p className="text-3xl font-bold text-pink-600">{ekipIstatistikleri.toplamGelin}</p>
-                <p className="text-sm text-gray-600 mt-1">Toplam Gelin</p>
+                <p className="text-3xl font-bold text-rose-600">{ekipIstatistikleri.toplamGelin}</p>
+                <p className="text-sm text-stone-600 mt-1">Toplam Gelin</p>
               </div>
 
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+              <div className="bg-white rounded-lg p-5 shadow-sm border border-stone-100">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-2xl">📊</span>
-                  <span className="text-xs text-gray-500">Ortalama</span>
+                  <span className="text-xs text-stone-500">Ortalama</span>
                 </div>
                 <p className="text-3xl font-bold text-blue-600">{ekipIstatistikleri.ortalamaGelin}</p>
-                <p className="text-sm text-gray-600 mt-1">Gelin/Personel</p>
+                <p className="text-sm text-stone-600 mt-1">Gelin/Personel</p>
               </div>
 
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+              <div className="bg-white rounded-lg p-5 shadow-sm border border-stone-100">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-2xl">🏆</span>
-                  <span className="text-xs text-gray-500">En Çok</span>
+                  <span className="text-xs text-stone-500">En Çok</span>
                 </div>
                 <p className="text-2xl font-bold text-green-600">
                   {ekipIstatistikleri.enCokHazırlayan 
@@ -531,7 +531,7 @@ export default function YoneticiDashboardPage() {
                     : '-'
                   }
                 </p>
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="text-sm text-stone-600 mt-1">
                   {ekipIstatistikleri.enCokHazırlayan 
                     ? `${ekipIstatistikleri.enCokHazırlayan.buAyGelinSayisi} gelin`
                     : 'Veri yok'
@@ -539,28 +539,28 @@ export default function YoneticiDashboardPage() {
                 </p>
               </div>
 
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+              <div className="bg-white rounded-lg p-5 shadow-sm border border-stone-100">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-2xl">⏰</span>
-                  <span className="text-xs text-gray-500">Bu Hafta</span>
+                  <span className="text-xs text-stone-500">Bu Hafta</span>
                 </div>
                 <p className="text-3xl font-bold text-purple-600">{ekipIstatistikleri.toplamCalismaSaat}</p>
-                <p className="text-sm text-gray-600 mt-1">Toplam Saat</p>
+                <p className="text-sm text-stone-600 mt-1">Toplam Saat</p>
               </div>
             </div>
 
             {/* Ekip Listesi */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <div className="bg-white rounded-lg p-6 shadow-sm border border-stone-100">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <h2 className="text-xl font-bold text-stone-800 flex items-center gap-2">
                   <span>👥</span> Ekibim ({ekipUyeleri.length} Kişi)
                 </h2>
               </div>
 
               {dataLoading ? (
-                <div className="text-center py-8 text-gray-500">Yükleniyor...</div>
+                <div className="text-center py-8 text-stone-500">Yükleniyor...</div>
               ) : ekipUyeleri.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">
+                <div className="text-center py-12 text-stone-500">
                   <span className="text-6xl">📭</span>
                   <p className="mt-4 text-lg font-medium">Henüz ekip üyeniz yok</p>
                   <p className="text-sm mt-2">Personel sayfasından personellere kendinizi yönetici olarak atayın</p>
@@ -572,16 +572,16 @@ export default function YoneticiDashboardPage() {
                     .map((uye) => (
                       <div
                         key={uye.id}
-                        className={`p-5 rounded-xl border-2 transition ${
+                        className={`p-5 rounded-lg border-2 transition ${
                           uye.aktif 
-                            ? 'bg-white border-gray-200 hover:border-pink-300' 
-                            : 'bg-gray-50 border-gray-100 opacity-60'
+                            ? 'bg-white border-stone-200 hover:border-rose-300' 
+                            : 'bg-stone-50 border-stone-100 opacity-60'
                         }`}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-3">
-                              <h3 className="text-lg font-bold text-gray-800">
+                              <h3 className="text-lg font-bold text-stone-800">
                                 {uye.ad} {uye.soyad}
                               </h3>
                               <span className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -597,28 +597,28 @@ export default function YoneticiDashboardPage() {
                             </div>
 
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                              <div className="bg-pink-50 rounded-lg p-3">
-                                <p className="text-xs text-pink-600 mb-1">Bu Ay</p>
-                                <p className="text-2xl font-bold text-pink-700">{uye.buAyGelinSayisi}</p>
-                                <p className="text-xs text-gray-600">gelin</p>
+                              <div className="bg-rose-50 rounded-lg p-3">
+                                <p className="text-xs text-rose-600 mb-1">Bu Ay</p>
+                                <p className="text-2xl font-bold text-rose-700">{uye.buAyGelinSayisi}</p>
+                                <p className="text-xs text-stone-600">gelin</p>
                               </div>
 
                               <div className="bg-blue-50 rounded-lg p-3">
                                 <p className="text-xs text-blue-600 mb-1">Toplam</p>
                                 <p className="text-2xl font-bold text-blue-700">{uye.toplamGelinSayisi}</p>
-                                <p className="text-xs text-gray-600">gelin</p>
+                                <p className="text-xs text-stone-600">gelin</p>
                               </div>
 
                               <div className="bg-green-50 rounded-lg p-3">
                                 <p className="text-xs text-green-600 mb-1">Bu Hafta</p>
                                 <p className="text-2xl font-bold text-green-700">{uye.buHaftaCalismaGun}</p>
-                                <p className="text-xs text-gray-600">gün</p>
+                                <p className="text-xs text-stone-600">gün</p>
                               </div>
 
                               <div className="bg-purple-50 rounded-lg p-3">
                                 <p className="text-xs text-purple-600 mb-1">Çalışma</p>
                                 <p className="text-lg font-bold text-purple-700">{formatSaat(uye.buHaftaCalismadakika)}</p>
-                                <p className="text-xs text-gray-600">bu hafta</p>
+                                <p className="text-xs text-stone-600">bu hafta</p>
                               </div>
                             </div>
                           </div>
@@ -626,13 +626,13 @@ export default function YoneticiDashboardPage() {
                           <div className="flex flex-col gap-2 ml-4">
                             <button 
                               onClick={() => handleGorevVerClick(uye)}
-                              className="px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition text-sm font-medium whitespace-nowrap"
+                              className="px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition text-sm font-medium whitespace-nowrap"
                             >
                               📋 Görev Ver
                             </button>
                             <button 
                               onClick={() => router.push(`/personel?id=${uye.id}`)}
-                              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-sm font-medium whitespace-nowrap"
+                              className="px-4 py-2 bg-stone-100 text-stone-700 rounded-lg hover:bg-stone-200 transition text-sm font-medium whitespace-nowrap"
                             >
                               👁️ Detay
                             </button>
@@ -645,15 +645,15 @@ export default function YoneticiDashboardPage() {
             </div>
 
             {/* Bekleyen İzin Talepleri Paneli */}
-            <div className="mt-6 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <div className="mt-6 bg-white rounded-lg p-6 shadow-sm border border-stone-100">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <h2 className="text-xl font-bold text-stone-800 flex items-center gap-2">
                   <span>🏖️</span> Bekleyen İzin Talepleri ({bekleyenIzinTalepleri.length})
                 </h2>
               </div>
 
               {bekleyenIzinTalepleri.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-stone-500">
                   <span className="text-4xl">✅</span>
                   <p className="mt-3 font-medium">Bekleyen izin talebi yok</p>
                 </div>
@@ -666,12 +666,12 @@ export default function YoneticiDashboardPage() {
                     return (
                       <div
                         key={talep.id}
-                        className="p-4 rounded-xl border-2 border-amber-200 bg-amber-50 transition hover:shadow-md"
+                        className="p-4 rounded-lg border-2 border-amber-200 bg-amber-50 transition hover:shadow-md"
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2 flex-wrap">
-                              <h3 className="font-bold text-gray-800">
+                              <h3 className="font-bold text-stone-800">
                                 {talep.personelAd} {talep.personelSoyad}
                               </h3>
                               {personelFirmalar.map(firma => firma && (
@@ -683,11 +683,11 @@ export default function YoneticiDashboardPage() {
                                 ⏳ Beklemede
                               </span>
                             </div>
-                            <div className="text-sm text-gray-600 space-y-1">
+                            <div className="text-sm text-stone-600 space-y-1">
                               <p><strong>İzin Türü:</strong> {talep.izinTuru}</p>
                               <p><strong>Tarih:</strong> {new Date(talep.baslangic).toLocaleDateString('tr-TR')} - {new Date(talep.bitis).toLocaleDateString('tr-TR')} ({talep.gunSayisi} gün)</p>
                               {talep.aciklama && <p><strong>Açıklama:</strong> {talep.aciklama}</p>}
-                              <p className="text-xs text-gray-400">Talep: {new Date(talep.talepTarihi).toLocaleDateString('tr-TR')}</p>
+                              <p className="text-xs text-stone-400">Talep: {new Date(talep.talepTarihi).toLocaleDateString('tr-TR')}</p>
                             </div>
                           </div>
                           <div className="flex gap-2 ml-4">
@@ -713,15 +713,15 @@ export default function YoneticiDashboardPage() {
             </div>
 
             {/* Görevler Paneli */}
-            <div className="mt-6 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <div className="mt-6 bg-white rounded-lg p-6 shadow-sm border border-stone-100">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <h2 className="text-xl font-bold text-stone-800 flex items-center gap-2">
                   <span>📋</span> Atanan Görevler ({gorevler.length})
                 </h2>
               </div>
 
               {gorevler.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">
+                <div className="text-center py-12 text-stone-500">
                   <span className="text-6xl">📝</span>
                   <p className="mt-4 text-lg font-medium">Henüz görev atanmamış</p>
                   <p className="text-sm mt-2">Ekip üyelerinize görev vermek için yukarıdaki "Görev Ver" butonunu kullanın</p>
@@ -733,14 +733,14 @@ export default function YoneticiDashboardPage() {
                       acil: "border-red-300 bg-red-50",
                       yuksek: "border-orange-300 bg-orange-50",
                       normal: "border-blue-300 bg-blue-50",
-                      dusuk: "border-gray-300 bg-gray-50"
+                      dusuk: "border-stone-300 bg-stone-50"
                     }[gorev.oncelik];
 
                     const durumRenk = {
                       bekliyor: "bg-yellow-100 text-yellow-700",
                       "devam-ediyor": "bg-blue-100 text-blue-700",
                       tamamlandi: "bg-green-100 text-green-700",
-                      iptal: "bg-gray-100 text-gray-700"
+                      iptal: "bg-stone-100 text-stone-700"
                     }[gorev.durum];
 
                     const durumText = {
@@ -753,23 +753,23 @@ export default function YoneticiDashboardPage() {
                     return (
                       <div
                         key={gorev.id}
-                        className={`p-4 rounded-xl border-2 ${oncelikRenk} transition hover:shadow-md`}
+                        className={`p-4 rounded-lg border-2 ${oncelikRenk} transition hover:shadow-md`}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
-                              <h3 className="font-bold text-gray-800">{gorev.baslik}</h3>
+                              <h3 className="font-bold text-stone-800">{gorev.baslik}</h3>
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${durumRenk}`}>
                                 {durumText}
                               </span>
                             </div>
                             {gorev.aciklama && (
-                              <p className="text-sm text-gray-600 mb-2">{gorev.aciklama}</p>
+                              <p className="text-sm text-stone-600 mb-2">{gorev.aciklama}</p>
                             )}
-                            <div className="flex items-center gap-4 text-xs text-gray-500">
+                            <div className="flex items-center gap-4 text-xs text-stone-500">
                               <span>👤 {gorev.atananAd}</span>
                               <span>📅 {new Date(gorev.olusturulmaTarihi).toLocaleDateString('tr-TR')}</span>
-                              <span className="font-medium text-gray-700">
+                              <span className="font-medium text-stone-700">
                                 {gorev.oncelik === "acil" && "🔴 Acil"}
                                 {gorev.oncelik === "yuksek" && "🟡 Yüksek"}
                                 {gorev.oncelik === "normal" && "🔵 Normal"}
@@ -791,9 +791,9 @@ export default function YoneticiDashboardPage() {
       {/* Görev Atama Modal'ı */}
       {gorevModalOpen && seciliPersonel && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-gray-800">
+              <h3 className="text-xl font-bold text-stone-800">
                 📋 Yeni Görev - {seciliPersonel.ad} {seciliPersonel.soyad}
               </h3>
               <button 
@@ -802,7 +802,7 @@ export default function YoneticiDashboardPage() {
                   setSeciliPersonel(null);
                   setGorevFormu({ baslik: "", aciklama: "", oncelik: "normal" });
                 }}
-                className="text-gray-400 hover:text-gray-600 text-3xl"
+                className="text-stone-400 hover:text-stone-600 text-3xl"
               >
                 ×
               </button>
@@ -811,7 +811,7 @@ export default function YoneticiDashboardPage() {
             <div className="space-y-4">
               {/* Görev Başlığı */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-stone-700 mb-2">
                   Görev Başlığı *
                 </label>
                 <input
@@ -819,32 +819,32 @@ export default function YoneticiDashboardPage() {
                   value={gorevFormu.baslik}
                   onChange={(e) => setGorevFormu({ ...gorevFormu, baslik: e.target.value })}
                   placeholder="Örn: Betül gelini hazırla"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
                   autoFocus
                 />
               </div>
 
               {/* Görev Açıklaması */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Açıklama <span className="text-gray-400">(Opsiyonel)</span>
+                <label className="block text-sm font-medium text-stone-700 mb-2">
+                  Açıklama <span className="text-stone-400">(Opsiyonel)</span>
                 </label>
                 <textarea
                   value={gorevFormu.aciklama}
                   onChange={(e) => setGorevFormu({ ...gorevFormu, aciklama: e.target.value })}
                   placeholder="Görev detaylarını buraya yazın..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 h-24 resize-none"
+                  className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 h-24 resize-none"
                 />
               </div>
 
               {/* Öncelik Seçimi */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-stone-700 mb-2">
                   Öncelik Seviyesi
                 </label>
                 <div className="grid grid-cols-4 gap-2">
                   {[
-                    { value: "dusuk", label: "Düşük", color: "bg-gray-100 text-gray-700 hover:bg-gray-200" },
+                    { value: "dusuk", label: "Düşük", color: "bg-stone-100 text-stone-700 hover:bg-stone-200" },
                     { value: "normal", label: "Normal", color: "bg-blue-100 text-blue-700 hover:bg-blue-200" },
                     { value: "yuksek", label: "Yüksek", color: "bg-orange-100 text-orange-700 hover:bg-orange-200" },
                     { value: "acil", label: "Acil", color: "bg-red-100 text-red-700 hover:bg-red-200" }
@@ -856,7 +856,7 @@ export default function YoneticiDashboardPage() {
                       className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
                         gorevFormu.oncelik === value
                           ? color.replace('hover:', '')
-                          : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                          : 'bg-stone-50 text-stone-600 hover:bg-stone-100'
                       }`}
                     >
                       {label}
@@ -871,7 +871,7 @@ export default function YoneticiDashboardPage() {
               <button
                 onClick={handleGorevKaydet}
                 disabled={gorevKaydediliyor || !gorevFormu.baslik.trim()}
-                className="flex-1 px-4 py-3 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-3 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {gorevKaydediliyor ? "Kaydediliyor..." : "✅ Görevi Ata"}
               </button>
@@ -881,7 +881,7 @@ export default function YoneticiDashboardPage() {
                   setSeciliPersonel(null);
                   setGorevFormu({ baslik: "", aciklama: "", oncelik: "normal" });
                 }}
-                className="px-4 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition font-medium"
+                className="px-4 py-3 bg-stone-200 text-stone-700 rounded-lg hover:bg-stone-300 transition font-medium"
               >
                 İptal
               </button>

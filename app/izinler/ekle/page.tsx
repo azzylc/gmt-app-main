@@ -198,12 +198,12 @@ export default function IzinEkle() {
     <div className="flex min-h-screen bg-neutral-warm">
       <Sidebar user={user} />
 
-      <main className="flex-1 p-4 lg:p-6 md:ml-64 pb-20 md:pb-0">
+      <main className="flex-1 p-4 lg:p-6 md:ml-56 pb-20 md:pb-0">
         {/* Header */}
         <div className="mb-6 flex items-start justify-between">
           <div>
-            <h1 className="text-xl font-bold text-gray-800">İzin Ekle</h1>
-            <p className="text-sm text-gray-500">
+            <h1 className="text-xl font-bold text-stone-800">İzin Ekle</h1>
+            <p className="text-sm text-stone-500">
               Bu sayfada kullanıcılarınıza izin tanımlayabilir / ekleyebilirsiniz.
             </p>
           </div>
@@ -237,9 +237,9 @@ export default function IzinEkle() {
         </div>
 
         {/* Form Card */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100" onKeyDown={handleKeyDown}>
+        <div className="bg-white rounded-lg shadow-sm border border-stone-100" onKeyDown={handleKeyDown}>
           {/* Tab Header */}
-          <div className="border-b border-gray-100 px-6 pt-4">
+          <div className="border-b border-stone-100 px-6 pt-4">
             <div className="inline-block">
               <span className="text-primary-500 font-medium text-sm pb-3 block border-b-2 border-primary-500">
                 Genel
@@ -251,13 +251,13 @@ export default function IzinEkle() {
           <div className="p-6 space-y-6">
             {/* Kullanıcı */}
             <div className="grid grid-cols-[200px_1fr] items-center gap-4">
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-stone-700">
                 Kullanıcı <span className="text-red-500">(*)</span>
               </label>
               <select
                 value={selectedPersonel}
                 onChange={(e) => setSelectedPersonel(e.target.value)}
-                className="w-full max-w-md px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                className="w-full max-w-md px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
               >
                 <option value="">- Seçiniz -</option>
                 {personeller.map((personel) => (
@@ -270,13 +270,13 @@ export default function IzinEkle() {
 
             {/* İzin Türü */}
             <div className="grid grid-cols-[200px_1fr] items-center gap-4">
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-stone-700">
                 İzin Türü <span className="text-red-500">(*)</span>
               </label>
               <select
                 value={izinTuru}
                 onChange={(e) => setIzinTuru(e.target.value)}
-                className="w-full max-w-md px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                className="w-full max-w-md px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
               >
                 <option value="Yıllık İzin">Yıllık İzin</option>
                 <option value="Haftalık İzin">Haftalık İzin</option>
@@ -288,37 +288,37 @@ export default function IzinEkle() {
 
             {/* Başlangıç */}
             <div className="grid grid-cols-[200px_1fr] items-center gap-4">
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-stone-700">
                 Başlangıç (Dahil) <span className="text-red-500">(*)</span>
-                <span className="block text-xs text-gray-400 font-normal">İzin başlangıç günü dahildir</span>
+                <span className="block text-xs text-stone-400 font-normal">İzin başlangıç günü dahildir</span>
               </label>
               <input
                 type="date"
                 value={baslangic}
                 onChange={(e) => setBaslangic(e.target.value)}
-                className="w-full max-w-md px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                className="w-full max-w-md px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
               />
             </div>
 
             {/* Bitiş */}
             <div className="grid grid-cols-[200px_1fr] items-center gap-4">
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-stone-700">
                 Bitiş (Dahil)
-                <span className="block text-xs text-gray-400 font-normal">İzin bitiş günü dahildir</span>
+                <span className="block text-xs text-stone-400 font-normal">İzin bitiş günü dahildir</span>
               </label>
               <input
                 type="date"
                 value={bitis}
                 onChange={(e) => setBitis(e.target.value)}
-                className="w-full max-w-md px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                className="w-full max-w-md px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
               />
             </div>
 
             {/* Gün Sayısı Gösterimi */}
             {baslangic && bitis && (
               <div className="grid grid-cols-[200px_1fr] items-center gap-4">
-                <label className="text-sm font-medium text-gray-700">Toplam Gün</label>
-                <div className="px-3 py-2 bg-gray-50 rounded-lg text-sm font-semibold text-primary-600 w-fit">
+                <label className="text-sm font-medium text-stone-700">Toplam Gün</label>
+                <div className="px-3 py-2 bg-stone-50 rounded-lg text-sm font-semibold text-primary-600 w-fit">
                   {hesaplaGunSayisi()} gün
                 </div>
               </div>
@@ -326,7 +326,7 @@ export default function IzinEkle() {
 
             {/* Kısa Açıklama */}
             <div className="grid grid-cols-[200px_1fr] items-start gap-4">
-              <label className="text-sm font-medium text-gray-700 pt-2">
+              <label className="text-sm font-medium text-stone-700 pt-2">
                 Kısa Açıklama
               </label>
               <textarea
@@ -334,7 +334,7 @@ export default function IzinEkle() {
                 onChange={(e) => setAciklama(e.target.value)}
                 placeholder="Örn: Yıllık izin kullanımı"
                 rows={4}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 resize-y"
+                className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 resize-y"
               />
             </div>
           </div>

@@ -166,41 +166,41 @@ export default function ManuelIslemEklePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500"></div>
+      <div className="min-h-screen flex items-center justify-center bg-stone-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-stone-50">
       <Sidebar user={user} />
 
-      <div className="md:ml-64 pb-20 md:pb-0">
+      <div className="md:ml-56 pb-20 md:pb-0">
         <header className="bg-white border-b px-4 md:px-6 py-4 sticky top-0 z-30">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h1 className="text-xl font-bold text-gray-800">Manuel İşlem Ekle</h1>
-              <p className="text-sm text-gray-500 mt-1">Bu sayfada, manuel olarak bir giriş - çıkış kaydı ekleyebilirsiniz.</p>
+              <h1 className="text-xl font-bold text-stone-800">Manuel İşlem Ekle</h1>
+              <p className="text-sm text-stone-500 mt-1">Bu sayfada, manuel olarak bir giriş - çıkış kaydı ekleyebilirsiniz.</p>
             </div>
             <div className="hidden md:flex gap-2">
               <button
                 onClick={handleSaveAndBack}
                 disabled={saving}
-                className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 disabled:opacity-50"
+                className="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 disabled:opacity-50"
               >
                 💾 Kaydet & Geri dön
               </button>
               <button
                 onClick={handleSaveAndNew}
                 disabled={saving}
-                className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 disabled:opacity-50"
+                className="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 disabled:opacity-50"
               >
                 ➕ Kaydet & Yeni ekle
               </button>
               <button
                 onClick={() => router.push("/giris-cikis/islem-listesi")}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2"
+                className="bg-stone-100 hover:bg-stone-200 text-stone-700 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2"
               >
                 ↩️ Geri dön
               </button>
@@ -210,15 +210,15 @@ export default function ManuelIslemEklePage() {
 
         <main className="p-4 md:p-6">
           <div className="max-w-2xl mx-auto">
-            <div className="bg-white rounded-xl shadow-sm border p-6">
+            <div className="bg-white rounded-lg shadow-sm border p-6">
               <div className="space-y-6">
                 {/* Kullanıcı Adı */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Kullanıcı Adı</label>
+                  <label className="block text-sm font-medium text-stone-700 mb-2">Kullanıcı Adı</label>
                   <select
                     value={seciliPersonel}
                     onChange={(e) => setSeciliPersonel(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                    className="w-full px-4 py-3 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
                   >
                     <option value="">- Seçiniz -</option>
                     {personeller.map(p => (
@@ -229,11 +229,11 @@ export default function ManuelIslemEklePage() {
 
                 {/* Konum */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Konum</label>
+                  <label className="block text-sm font-medium text-stone-700 mb-2">Konum</label>
                   <select
                     value={seciliKonum}
                     onChange={(e) => setSeciliKonum(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                    className="w-full px-4 py-3 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
                   >
                     <option value="">- Seçiniz -</option>
                     {konumlar.map(k => (
@@ -244,22 +244,22 @@ export default function ManuelIslemEklePage() {
 
                 {/* Tarih */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Tarih</label>
+                  <label className="block text-sm font-medium text-stone-700 mb-2">Tarih</label>
                   <input
                     type="datetime-local"
                     value={tarih}
                     onChange={(e) => setTarih(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                    className="w-full px-4 py-3 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
                   />
                 </div>
 
                 {/* Kayıt Türü */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Kayıt Türü</label>
+                  <label className="block text-sm font-medium text-stone-700 mb-2">Kayıt Türü</label>
                   <select
                     value={kayitTuru}
                     onChange={(e) => setKayitTuru(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                    className="w-full px-4 py-3 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
                   >
                     <option value="giris">Giriş</option>
                     <option value="cikis">Çıkış</option>
@@ -268,13 +268,13 @@ export default function ManuelIslemEklePage() {
 
                 {/* Mazeret */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Mazeret</label>
+                  <label className="block text-sm font-medium text-stone-700 mb-2">Mazeret</label>
                   <textarea
                     value={mazeret}
                     onChange={(e) => setMazeret(e.target.value)}
                     placeholder="Mazeret notu girin (opsiyonel)..."
                     rows={3}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 resize-none"
+                    className="w-full px-4 py-3 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 resize-none"
                   />
                 </div>
 
@@ -283,20 +283,20 @@ export default function ManuelIslemEklePage() {
                   <button
                     onClick={handleSaveAndBack}
                     disabled={saving}
-                    className="flex-1 bg-pink-500 hover:bg-pink-600 text-white px-4 py-3 rounded-lg font-medium transition disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="flex-1 bg-rose-500 hover:bg-rose-600 text-white px-4 py-3 rounded-lg font-medium transition disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {saving ? "Kaydediliyor..." : "💾 Kaydet & Geri dön"}
                   </button>
                   <button
                     onClick={handleSaveAndNew}
                     disabled={saving}
-                    className="flex-1 bg-pink-500 hover:bg-pink-600 text-white px-4 py-3 rounded-lg font-medium transition disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="flex-1 bg-rose-500 hover:bg-rose-600 text-white px-4 py-3 rounded-lg font-medium transition disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {saving ? "Kaydediliyor..." : "➕ Kaydet & Yeni ekle"}
                   </button>
                   <button
                     onClick={() => router.push("/giris-cikis/islem-listesi")}
-                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-lg font-medium transition flex items-center justify-center gap-2"
+                    className="flex-1 bg-stone-100 hover:bg-stone-200 text-stone-700 px-4 py-3 rounded-lg font-medium transition flex items-center justify-center gap-2"
                   >
                     ↩️ Geri dön
                   </button>

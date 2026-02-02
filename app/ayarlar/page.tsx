@@ -622,21 +622,21 @@ export default function AyarlarPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500"></div>
+      <div className="min-h-screen flex items-center justify-center bg-stone-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-stone-50">
       <Sidebar user={user} />
       
-      <div className="md:ml-64 pb-20 md:pb-0">
+      <div className="md:ml-56 pb-20 md:pb-0">
         <header className="bg-white border-b px-6 py-4 sticky top-0 z-30">
           <div>
-            <h1 className="text-xl font-bold text-gray-800">⚙️ Ayarlar</h1>
-            <p className="text-sm text-gray-500">Sistem ayarlarını yönetin</p>
+            <h1 className="text-xl font-bold text-stone-800">⚙️ Ayarlar</h1>
+            <p className="text-sm text-stone-500">Sistem ayarlarını yönetin</p>
           </div>
         </header>
 
@@ -649,8 +649,8 @@ export default function AyarlarPage() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-6 py-3 text-sm font-medium transition ${
                   activeTab === tab.id
-                    ? 'text-pink-600 border-b-2 border-pink-600'
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'text-rose-600 border-b-2 border-rose-600'
+                    : 'text-stone-500 hover:text-stone-700'
                 }`}
               >
                 {tab.label}
@@ -664,35 +664,35 @@ export default function AyarlarPage() {
           {activeTab === 0 && (
             <div className="space-y-6">
               {/* Şirket Ayarları */}
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <div className="bg-white rounded-lg p-6 shadow-sm border border-stone-100">
+                <h2 className="text-lg font-bold text-stone-800 mb-4 flex items-center gap-2">
                   <span>🏢</span> Şirket Ayarları
                 </h2>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Şirket Adı</label>
+                    <label className="block text-sm font-medium text-stone-700 mb-1">Şirket Adı</label>
                     <input 
                       type="text" 
                       value={genelAyarlar.sirketAdi} 
                       onChange={(e) => setGenelAyarlar({...genelAyarlar, sirketAdi: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500" 
+                      className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" 
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Yönetici Bilgileri</label>
+                    <label className="block text-sm font-medium text-stone-700 mb-1">Yönetici Bilgileri</label>
                     <textarea 
                       rows={2} 
                       value={genelAyarlar.yoneticiInfo}
                       onChange={(e) => setGenelAyarlar({...genelAyarlar, yoneticiInfo: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500" 
+                      className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" 
                     />
                   </div>
                 </div>
               </div>
 
               {/* İzin Ayarları */}
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <div className="bg-white rounded-lg p-6 shadow-sm border border-stone-100">
+                <h2 className="text-lg font-bold text-stone-800 mb-4 flex items-center gap-2">
                   <span>🏖️</span> İzin Ayarları
                 </h2>
                 <div className="space-y-4">
@@ -701,11 +701,11 @@ export default function AyarlarPage() {
                       type="checkbox" 
                       checked={genelAyarlar.haftaSonuIzinDahil}
                       onChange={(e) => setGenelAyarlar({...genelAyarlar, haftaSonuIzinDahil: e.target.checked})}
-                      className="w-5 h-5 text-pink-600 rounded mt-1" 
+                      className="w-5 h-5 text-rose-600 rounded mt-1" 
                     />
                     <div>
-                      <p className="text-sm font-medium text-gray-700">Hafta sonu günleri izin hesaplamalarına dahil</p>
-                      <p className="text-xs text-gray-500">Cumartesi ve Pazar günleri izin hesabına dahil edilsin mi?</p>
+                      <p className="text-sm font-medium text-stone-700">Hafta sonu günleri izin hesaplamalarına dahil</p>
+                      <p className="text-xs text-stone-500">Cumartesi ve Pazar günleri izin hesabına dahil edilsin mi?</p>
                     </div>
                   </label>
                   <label className="flex items-start gap-3 cursor-pointer">
@@ -713,11 +713,11 @@ export default function AyarlarPage() {
                       type="checkbox" 
                       checked={genelAyarlar.izinMailGonder}
                       onChange={(e) => setGenelAyarlar({...genelAyarlar, izinMailGonder: e.target.checked})}
-                      className="w-5 h-5 text-pink-600 rounded mt-1" 
+                      className="w-5 h-5 text-rose-600 rounded mt-1" 
                     />
                     <div>
-                      <p className="text-sm font-medium text-gray-700">İzin onaylandığında otomatik e-posta</p>
-                      <p className="text-xs text-gray-500">Personele otomatik mail gönderilsin mi?</p>
+                      <p className="text-sm font-medium text-stone-700">İzin onaylandığında otomatik e-posta</p>
+                      <p className="text-xs text-stone-500">Personele otomatik mail gönderilsin mi?</p>
                     </div>
                   </label>
                   <label className="flex items-start gap-3 cursor-pointer">
@@ -725,11 +725,11 @@ export default function AyarlarPage() {
                       type="checkbox" 
                       checked={genelAyarlar.mobilIzinTalep}
                       onChange={(e) => setGenelAyarlar({...genelAyarlar, mobilIzinTalep: e.target.checked})}
-                      className="w-5 h-5 text-pink-600 rounded mt-1" 
+                      className="w-5 h-5 text-rose-600 rounded mt-1" 
                     />
                     <div>
-                      <p className="text-sm font-medium text-gray-700">Mobil'de izin talep etme</p>
-                      <p className="text-xs text-gray-500">Personel mobil uygulamadan izin talebinde bulunabilsin mi?</p>
+                      <p className="text-sm font-medium text-stone-700">Mobil'de izin talep etme</p>
+                      <p className="text-xs text-stone-500">Personel mobil uygulamadan izin talebinde bulunabilsin mi?</p>
                     </div>
                   </label>
                   <label className="flex items-start gap-3 cursor-pointer">
@@ -737,28 +737,28 @@ export default function AyarlarPage() {
                       type="checkbox" 
                       checked={genelAyarlar.yoneticiOnOnay}
                       onChange={(e) => setGenelAyarlar({...genelAyarlar, yoneticiOnOnay: e.target.checked})}
-                      className="w-5 h-5 text-pink-600 rounded mt-1" 
+                      className="w-5 h-5 text-rose-600 rounded mt-1" 
                     />
                     <div>
-                      <p className="text-sm font-medium text-gray-700">Yönetici ön onayı zorunlu</p>
-                      <p className="text-xs text-gray-500">İzin talebi önce yönetici onayından geçsin mi?</p>
+                      <p className="text-sm font-medium text-stone-700">Yönetici ön onayı zorunlu</p>
+                      <p className="text-xs text-stone-500">İzin talebi önce yönetici onayından geçsin mi?</p>
                     </div>
                   </label>
                 </div>
               </div>
 
               {/* Uygulama Ayarları */}
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <div className="bg-white rounded-lg p-6 shadow-sm border border-stone-100">
+                <h2 className="text-lg font-bold text-stone-800 mb-4 flex items-center gap-2">
                   <span>📱</span> Uygulama Ayarları
                 </h2>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Varsayılan Açılış Sayfası</label>
+                    <label className="block text-sm font-medium text-stone-700 mb-2">Varsayılan Açılış Sayfası</label>
                     <select 
                       value={genelAyarlar.varsayilanSayfa}
                       onChange={(e) => setGenelAyarlar({...genelAyarlar, varsayilanSayfa: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 bg-white"
+                      className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 bg-white"
                     >
                       <option>Genel Bakış</option>
                       <option>Gelinler</option>
@@ -771,11 +771,11 @@ export default function AyarlarPage() {
                       type="checkbox" 
                       checked={genelAyarlar.qrKameraIzni}
                       onChange={(e) => setGenelAyarlar({...genelAyarlar, qrKameraIzni: e.target.checked})}
-                      className="w-5 h-5 text-pink-600 rounded mt-1" 
+                      className="w-5 h-5 text-rose-600 rounded mt-1" 
                     />
                     <div>
-                      <p className="text-sm font-medium text-gray-700">QR kamera izni</p>
-                      <p className="text-xs text-gray-500">QR kod okutma özelliği aktif olsun mu?</p>
+                      <p className="text-sm font-medium text-stone-700">QR kamera izni</p>
+                      <p className="text-xs text-stone-500">QR kod okutma özelliği aktif olsun mu?</p>
                     </div>
                   </label>
                   <label className="flex items-start gap-3 cursor-pointer">
@@ -783,11 +783,11 @@ export default function AyarlarPage() {
                       type="checkbox" 
                       checked={genelAyarlar.konumKontrol}
                       onChange={(e) => setGenelAyarlar({...genelAyarlar, konumKontrol: e.target.checked})}
-                      className="w-5 h-5 text-pink-600 rounded mt-1" 
+                      className="w-5 h-5 text-rose-600 rounded mt-1" 
                     />
                     <div>
-                      <p className="text-sm font-medium text-gray-700">Konum tabanlı işlem</p>
-                      <p className="text-xs text-gray-500">Konum kontrolü yapılsın mı?</p>
+                      <p className="text-sm font-medium text-stone-700">Konum tabanlı işlem</p>
+                      <p className="text-xs text-stone-500">Konum kontrolü yapılsın mı?</p>
                     </div>
                   </label>
                   <label className="flex items-start gap-3 cursor-pointer">
@@ -795,11 +795,11 @@ export default function AyarlarPage() {
                       type="checkbox" 
                       checked={genelAyarlar.kisiselQr}
                       onChange={(e) => setGenelAyarlar({...genelAyarlar, kisiselQr: e.target.checked})}
-                      className="w-5 h-5 text-pink-600 rounded mt-1" 
+                      className="w-5 h-5 text-rose-600 rounded mt-1" 
                     />
                     <div>
-                      <p className="text-sm font-medium text-gray-700">Kişisel QR kod</p>
-                      <p className="text-xs text-gray-500">Her personel kendi QR kodu ile işlem yapabilsin mi?</p>
+                      <p className="text-sm font-medium text-stone-700">Kişisel QR kod</p>
+                      <p className="text-xs text-stone-500">Her personel kendi QR kodu ile işlem yapabilsin mi?</p>
                     </div>
                   </label>
                   <label className="flex items-start gap-3 cursor-pointer">
@@ -807,11 +807,11 @@ export default function AyarlarPage() {
                       type="checkbox" 
                       checked={genelAyarlar.girisCikisErisim}
                       onChange={(e) => setGenelAyarlar({...genelAyarlar, girisCikisErisim: e.target.checked})}
-                      className="w-5 h-5 text-pink-600 rounded mt-1" 
+                      className="w-5 h-5 text-rose-600 rounded mt-1" 
                     />
                     <div>
-                      <p className="text-sm font-medium text-gray-700">Manuel giriş-çıkış ekleme</p>
-                      <p className="text-xs text-gray-500">Yetkililer manuel giriş-çıkış ekleyebilsin mi?</p>
+                      <p className="text-sm font-medium text-stone-700">Manuel giriş-çıkış ekleme</p>
+                      <p className="text-xs text-stone-500">Yetkililer manuel giriş-çıkış ekleyebilsin mi?</p>
                     </div>
                   </label>
                 </div>
@@ -822,7 +822,7 @@ export default function AyarlarPage() {
                 <button 
                   onClick={handleGenelAyarlarKaydet}
                   disabled={genelAyarlarLoading}
-                  className="px-6 py-3 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition font-medium disabled:opacity-50"
+                  className="px-6 py-3 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition font-medium disabled:opacity-50"
                 >
                   {genelAyarlarLoading ? "⏳ Kaydediliyor..." : "💾 Ayarları Kaydet"}
                 </button>
@@ -833,31 +833,31 @@ export default function AyarlarPage() {
           {/* TAB 1: Rol Yetkileri */}
           {activeTab === 1 && (
             <div className="space-y-6">
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                <h2 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
+              <div className="bg-white rounded-lg p-6 shadow-sm border border-stone-100">
+                <h2 className="text-lg font-bold text-stone-800 mb-2 flex items-center gap-2">
                   <span>🔐</span> Rol Yetkileri
                 </h2>
-                <p className="text-sm text-gray-500 mb-6">Yönetici ve Personel rollerinin hangi menülere erişebileceğini belirleyin. Kurucu her zaman tüm menülere erişebilir.</p>
+                <p className="text-sm text-stone-500 mb-6">Yönetici ve Personel rollerinin hangi menülere erişebileceğini belirleyin. Kurucu her zaman tüm menülere erişebilir.</p>
                 
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b border-gray-200">
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Menü</th>
-                        <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700 w-32">Yönetici</th>
-                        <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700 w-32">Personel</th>
+                      <tr className="border-b border-stone-200">
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-stone-700">Menü</th>
+                        <th className="text-center py-3 px-4 text-sm font-semibold text-stone-700 w-32">Yönetici</th>
+                        <th className="text-center py-3 px-4 text-sm font-semibold text-stone-700 w-32">Personel</th>
                       </tr>
                     </thead>
                     <tbody>
                       {menuListesi.map((menu) => (
-                        <tr key={menu.id} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="py-3 px-4 text-sm text-gray-700">{menu.label}</td>
+                        <tr key={menu.id} className="border-b border-stone-100 hover:bg-stone-50">
+                          <td className="py-3 px-4 text-sm text-stone-700">{menu.label}</td>
                           <td className="py-3 px-4 text-center">
                             <input
                               type="checkbox"
                               checked={rolYetkileri["Yönetici"]?.includes(menu.id) || false}
                               onChange={() => toggleRolYetki("Yönetici", menu.id)}
-                              className="w-5 h-5 text-pink-600 rounded cursor-pointer"
+                              className="w-5 h-5 text-rose-600 rounded cursor-pointer"
                             />
                           </td>
                           <td className="py-3 px-4 text-center">
@@ -865,7 +865,7 @@ export default function AyarlarPage() {
                               type="checkbox"
                               checked={rolYetkileri["Personel"]?.includes(menu.id) || false}
                               onChange={() => toggleRolYetki("Personel", menu.id)}
-                              className="w-5 h-5 text-pink-600 rounded cursor-pointer"
+                              className="w-5 h-5 text-rose-600 rounded cursor-pointer"
                             />
                           </td>
                         </tr>
@@ -880,7 +880,7 @@ export default function AyarlarPage() {
                 <button 
                   onClick={handleRolYetkileriKaydet}
                   disabled={rolYetkileriLoading}
-                  className="px-6 py-3 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition font-medium disabled:opacity-50"
+                  className="px-6 py-3 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition font-medium disabled:opacity-50"
                 >
                   {rolYetkileriLoading ? "⏳ Kaydediliyor..." : "💾 Yetkileri Kaydet"}
                 </button>
@@ -892,37 +892,37 @@ export default function AyarlarPage() {
           {activeTab === 3 && (
             <div>
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-lg font-bold text-gray-800">📍 Konumlar</h2>
+                <h2 className="text-lg font-bold text-stone-800">📍 Konumlar</h2>
                 <button
                   onClick={() => { setShowKonumModal(true); setEditingKonum(null); resetKonumForm(); }}
-                  className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition"
+                  className="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
                 >
                   ➕ Yeni Konum
                 </button>
               </div>
 
               {konumlar.length === 0 ? (
-                <div className="bg-white rounded-2xl p-12 text-center text-gray-500 border border-gray-100">
+                <div className="bg-white rounded-lg p-12 text-center text-stone-500 border border-stone-100">
                   <span className="text-5xl mb-4 block">📍</span>
                   <p className="text-lg font-medium">Konum bulunamadı</p>
                 </div>
               ) : (
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="bg-white rounded-lg shadow-sm border border-stone-100 overflow-hidden">
                   <table className="w-full">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-stone-50">
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">QR Kod</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Karekod</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Konum Adı</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Max Uzaklık</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">GPS</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Durum</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">İşlemler</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-stone-500 uppercase">QR Kod</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-stone-500 uppercase">Karekod</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-stone-500 uppercase">Konum Adı</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-stone-500 uppercase">Max Uzaklık</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-stone-500 uppercase">GPS</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-stone-500 uppercase">Durum</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-stone-500 uppercase">İşlemler</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200">
+                    <tbody className="divide-y divide-stone-200">
                       {konumlar.map(konum => (
-                        <tr key={konum.id} className="hover:bg-gray-50">
+                        <tr key={konum.id} className="hover:bg-stone-50">
                           <td className="px-4 py-4">
                             <div className="flex flex-col items-center gap-2">
                               <img 
@@ -934,15 +934,15 @@ export default function AyarlarPage() {
                                 href={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(konum.karekod)}`}
                                 download={`QR-${konum.karekod}.png`}
                                 target="_blank"
-                                className="text-xs text-pink-600 hover:text-pink-700 font-medium"
+                                className="text-xs text-rose-600 hover:text-rose-700 font-medium"
                               >
                                 📥 İndir
                               </a>
                             </div>
                           </td>
-                          <td className="px-4 py-4 text-sm font-mono text-gray-900">{konum.karekod}</td>
-                          <td className="px-4 py-4 text-sm font-medium text-gray-900">{konum.konumAdi}</td>
-                          <td className="px-4 py-4 text-sm text-gray-600">{konum.maksimumOkutmaUzakligi} m</td>
+                          <td className="px-4 py-4 text-sm font-mono text-stone-900">{konum.karekod}</td>
+                          <td className="px-4 py-4 text-sm font-medium text-stone-900">{konum.konumAdi}</td>
+                          <td className="px-4 py-4 text-sm text-stone-600">{konum.maksimumOkutmaUzakligi} m</td>
                           <td className="px-4 py-4">
                             {konum.lat && konum.lng ? (
                               <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">✓ Ayarlı</span>
@@ -951,7 +951,7 @@ export default function AyarlarPage() {
                             )}
                           </td>
                           <td className="px-4 py-4">
-                            <span className={`px-2 py-1 text-xs rounded-full ${konum.aktif ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                            <span className={`px-2 py-1 text-xs rounded-full ${konum.aktif ? 'bg-green-100 text-green-700' : 'bg-stone-100 text-stone-600'}`}>
                               {konum.aktif ? 'Aktif' : 'Pasif'}
                             </span>
                           </td>
@@ -974,39 +974,39 @@ export default function AyarlarPage() {
           {activeTab === 2 && (
             <div>
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-lg font-bold text-gray-800">🏢 Firmalar</h2>
+                <h2 className="text-lg font-bold text-stone-800">🏢 Firmalar</h2>
                 <button
                   onClick={() => { setShowFirmaModal(true); setEditingFirma(null); resetFirmaForm(); }}
-                  className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition"
+                  className="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
                 >
                   ➕ Yeni Firma
                 </button>
               </div>
 
               {firmalar.length === 0 ? (
-                <div className="bg-white rounded-2xl p-12 text-center text-gray-500 border border-gray-100">
+                <div className="bg-white rounded-lg p-12 text-center text-stone-500 border border-stone-100">
                   <p className="text-4xl mb-4">🏢</p>
                   <p>Henüz firma eklenmemiş</p>
                   <p className="text-sm mt-2">Yukarıdaki butona tıklayarak firma ekleyin</p>
                 </div>
               ) : (
-                <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
+                <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-stone-100">
                   <table className="w-full">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-stone-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Firma</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kısaltma</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Durum</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">İşlem</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Firma</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Kısaltma</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Durum</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">İşlem</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200">
+                    <tbody className="divide-y divide-stone-200">
                       {firmalar.map((firma) => (
-                        <tr key={firma.id} className="hover:bg-gray-50">
+                        <tr key={firma.id} className="hover:bg-stone-50">
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
                               <span className={`w-3 h-3 rounded-full bg-${firma.renk}-500`}></span>
-                              <span className="font-medium text-gray-900">{firma.firmaAdi}</span>
+                              <span className="font-medium text-stone-900">{firma.firmaAdi}</span>
                             </div>
                           </td>
                           <td className="px-6 py-4">
@@ -1038,40 +1038,40 @@ export default function AyarlarPage() {
           {activeTab === 4 && (
             <div>
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-lg font-bold text-gray-800">🏷️ Grup Etiketleri</h2>
+                <h2 className="text-lg font-bold text-stone-800">🏷️ Grup Etiketleri</h2>
                 <button
                   onClick={() => { setShowGrupModal(true); setEditingGrup(null); resetGrupForm(); }}
-                  className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition"
+                  className="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
                 >
                   ➕ Yeni Grup
                 </button>
               </div>
 
               {grupEtiketleri.length === 0 ? (
-                <div className="bg-white rounded-2xl p-12 text-center text-gray-500 border border-gray-100">
+                <div className="bg-white rounded-lg p-12 text-center text-stone-500 border border-stone-100">
                   <span className="text-5xl mb-4 block">🏷️</span>
                   <p className="text-lg font-medium">Grup etiketi bulunamadı</p>
                 </div>
               ) : (
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="bg-white rounded-lg shadow-sm border border-stone-100 overflow-hidden">
                   <table className="w-full">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-stone-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Grup Adı</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Renk</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Önizleme</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Oluşturulma</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">İşlemler</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Grup Adı</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Renk</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Önizleme</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Oluşturulma</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">İşlemler</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200">
+                    <tbody className="divide-y divide-stone-200">
                       {grupEtiketleri.map(grup => (
-                        <tr key={grup.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 font-medium text-gray-900">{grup.grupAdi}</td>
+                        <tr key={grup.id} className="hover:bg-stone-50">
+                          <td className="px-6 py-4 font-medium text-stone-900">{grup.grupAdi}</td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
                               <span className={`w-4 h-4 rounded-full bg-${grup.renk}-500`}></span>
-                              <span className="text-sm text-gray-600 capitalize">{grup.renk}</span>
+                              <span className="text-sm text-stone-600 capitalize">{grup.renk}</span>
                             </div>
                           </td>
                           <td className="px-6 py-4">
@@ -1079,7 +1079,7 @@ export default function AyarlarPage() {
                               {grup.grupAdi}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-sm text-gray-600">
+                          <td className="px-6 py-4 text-sm text-stone-600">
                             {grup.olusturulmaTarihi ? new Date(grup.olusturulmaTarihi.seconds * 1000).toLocaleDateString('tr-TR') : '-'}
                           </td>
                           <td className="px-6 py-4">
@@ -1102,28 +1102,28 @@ export default function AyarlarPage() {
       {/* Konum Modal */}
       {showKonumModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-gray-800">{editingKonum ? "✏️ Konum Düzenle" : "➕ Yeni Konum"}</h3>
-              <button onClick={() => { setShowKonumModal(false); resetKonumForm(); }} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+              <h3 className="text-xl font-bold text-stone-800">{editingKonum ? "✏️ Konum Düzenle" : "➕ Yeni Konum"}</h3>
+              <button onClick={() => { setShowKonumModal(false); resetKonumForm(); }} className="text-stone-400 hover:text-stone-600 text-2xl">×</button>
             </div>
 
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Karekod *</label>
-                  <input type="text" value={konumFormData.karekod} onChange={(e) => setKonumFormData({ ...konumFormData, karekod: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="110-OFİS" />
+                  <label className="block text-sm font-medium text-stone-700 mb-1">Karekod *</label>
+                  <input type="text" value={konumFormData.karekod} onChange={(e) => setKonumFormData({ ...konumFormData, karekod: e.target.value })} className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" placeholder="110-OFİS" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Konum Adı *</label>
-                  <input type="text" value={konumFormData.konumAdi} onChange={(e) => setKonumFormData({ ...konumFormData, konumAdi: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="Ofis Girişi" />
+                  <label className="block text-sm font-medium text-stone-700 mb-1">Konum Adı *</label>
+                  <input type="text" value={konumFormData.konumAdi} onChange={(e) => setKonumFormData({ ...konumFormData, konumAdi: e.target.value })} className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" placeholder="Ofis Girişi" />
                 </div>
               </div>
 
               {/* GPS Koordinatları */}
-              <div className="p-4 bg-blue-50 rounded-xl">
+              <div className="p-4 bg-blue-50 rounded-lg">
                 <div className="flex items-center justify-between mb-3">
-                  <label className="text-sm font-medium text-gray-700">📍 GPS Koordinatları</label>
+                  <label className="text-sm font-medium text-stone-700">📍 GPS Koordinatları</label>
                   <button
                     type="button"
                     onClick={() => {
@@ -1152,12 +1152,12 @@ export default function AyarlarPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">Enlem (Lat)</label>
-                    <input type="number" step="any" value={konumFormData.lat || ""} onChange={(e) => setKonumFormData({ ...konumFormData, lat: Number(e.target.value) })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" placeholder="41.0082" />
+                    <label className="block text-xs text-stone-500 mb-1">Enlem (Lat)</label>
+                    <input type="number" step="any" value={konumFormData.lat || ""} onChange={(e) => setKonumFormData({ ...konumFormData, lat: Number(e.target.value) })} className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" placeholder="41.0082" />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">Boylam (Lng)</label>
-                    <input type="number" step="any" value={konumFormData.lng || ""} onChange={(e) => setKonumFormData({ ...konumFormData, lng: Number(e.target.value) })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" placeholder="28.9784" />
+                    <label className="block text-xs text-stone-500 mb-1">Boylam (Lng)</label>
+                    <input type="number" step="any" value={konumFormData.lng || ""} onChange={(e) => setKonumFormData({ ...konumFormData, lng: Number(e.target.value) })} className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" placeholder="28.9784" />
                   </div>
                 </div>
                 {konumFormData.lat && konumFormData.lng && (
@@ -1167,30 +1167,30 @@ export default function AyarlarPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Maksimum Okutma Uzaklığı (metre)</label>
-                  <input type="number" value={konumFormData.maksimumOkutmaUzakligi} onChange={(e) => setKonumFormData({ ...konumFormData, maksimumOkutmaUzakligi: Number(e.target.value) })} className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500" />
+                  <label className="block text-sm font-medium text-stone-700 mb-1">Maksimum Okutma Uzaklığı (metre)</label>
+                  <input type="number" value={konumFormData.maksimumOkutmaUzakligi} onChange={(e) => setKonumFormData({ ...konumFormData, maksimumOkutmaUzakligi: Number(e.target.value) })} className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Giriş Saat Limiti</label>
-                  <input type="text" value={konumFormData.girisSaatLimiti} onChange={(e) => setKonumFormData({ ...konumFormData, girisSaatLimiti: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="Limit yok" />
+                  <label className="block text-sm font-medium text-stone-700 mb-1">Giriş Saat Limiti</label>
+                  <input type="text" value={konumFormData.girisSaatLimiti} onChange={(e) => setKonumFormData({ ...konumFormData, girisSaatLimiti: e.target.value })} className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" placeholder="Limit yok" />
                 </div>
               </div>
 
               <div className="flex items-center gap-4">
                 <label className="flex items-center gap-2">
-                  <input type="checkbox" checked={konumFormData.konumDisiOkutabilme} onChange={(e) => setKonumFormData({ ...konumFormData, konumDisiOkutabilme: e.target.checked })} className="w-4 h-4 text-pink-600 rounded" />
-                  <span className="text-sm text-gray-700">Konum Dışı Okutabilme</span>
+                  <input type="checkbox" checked={konumFormData.konumDisiOkutabilme} onChange={(e) => setKonumFormData({ ...konumFormData, konumDisiOkutabilme: e.target.checked })} className="w-4 h-4 text-rose-600 rounded" />
+                  <span className="text-sm text-stone-700">Konum Dışı Okutabilme</span>
                 </label>
                 <label className="flex items-center gap-2">
-                  <input type="checkbox" checked={konumFormData.aktif} onChange={(e) => setKonumFormData({ ...konumFormData, aktif: e.target.checked })} className="w-4 h-4 text-pink-600 rounded" />
-                  <span className="text-sm text-gray-700">Aktif</span>
+                  <input type="checkbox" checked={konumFormData.aktif} onChange={(e) => setKonumFormData({ ...konumFormData, aktif: e.target.checked })} className="w-4 h-4 text-rose-600 rounded" />
+                  <span className="text-sm text-stone-700">Aktif</span>
                 </label>
               </div>
             </div>
 
             <div className="mt-6 flex gap-3">
-              <button onClick={handleKonumAddEdit} className="flex-1 px-4 py-3 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition font-medium">💾 Kaydet</button>
-              <button onClick={() => { setShowKonumModal(false); resetKonumForm(); }} className="flex-1 px-4 py-3 bg-gray-500 text-white rounded-xl hover:bg-gray-600 transition font-medium">↩️ İptal</button>
+              <button onClick={handleKonumAddEdit} className="flex-1 px-4 py-3 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition font-medium">💾 Kaydet</button>
+              <button onClick={() => { setShowKonumModal(false); resetKonumForm(); }} className="flex-1 px-4 py-3 bg-stone-500 text-white rounded-lg hover:bg-stone-600 transition font-medium">↩️ İptal</button>
             </div>
           </div>
         </div>
@@ -1199,39 +1199,39 @@ export default function AyarlarPage() {
       {/* Firma Modal */}
       {showFirmaModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-gray-800">{editingFirma ? "✏️ Firma Düzenle" : "➕ Yeni Firma"}</h3>
-              <button onClick={() => { setShowFirmaModal(false); resetFirmaForm(); }} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+              <h3 className="text-xl font-bold text-stone-800">{editingFirma ? "✏️ Firma Düzenle" : "➕ Yeni Firma"}</h3>
+              <button onClick={() => { setShowFirmaModal(false); resetFirmaForm(); }} className="text-stone-400 hover:text-stone-600 text-2xl">×</button>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Firma Adı *</label>
+                <label className="block text-sm font-medium text-stone-700 mb-1">Firma Adı *</label>
                 <input 
                   type="text" 
                   value={firmaFormData.firmaAdi} 
                   onChange={(e) => setFirmaFormData({ ...firmaFormData, firmaAdi: e.target.value })} 
-                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500" 
+                  className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" 
                   placeholder="Gizem Yolcu Studio" 
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Kısaltma *</label>
+                <label className="block text-sm font-medium text-stone-700 mb-1">Kısaltma *</label>
                 <input 
                   type="text" 
                   value={firmaFormData.kisaltma} 
                   onChange={(e) => setFirmaFormData({ ...firmaFormData, kisaltma: e.target.value.toUpperCase() })} 
-                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 uppercase" 
+                  className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 uppercase" 
                   placeholder="GYS" 
                   maxLength={10}
                 />
-                <p className="text-xs text-gray-500 mt-1">Maksimum 10 karakter</p>
+                <p className="text-xs text-stone-500 mt-1">Maksimum 10 karakter</p>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Renk *</label>
+                <label className="block text-sm font-medium text-stone-700 mb-2">Renk *</label>
                 <div className="flex flex-wrap gap-2">
                   {[
                     { id: 'red', color: 'bg-red-500' },
@@ -1242,14 +1242,14 @@ export default function AyarlarPage() {
                     { id: 'blue', color: 'bg-blue-500' },
                     { id: 'indigo', color: 'bg-indigo-500' },
                     { id: 'purple', color: 'bg-purple-500' },
-                    { id: 'pink', color: 'bg-pink-500' },
-                    { id: 'gray', color: 'bg-gray-500' },
+                    { id: 'pink', color: 'bg-rose-500' },
+                    { id: 'gray', color: 'bg-stone-500' },
                   ].map((renk) => (
                     <button
                       key={renk.id}
                       type="button"
                       onClick={() => setFirmaFormData({ ...firmaFormData, renk: renk.id })}
-                      className={`w-8 h-8 rounded-full ${renk.color} ${firmaFormData.renk === renk.id ? 'ring-2 ring-offset-2 ring-gray-800' : 'hover:scale-110'} transition`}
+                      className={`w-8 h-8 rounded-full ${renk.color} ${firmaFormData.renk === renk.id ? 'ring-2 ring-offset-2 ring-stone-800' : 'hover:scale-110'} transition`}
                     />
                   ))}
                 </div>
@@ -1260,14 +1260,14 @@ export default function AyarlarPage() {
                   type="checkbox" 
                   checked={firmaFormData.aktif} 
                   onChange={(e) => setFirmaFormData({ ...firmaFormData, aktif: e.target.checked })} 
-                  className="w-4 h-4 text-pink-600 rounded" 
+                  className="w-4 h-4 text-rose-600 rounded" 
                 />
-                <span className="text-sm text-gray-700">Aktif</span>
+                <span className="text-sm text-stone-700">Aktif</span>
               </div>
               
               {/* Önizleme */}
               <div className="pt-2 border-t">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Önizleme</label>
+                <label className="block text-sm font-medium text-stone-700 mb-2">Önizleme</label>
                 <div className="flex items-center gap-3">
                   <span className={`w-3 h-3 rounded-full bg-${firmaFormData.renk}-500`}></span>
                   <span className="font-medium">{firmaFormData.firmaAdi || "Firma Adı"}</span>
@@ -1279,8 +1279,8 @@ export default function AyarlarPage() {
             </div>
 
             <div className="mt-6 flex gap-3">
-              <button onClick={handleFirmaAddEdit} className="flex-1 px-4 py-3 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition font-medium">💾 Kaydet</button>
-              <button onClick={() => { setShowFirmaModal(false); resetFirmaForm(); }} className="flex-1 px-4 py-3 bg-gray-500 text-white rounded-xl hover:bg-gray-600 transition font-medium">↩️ İptal</button>
+              <button onClick={handleFirmaAddEdit} className="flex-1 px-4 py-3 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition font-medium">💾 Kaydet</button>
+              <button onClick={() => { setShowFirmaModal(false); resetFirmaForm(); }} className="flex-1 px-4 py-3 bg-stone-500 text-white rounded-lg hover:bg-stone-600 transition font-medium">↩️ İptal</button>
             </div>
           </div>
         </div>
@@ -1289,20 +1289,20 @@ export default function AyarlarPage() {
       {/* Grup Modal */}
       {showGrupModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-gray-800">{editingGrup ? "✏️ Grup Düzenle" : "➕ Yeni Grup"}</h3>
-              <button onClick={() => { setShowGrupModal(false); resetGrupForm(); }} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+              <h3 className="text-xl font-bold text-stone-800">{editingGrup ? "✏️ Grup Düzenle" : "➕ Yeni Grup"}</h3>
+              <button onClick={() => { setShowGrupModal(false); resetGrupForm(); }} className="text-stone-400 hover:text-stone-600 text-2xl">×</button>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Grup Adı *</label>
-                <input type="text" value={grupFormData.grupAdi} onChange={(e) => setGrupFormData({ ...grupFormData, grupAdi: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="ekip, GYS, MG..." />
+                <label className="block text-sm font-medium text-stone-700 mb-1">Grup Adı *</label>
+                <input type="text" value={grupFormData.grupAdi} onChange={(e) => setGrupFormData({ ...grupFormData, grupAdi: e.target.value })} className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" placeholder="ekip, GYS, MG..." />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Renk *</label>
+                <label className="block text-sm font-medium text-stone-700 mb-2">Renk *</label>
                 <div className="flex flex-wrap gap-2">
                   {[
                     { id: 'red', color: 'bg-red-500' },
@@ -1313,14 +1313,14 @@ export default function AyarlarPage() {
                     { id: 'blue', color: 'bg-blue-500' },
                     { id: 'indigo', color: 'bg-indigo-500' },
                     { id: 'purple', color: 'bg-purple-500' },
-                    { id: 'pink', color: 'bg-pink-500' },
-                    { id: 'gray', color: 'bg-gray-500' },
+                    { id: 'pink', color: 'bg-rose-500' },
+                    { id: 'gray', color: 'bg-stone-500' },
                   ].map((renk) => (
                     <button
                       key={renk.id}
                       type="button"
                       onClick={() => setGrupFormData({ ...grupFormData, renk: renk.id })}
-                      className={`w-8 h-8 rounded-full ${renk.color} ${grupFormData.renk === renk.id ? 'ring-2 ring-offset-2 ring-gray-800' : 'hover:scale-110'} transition`}
+                      className={`w-8 h-8 rounded-full ${renk.color} ${grupFormData.renk === renk.id ? 'ring-2 ring-offset-2 ring-stone-800' : 'hover:scale-110'} transition`}
                     />
                   ))}
                 </div>
@@ -1328,7 +1328,7 @@ export default function AyarlarPage() {
               
               {/* Önizleme */}
               <div className="pt-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Önizleme</label>
+                <label className="block text-sm font-medium text-stone-700 mb-2">Önizleme</label>
                 <span className={`inline-block px-3 py-1 rounded-full text-white text-sm font-medium bg-${grupFormData.renk}-500`}>
                   {grupFormData.grupAdi || "Örnek"}
                 </span>
@@ -1336,8 +1336,8 @@ export default function AyarlarPage() {
             </div>
 
             <div className="mt-6 flex gap-3">
-              <button onClick={handleGrupAddEdit} className="flex-1 px-4 py-3 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition font-medium">💾 Kaydet</button>
-              <button onClick={() => { setShowGrupModal(false); resetGrupForm(); }} className="flex-1 px-4 py-3 bg-gray-500 text-white rounded-xl hover:bg-gray-600 transition font-medium">↩️ İptal</button>
+              <button onClick={handleGrupAddEdit} className="flex-1 px-4 py-3 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition font-medium">💾 Kaydet</button>
+              <button onClick={() => { setShowGrupModal(false); resetGrupForm(); }} className="flex-1 px-4 py-3 bg-stone-500 text-white rounded-lg hover:bg-stone-600 transition font-medium">↩️ İptal</button>
             </div>
           </div>
         </div>

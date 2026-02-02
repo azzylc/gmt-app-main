@@ -206,7 +206,7 @@ export default function YonetimPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-stone-50">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
@@ -214,11 +214,11 @@ export default function YonetimPage() {
 
   if (yetkisiz) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-stone-50">
         <div className="text-center">
           <div className="text-6xl mb-4">🔒</div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">Yetkisiz Erişim</h1>
-          <p className="text-gray-600">Bu sayfaya erişim yetkiniz bulunmamaktadır.</p>
+          <h1 className="text-2xl font-bold text-stone-800 mb-2">Yetkisiz Erişim</h1>
+          <p className="text-stone-600">Bu sayfaya erişim yetkiniz bulunmamaktadır.</p>
           <button
             onClick={() => router.push("/")}
             className="mt-6 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
@@ -231,21 +231,21 @@ export default function YonetimPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-stone-50">
       <Sidebar user={user} />
       
-      <div className="md:ml-64 pb-20 md:pb-0">
+      <div className="md:ml-56 pb-20 md:pb-0">
         <header className="bg-white border-b px-6 py-4 sticky top-0 z-30">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">📊 Yönetim Paneli</h1>
-              <p className="text-sm text-gray-500">Aylık hedefler ve performans takibi (Firestore Real-time)</p>
+              <h1 className="text-2xl font-bold text-stone-800">📊 Yönetim Paneli</h1>
+              <p className="text-sm text-stone-500">Aylık hedefler ve performans takibi (Firestore Real-time)</p>
             </div>
             <div className="flex items-center gap-2">
               <select
                 value={selectedYil}
                 onChange={(e) => setSelectedYil(parseInt(e.target.value))}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium"
+                className="px-4 py-2 border border-stone-300 rounded-lg text-sm font-medium"
               >
                 <option value={2024}>2024</option>
                 <option value={2025}>2025</option>
@@ -258,21 +258,21 @@ export default function YonetimPage() {
 
         <main className="p-6">
           {/* Hedef Belirleme Formu */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">📅 Aylık Hedef Belirle</h2>
+          <div className="bg-white rounded-lg shadow-sm border border-stone-100 p-6 mb-6">
+            <h2 className="text-lg font-semibold text-stone-800 mb-4">📅 Aylık Hedef Belirle</h2>
             <div className="flex gap-4">
               <input
                 type="month"
                 value={selectedAy}
                 onChange={(e) => setSelectedAy(e.target.value)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
+                className="flex-1 px-4 py-2 border border-stone-300 rounded-lg"
               />
               <input
                 type="number"
                 value={hedefInput}
                 onChange={(e) => setHedefInput(e.target.value)}
                 placeholder="Hedef anlaşma sayısı"
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
+                className="flex-1 px-4 py-2 border border-stone-300 rounded-lg"
               />
               <button
                 onClick={handleHedefKaydet}
@@ -285,24 +285,24 @@ export default function YonetimPage() {
           </div>
 
           {/* Aylık Performans Tablosu */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-800">📈 Aylık Performans ({selectedYil})</h2>
+          <div className="bg-white rounded-lg shadow-sm border border-stone-100 overflow-hidden">
+            <div className="px-6 py-4 border-b border-stone-100">
+              <h2 className="text-lg font-semibold text-stone-800">📈 Aylık Performans ({selectedYil})</h2>
             </div>
             
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50">
+                <thead className="bg-stone-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ay</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Toplam Gelin</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Bu Ay Anlaşan</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hedef</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hedef %</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kalan Bakiye</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Ay</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Toplam Gelin</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Bu Ay Anlaşan</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Hedef</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Hedef %</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Kalan Bakiye</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white divide-y divide-stone-200">
                   {aylar.map(ay => {
                     const stats = getMonthStats(ay);
                     const isBuAy = ay === buAy;
@@ -311,27 +311,27 @@ export default function YonetimPage() {
                       <tr 
                         key={ay}
                         ref={isBuAy ? bugunAyRef : null}
-                        className={`hover:bg-gray-50 ${isBuAy ? 'bg-blue-50' : ''}`}
+                        className={`hover:bg-stone-50 ${isBuAy ? 'bg-blue-50' : ''}`}
                       >
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className={`font-medium ${isBuAy ? 'text-blue-600' : 'text-gray-900'}`}>
+                          <div className={`font-medium ${isBuAy ? 'text-blue-600' : 'text-stone-900'}`}>
                             {new Date(ay + '-01').toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })}
                             {isBuAy && <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Bu Ay</span>}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-semibold text-gray-900">{stats.toplam}</div>
+                          <div className="text-sm font-semibold text-stone-900">{stats.toplam}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-semibold text-green-600">{stats.anlasan}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-semibold text-gray-900">{stats.hedef || '-'}</div>
+                          <div className="text-sm font-semibold text-stone-900">{stats.hedef || '-'}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {stats.hedef > 0 ? (
                             <div className="flex items-center gap-2">
-                              <div className="flex-1 bg-gray-200 rounded-full h-2 max-w-[100px]">
+                              <div className="flex-1 bg-stone-200 rounded-full h-2 max-w-[100px]">
                                 <div
                                   className={`h-2 rounded-full ${
                                     stats.hedefYuzde >= 100 ? 'bg-green-500' :
@@ -341,10 +341,10 @@ export default function YonetimPage() {
                                   style={{ width: `${Math.min(stats.hedefYuzde, 100)}%` }}
                                 ></div>
                               </div>
-                              <span className="text-sm font-medium text-gray-700">{stats.hedefYuzde}%</span>
+                              <span className="text-sm font-medium text-stone-700">{stats.hedefYuzde}%</span>
                             </div>
                           ) : (
-                            <span className="text-sm text-gray-400">-</span>
+                            <span className="text-sm text-stone-400">-</span>
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">

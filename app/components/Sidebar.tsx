@@ -284,65 +284,65 @@ function SidebarContent({ user }: SidebarProps) {
   const MenuContent = () => (
     <>
       {/* Logo & User */}
-      <div className="p-4 border-b border-gray-200">
-        <div className="bg-gradient-to-r from-pink-500 to-pink-600 text-white p-3 rounded-xl mb-3">
-          <h1 className="text-lg font-bold">GYS Studio</h1>
-          <p className="text-xs opacity-90">Gizem Yolcu</p>
+      <div className="px-4 py-4 border-b border-stone-100/50">
+        <div className="bg-amber-400 text-stone-900 px-3 py-2.5 rounded-lg mb-3">
+          <h1 className="text-sm font-semibold">GYS Studio</h1>
+          <p className="text-xs text-stone-700">Gizem Yolcu</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           {personelData?.foto ? (
-            <img src={personelData.foto} alt="" className="w-10 h-10 rounded-full object-cover" />
+            <img src={personelData.foto} alt="" className="w-8 h-8 rounded-full object-cover" />
           ) : (
-            <div className="w-10 h-10 bg-pink-100 rounded-full flex items-center justify-center">
-              <span className="text-pink-600 font-bold text-sm">
+            <div className="w-8 h-8 bg-stone-200 rounded-full flex items-center justify-center">
+              <span className="text-stone-600 font-medium text-xs">
                 {user?.email?.[0]?.toUpperCase() || "A"}
               </span>
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-800 truncate">
+            <p className="text-sm font-medium text-stone-800 truncate">
               {personelData?.ad ? `${personelData.ad} ${personelData.soyad || ''}` : user?.email?.split("@")[0] || "Admin"}
             </p>
-            <p className="text-xs text-gray-500">{personelData?.kullaniciTuru || "Personel"}</p>
+            <p className="text-xs text-stone-500">{personelData?.kullaniciTuru || "Personel"}</p>
           </div>
         </div>
       </div>
 
       {/* Menu Items */}
-      <nav className="p-2 space-y-1 flex-1 overflow-y-auto">
+      <nav className="p-2 space-y-0.5 flex-1 overflow-y-auto">
         {menuItems.map((item) => (
           <div key={item.id}>
             {item.submenu ? (
               <>
                 <button
                   onClick={() => toggleMenu(item.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${
                     isParentActive(item.submenu)
-                      ? "bg-pink-50 text-pink-600"
-                      : "text-gray-600 hover:bg-gray-100"
+                      ? "bg-amber-400 text-stone-900"
+                      : "text-stone-600 hover:bg-white/60"
                   }`}
                 >
-                  <span className="text-lg">{item.icon}</span>
+                  <span className="text-base w-5 text-center">{item.icon}</span>
                   <span className="flex-1 text-left">{item.label}</span>
-                  <span className={`text-xs transition-transform duration-200 ${expandedMenu === item.id ? "rotate-90" : ""}`}>
+                  <span className={`text-[10px] transition-transform duration-200 ${expandedMenu === item.id ? "rotate-90" : ""}`}>
                     ▶
                   </span>
                 </button>
                 <div className={`overflow-hidden transition-all duration-200 ${expandedMenu === item.id ? "max-h-[500px]" : "max-h-0"}`}>
-                  <div className="ml-4 pl-4 border-l-2 border-gray-200 space-y-1 py-1">
+                  <div className="ml-7 space-y-0.5 py-1">
                     {item.submenu.map((subItem: any, idx: number) => (
                       subItem.type === "header" ? (
-                        <div key={idx} className="px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider mt-2 first:mt-0">
+                        <div key={idx} className="px-3 py-1.5 text-[10px] font-semibold text-stone-400 uppercase tracking-wider mt-2 first:mt-0">
                           {subItem.label}
                         </div>
                       ) : (
                         <Link
                           key={subItem.path}
                           href={subItem.path}
-                          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                             isActive(subItem.path) 
-                              ? "bg-pink-500 text-white font-medium" 
-                              : "text-gray-600 hover:bg-gray-100"
+                              ? "bg-white text-stone-800" 
+                              : "text-stone-500 hover:bg-white/60"
                           }`}
                         >
                           <span>{subItem.label}</span>
@@ -355,13 +355,13 @@ function SidebarContent({ user }: SidebarProps) {
             ) : (
               <Link
                 href={item.path!}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${
                   isActive(item.path!) 
-                    ? "bg-pink-500 text-white" 
-                    : "text-gray-600 hover:bg-gray-100"
+                    ? "bg-amber-400 text-stone-900" 
+                    : "text-stone-600 hover:bg-white/60"
                 }`}
               >
-                <span className="text-lg">{item.icon}</span>
+                <span className="text-base w-5 text-center">{item.icon}</span>
                 <span>{item.label}</span>
               </Link>
             )}
@@ -370,10 +370,10 @@ function SidebarContent({ user }: SidebarProps) {
       </nav>
 
       {/* Logout Button */}
-      <div className="p-4 border-t border-gray-200">
+      <div className="p-3 border-t border-stone-100/50">
         <button
           onClick={handleLogout}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-xl transition-all text-sm font-medium"
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-stone-500 hover:bg-white/60 rounded-lg transition-all text-xs font-medium"
         >
           <span>🚪</span>
           <span>Çıkış Yap</span>
@@ -387,18 +387,18 @@ function SidebarContent({ user }: SidebarProps) {
     return (
       <>
         {/* Mobil Header */}
-        <header className="fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 z-40">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-r from-pink-500 to-pink-600 rounded-lg flex items-center justify-center">
-              <span className="text-white text-xs font-bold">GYS</span>
+        <header className="fixed top-0 left-0 right-0 h-12 bg-white border-b border-stone-100 flex items-center justify-between px-3 z-40">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 bg-amber-400 rounded-md flex items-center justify-center">
+              <span className="text-stone-900 text-[10px] font-bold">GYS</span>
             </div>
-            <span className="font-semibold text-gray-800">GYS Studio</span>
+            <span className="font-medium text-stone-800 text-sm">GYS Studio</span>
           </div>
           <button 
             onClick={() => setIsMobileOpen(true)}
-            className="w-10 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-xl transition"
+            className="w-9 h-9 flex items-center justify-center text-stone-500 hover:bg-stone-100 rounded-lg transition"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
@@ -413,13 +413,13 @@ function SidebarContent({ user }: SidebarProps) {
         )}
 
         {/* Mobil Drawer */}
-        <div className={`fixed top-0 left-0 h-full w-72 bg-white z-50 transform transition-transform duration-300 ease-out flex flex-col ${
+        <div className={`fixed top-0 left-0 h-full w-64 bg-[#fef7f0] z-50 transform transition-transform duration-300 ease-out flex flex-col ${
           isMobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}>
           {/* Close Button */}
           <button 
             onClick={() => setIsMobileOpen(false)}
-            className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition z-10"
+            className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-full transition z-10"
           >
             ✕
           </button>
@@ -428,13 +428,13 @@ function SidebarContent({ user }: SidebarProps) {
         </div>
 
         {/* Bottom Navigation */}
-        <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-gray-200 flex items-center justify-around z-40 px-2 pb-safe">
+        <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-stone-200 flex items-center justify-around z-40 px-2 pb-safe">
           {bottomNavItems.map((item, index) => (
             item.action === "menu" ? (
               <button
                 key={index}
                 onClick={() => setIsMobileOpen(true)}
-                className="flex flex-col items-center justify-center w-14 h-12 rounded-xl text-gray-500"
+                className="flex flex-col items-center justify-center w-14 h-12 rounded-lg text-stone-500"
               >
                 <span className="text-xl mb-0.5">{item.icon}</span>
                 <span className="text-[10px]">{item.label}</span>
@@ -443,10 +443,10 @@ function SidebarContent({ user }: SidebarProps) {
               <Link
                 key={index}
                 href={item.path!}
-                className={`flex flex-col items-center justify-center w-14 h-12 rounded-xl transition-all ${
+                className={`flex flex-col items-center justify-center w-14 h-12 rounded-lg transition-all ${
                   isActive(item.path!) 
-                    ? "text-pink-500 bg-pink-50" 
-                    : "text-gray-500"
+                    ? "text-rose-500 bg-rose-50" 
+                    : "text-stone-500"
                 }`}
               >
                 <span className="text-xl mb-0.5">{item.icon}</span>
@@ -464,7 +464,7 @@ function SidebarContent({ user }: SidebarProps) {
 
   // ============ DESKTOP GÖRÜNÜM ============
   return (
-    <div className="fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-200 flex flex-col z-40">
+    <div className="fixed left-0 top-0 h-full w-56 bg-[#fef7f0] border-r border-stone-100 flex flex-col z-40">
       <MenuContent />
     </div>
   );
@@ -473,8 +473,8 @@ function SidebarContent({ user }: SidebarProps) {
 export default function Sidebar({ user }: SidebarProps) {
   return (
     <Suspense fallback={
-      <div className="fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-200 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
+      <div className="fixed left-0 top-0 h-full w-56 bg-[#fef7f0] border-r border-stone-100 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-amber-400"></div>
       </div>
     }>
       <SidebarContent user={user} />

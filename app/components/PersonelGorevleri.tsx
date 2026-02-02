@@ -71,19 +71,19 @@ export default function PersonelGorevleri({ personelId }: { personelId: string }
 
   if (loading) {
     return (
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-        <div className="text-center py-8 text-gray-500">Yükleniyor...</div>
+      <div className="bg-white rounded-lg p-6 shadow-sm border border-stone-100">
+        <div className="text-center py-8 text-stone-500">Yükleniyor...</div>
       </div>
     );
   }
 
   if (gorevler.length === 0) {
     return (
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+      <div className="bg-white rounded-lg p-6 shadow-sm border border-stone-100">
+        <h3 className="text-lg font-bold text-stone-800 mb-4 flex items-center gap-2">
           <span>📋</span> Görevlerim
         </h3>
-        <div className="text-center py-8 text-gray-500">
+        <div className="text-center py-8 text-stone-500">
           <span className="text-4xl">✅</span>
           <p className="mt-2">Şu anda aktif göreviniz yok</p>
         </div>
@@ -93,8 +93,8 @@ export default function PersonelGorevleri({ personelId }: { personelId: string }
 
   return (
     <>
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+      <div className="bg-white rounded-lg p-6 shadow-sm border border-stone-100">
+        <h3 className="text-lg font-bold text-stone-800 mb-4 flex items-center gap-2">
           <span>📋</span> Görevlerim ({gorevler.length})
         </h3>
 
@@ -104,32 +104,32 @@ export default function PersonelGorevleri({ personelId }: { personelId: string }
               acil: "border-red-300 bg-red-50",
               yuksek: "border-orange-300 bg-orange-50",
               normal: "border-blue-300 bg-blue-50",
-              dusuk: "border-gray-300 bg-gray-50"
+              dusuk: "border-stone-300 bg-stone-50"
             }[gorev.oncelik];
 
             const durumRenk = {
               bekliyor: "bg-yellow-100 text-yellow-700",
               "devam-ediyor": "bg-blue-100 text-blue-700",
               tamamlandi: "bg-green-100 text-green-700",
-              iptal: "bg-gray-100 text-gray-700"
+              iptal: "bg-stone-100 text-stone-700"
             }[gorev.durum];
 
             return (
               <div
                 key={gorev.id}
-                className={`p-4 rounded-xl border-2 ${oncelikRenk} transition hover:shadow-md`}
+                className={`p-4 rounded-lg border-2 ${oncelikRenk} transition hover:shadow-md`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <h4 className="font-bold text-gray-800">{gorev.baslik}</h4>
+                      <h4 className="font-bold text-stone-800">{gorev.baslik}</h4>
                       {gorev.oncelik === "acil" && <span className="text-red-500">🔴</span>}
                       {gorev.oncelik === "yuksek" && <span className="text-orange-500">🟡</span>}
                     </div>
                     {gorev.aciklama && (
-                      <p className="text-sm text-gray-600 mb-2">{gorev.aciklama}</p>
+                      <p className="text-sm text-stone-600 mb-2">{gorev.aciklama}</p>
                     )}
-                    <div className="flex items-center gap-3 text-xs text-gray-500">
+                    <div className="flex items-center gap-3 text-xs text-stone-500">
                       <span>👔 {gorev.atayanAd}</span>
                       <span>📅 {new Date(gorev.olusturulmaTarihi).toLocaleDateString('tr-TR')}</span>
                     </div>

@@ -22,21 +22,19 @@ interface GelinListPanelProps {
 }
 
 function GelinRow({ gelin, onClick }: { gelin: Gelin; onClick: () => void }) {
-  const formatTarih = (tarih: string) => new Date(tarih).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
-  
   return (
     <div 
       onClick={onClick}
-      className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition cursor-pointer"
+      className="flex items-center justify-between p-2 bg-stone-50 rounded-lg hover:bg-stone-100 transition cursor-pointer"
     >
-      <div className="flex items-center gap-3">
-        <div className="bg-pink-100 text-pink-600 w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs">
+      <div className="flex items-center gap-2">
+        <div className="bg-rose-50 text-rose-500 w-8 h-8 rounded-md flex items-center justify-center font-medium text-[10px]">
           {gelin.saat}
         </div>
         <div>
-          <p className="font-medium text-gray-800 text-sm">{gelin.isim}</p>
+          <p className="font-medium text-stone-800 text-xs">{gelin.isim}</p>
           <div className="flex gap-1 mt-0.5">
-            <span className={`text-xs px-1.5 py-0.5 rounded ${gelin.makyaj ? 'bg-pink-100 text-pink-600' : 'bg-gray-200 text-gray-500'}`}>
+            <span className={`text-[10px] px-1 py-0.5 rounded ${gelin.makyaj ? 'bg-rose-50 text-rose-500' : 'bg-stone-200 text-stone-500'}`}>
               {gelin.makyaj 
                 ? (gelin.turban && gelin.turban !== gelin.makyaj 
                     ? `${gelin.makyaj} & ${gelin.turban}` 
@@ -48,9 +46,9 @@ function GelinRow({ gelin, onClick }: { gelin: Gelin; onClick: () => void }) {
       </div>
       <div className="text-right">
         {gelin.ucret === -1 ? (
-          <p className="text-gray-400 text-xs">İşlenmemiş</p>
+          <p className="text-stone-400 text-[10px]">İşlenmemiş</p>
         ) : (
-          <p className="text-red-500 font-semibold text-sm">{gelin.kalan.toLocaleString('tr-TR')} ₺</p>
+          <p className="text-red-500 font-medium text-xs">{gelin.kalan.toLocaleString('tr-TR')} ₺</p>
         )}
       </div>
     </div>
@@ -68,33 +66,33 @@ export default function GelinListPanel({
   onToggleChange
 }: GelinListPanelProps) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-      <div className="px-3 md:px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h2 className="font-semibold text-gray-800 flex items-center gap-2 text-sm">
+    <div className="bg-white rounded-lg border border-stone-100 overflow-hidden">
+      <div className="px-3 py-2 border-b border-stone-50 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <h2 className="font-medium text-stone-800 flex items-center gap-1.5 text-xs">
             <span>💄</span> {title}
-            <span className="bg-pink-100 text-pink-600 text-xs px-2 py-0.5 rounded-full">
+            <span className="bg-rose-50 text-rose-500 text-[10px] px-1.5 py-0.5 rounded-full">
               {gelinler.length}
             </span>
           </h2>
           {showToggle && onToggleChange && (
-            <div className="flex items-center gap-1 ml-2">
+            <div className="flex items-center gap-0.5 ml-1">
               <button
                 onClick={() => onToggleChange('bugun')}
-                className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
+                className={`px-2 py-0.5 rounded text-[10px] font-medium transition ${
                   toggleValue === 'bugun' 
-                    ? 'bg-pink-500 text-white' 
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-rose-500 text-white' 
+                    : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
                 }`}
               >
                 Bugün
               </button>
               <button
                 onClick={() => onToggleChange('yarin')}
-                className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
+                className={`px-2 py-0.5 rounded text-[10px] font-medium transition ${
                   toggleValue === 'yarin' 
-                    ? 'bg-pink-500 text-white' 
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-rose-500 text-white' 
+                    : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
                 }`}
               >
                 Yarın
@@ -103,19 +101,19 @@ export default function GelinListPanel({
           )}
         </div>
         {onRefresh && (
-          <button onClick={onRefresh} className="text-gray-400 hover:text-gray-600 text-xs">🔄</button>
+          <button onClick={onRefresh} className="text-stone-400 hover:text-stone-600 text-[10px]">🔄</button>
         )}
       </div>
-      <div className="p-3 md:p-4">
+      <div className="p-2.5">
         {loading ? (
-          <div className="text-center py-8 text-gray-500">Yükleniyor...</div>
+          <div className="text-center py-6 text-stone-500 text-xs">Yükleniyor...</div>
         ) : gelinler.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <span className="text-4xl">🎉</span>
-            <p className="mt-2">İş yok!</p>
+          <div className="text-center py-6 text-stone-500">
+            <span className="text-2xl">🎉</span>
+            <p className="mt-1 text-xs">İş yok!</p>
           </div>
         ) : (
-          <div className="space-y-2 max-h-[300px] overflow-y-auto">
+          <div className="space-y-1.5 max-h-[250px] overflow-y-auto">
             {gelinler.map((gelin) => (
               <GelinRow key={gelin.id} gelin={gelin} onClick={() => onGelinClick(gelin)} />
             ))}

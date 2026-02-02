@@ -181,26 +181,26 @@ export default function GelinlerPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500"></div>
+      <div className="min-h-screen flex items-center justify-center bg-stone-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-stone-50">
       <Sidebar user={user} />
       
-      <div className="md:ml-64 pb-20 md:pb-0">
+      <div className="md:ml-56 pb-20 md:pb-0">
         <header className="bg-white border-b px-6 py-4 sticky top-0 z-30">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-bold text-gray-800">👰 Gelin Yönetimi</h1>
-              <p className="text-sm text-gray-500">Gelin randevularını ve hazırlayan personelleri yönetin</p>
+              <h1 className="text-xl font-bold text-stone-800">👰 Gelin Yönetimi</h1>
+              <p className="text-sm text-stone-500">Gelin randevularını ve hazırlayan personelleri yönetin</p>
             </div>
             <button
               onClick={() => { setShowModal(true); setEditingGelin(null); resetForm(); }}
-              className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm"
+              className="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm"
             >
               ➕ Yeni Gelin
             </button>
@@ -209,43 +209,43 @@ export default function GelinlerPage() {
 
         <main className="p-6">
           {gelinler.length === 0 ? (
-            <div className="bg-white rounded-2xl p-12 text-center text-gray-500 border border-gray-100">
+            <div className="bg-white rounded-lg p-12 text-center text-stone-500 border border-stone-100">
               <span className="text-5xl mb-4 block">👰</span>
               <p className="text-lg font-medium">Gelin bulunamadı</p>
             </div>
           ) : (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded-lg shadow-sm border border-stone-100 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-stone-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Gelin</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tarih</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Saat</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Makyaj</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Türban</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">İşlemler</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Gelin</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Tarih</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Saat</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Makyaj</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Türban</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">İşlemler</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200">
+                  <tbody className="divide-y divide-stone-200">
                     {gelinler.map(gelin => (
-                      <tr key={gelin.id} className="hover:bg-gray-50 transition">
+                      <tr key={gelin.id} className="hover:bg-stone-50 transition">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-pink-100 rounded-full flex items-center justify-center">
-                              <span className="text-pink-600 font-semibold text-sm">
+                            <div className="w-10 h-10 bg-rose-100 rounded-full flex items-center justify-center">
+                              <span className="text-rose-600 font-semibold text-sm">
                                 {gelin.ad[0]}{gelin.soyad[0]}
                               </span>
                             </div>
                             <div>
-                              <div className="text-sm font-medium text-gray-900">{gelin.ad} {gelin.soyad}</div>
+                              <div className="text-sm font-medium text-stone-900">{gelin.ad} {gelin.soyad}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
+                        <td className="px-6 py-4 text-sm text-stone-900">
                           {new Date(gelin.tarih).toLocaleDateString('tr-TR')}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{gelin.saat}</td>
+                        <td className="px-6 py-4 text-sm text-stone-600">{gelin.saat}</td>
                         <td className="px-6 py-4">
                           <span className="px-3 py-1 text-sm font-semibold bg-purple-100 text-purple-700 rounded-lg">
                             {getPersonelKisaltma(gelin.makyajPersonelId)}
@@ -287,33 +287,33 @@ export default function GelinlerPage() {
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-gray-800">
+              <h3 className="text-xl font-bold text-stone-800">
                 {editingGelin ? "✏️ Gelin Düzenle" : "➕ Yeni Gelin"}
               </h3>
-              <button onClick={() => { setShowModal(false); resetForm(); }} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+              <button onClick={() => { setShowModal(false); resetForm(); }} className="text-stone-400 hover:text-stone-600 text-2xl">×</button>
             </div>
 
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Ad *</label>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">Ad *</label>
                   <input 
                     type="text" 
                     value={formData.ad} 
                     onChange={(e) => setFormData({ ...formData, ad: e.target.value })} 
-                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500" 
+                    className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" 
                     placeholder="Ayşe" 
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Soyad *</label>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">Soyad *</label>
                   <input 
                     type="text" 
                     value={formData.soyad} 
                     onChange={(e) => setFormData({ ...formData, soyad: e.target.value })} 
-                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500" 
+                    className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" 
                     placeholder="Yılmaz" 
                   />
                 </div>
@@ -321,7 +321,7 @@ export default function GelinlerPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tarih *</label>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">Tarih *</label>
                   <input 
                     type="date" 
                     value={formData.tarih} 
@@ -350,27 +350,27 @@ export default function GelinlerPage() {
                       
                       setFormData({ ...formData, tarih: e.target.value });
                     }} 
-                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500" 
+                    className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" 
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Saat *</label>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">Saat *</label>
                   <input 
                     type="time" 
                     value={formData.saat} 
                     onChange={(e) => setFormData({ ...formData, saat: e.target.value })} 
-                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500" 
+                    className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" 
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">💄 Makyaj Personeli</label>
+                  <label className="block text-sm font-medium text-stone-700 mb-2">💄 Makyaj Personeli</label>
                   <select
                     value={formData.makyajPersonelId}
                     onChange={(e) => setFormData({ ...formData, makyajPersonelId: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 bg-white"
+                    className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 bg-white"
                   >
                     <option value="">Seçiniz...</option>
                     {personeller.map(p => (
@@ -381,11 +381,11 @@ export default function GelinlerPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">🧕 Türban Personeli</label>
+                  <label className="block text-sm font-medium text-stone-700 mb-2">🧕 Türban Personeli</label>
                   <select
                     value={formData.turbanPersonelId}
                     onChange={(e) => setFormData({ ...formData, turbanPersonelId: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 bg-white"
+                    className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 bg-white"
                   >
                     <option value="">Seçiniz...</option>
                     {personeller.map(p => (
@@ -398,12 +398,12 @@ export default function GelinlerPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notlar</label>
+                <label className="block text-sm font-medium text-stone-700 mb-1">Notlar</label>
                 <textarea
                   value={formData.notlar}
                   onChange={(e) => setFormData({ ...formData, notlar: e.target.value })}
                   rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
                   placeholder="Özel notlar..."
                 />
               </div>
@@ -412,13 +412,13 @@ export default function GelinlerPage() {
             <div className="mt-6 flex gap-3">
               <button 
                 onClick={handleAddEdit} 
-                className="flex-1 px-4 py-3 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition font-medium"
+                className="flex-1 px-4 py-3 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition font-medium"
               >
                 💾 Kaydet
               </button>
               <button 
                 onClick={() => { setShowModal(false); resetForm(); }} 
-                className="flex-1 px-4 py-3 bg-gray-500 text-white rounded-xl hover:bg-gray-600 transition font-medium"
+                className="flex-1 px-4 py-3 bg-stone-500 text-white rounded-lg hover:bg-stone-600 transition font-medium"
               >
                 ↩️ İptal
               </button>

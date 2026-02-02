@@ -138,37 +138,37 @@ export default function GirisCikisPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500"></div>
+      <div className="min-h-screen flex items-center justify-center bg-stone-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-stone-50">
       <Sidebar user={user} />
       
-      <div className="md:ml-64 pb-20 md:pb-0">
+      <div className="md:ml-56 pb-20 md:pb-0">
         <header className="bg-white border-b px-6 py-4 sticky top-0 z-30">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-bold text-gray-800">🕐 Giriş-Çıkış Kayıtları</h1>
-              <p className="text-sm text-gray-500">Personel mesai takibi</p>
+              <h1 className="text-xl font-bold text-stone-800">🕐 Giriş-Çıkış Kayıtları</h1>
+              <p className="text-sm text-stone-500">Personel mesai takibi</p>
             </div>
           </div>
         </header>
 
         <main className="p-6">
           {/* Filtreler */}
-          <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mb-6">
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-stone-100 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-2 block">📅 Tarih:</label>
-                <input type="date" value={filterTarih} onChange={e => setFilterTarih(e.target.value)} className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500" />
+                <label className="text-sm font-medium text-stone-700 mb-2 block">📅 Tarih:</label>
+                <input type="date" value={filterTarih} onChange={e => setFilterTarih(e.target.value)} className="w-full px-4 py-2 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-2 block">👤 Personel:</label>
-                <select value={filterPersonel} onChange={e => setFilterPersonel(e.target.value)} className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 bg-white">
+                <label className="text-sm font-medium text-stone-700 mb-2 block">👤 Personel:</label>
+                <select value={filterPersonel} onChange={e => setFilterPersonel(e.target.value)} className="w-full px-4 py-2 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 bg-white">
                   <option value="hepsi">Tüm Personel</option>
                   {personeller.map(p => (
                     <option key={p.id} value={p.id}>{p.ad} {p.soyad}</option>
@@ -180,19 +180,19 @@ export default function GirisCikisPage() {
 
           {/* İstatistikler */}
           <div className="grid grid-cols-4 gap-4 mb-6">
-            <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-5 rounded-2xl shadow-md text-white">
+            <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-5 rounded-lg shadow-md text-white">
               <p className="text-blue-100 text-sm mb-1">Toplam Kayıt</p>
               <p className="text-3xl font-bold">{toplamKayit}</p>
             </div>
-            <div className="bg-gradient-to-br from-green-500 to-green-600 p-5 rounded-2xl shadow-md text-white">
+            <div className="bg-gradient-to-br from-green-500 to-green-600 p-5 rounded-lg shadow-md text-white">
               <p className="text-green-100 text-sm mb-1">Giriş Yapan</p>
               <p className="text-3xl font-bold">{girisYapanlar}</p>
             </div>
-            <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-5 rounded-2xl shadow-md text-white">
+            <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-5 rounded-lg shadow-md text-white">
               <p className="text-orange-100 text-sm mb-1">Çıkış Yapan</p>
               <p className="text-3xl font-bold">{cikisYapanlar}</p>
             </div>
-            <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-5 rounded-2xl shadow-md text-white">
+            <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-5 rounded-lg shadow-md text-white">
               <p className="text-purple-100 text-sm mb-1">Aktif Personel</p>
               <p className="text-3xl font-bold">{personeller.length}</p>
             </div>
@@ -200,61 +200,61 @@ export default function GirisCikisPage() {
 
           {/* Personel Özet Kartları */}
           {Object.keys(ozet).length === 0 ? (
-            <div className="bg-white rounded-2xl p-12 text-center text-gray-500 border border-gray-100">
+            <div className="bg-white rounded-lg p-12 text-center text-stone-500 border border-stone-100">
               <span className="text-5xl mb-4 block">🕐</span>
               <p className="text-lg font-medium">Bu tarihte kayıt bulunamadı</p>
             </div>
           ) : (
             <div className="space-y-4">
               {Object.entries(ozet).map(([personelId, data]) => (
-                <div key={personelId} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                <div key={personelId} className="bg-white rounded-lg shadow-sm border border-stone-100 p-5">
                   <div className="flex items-center justify-between">
                     {/* Sol: Personel bilgisi */}
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-pink-100 rounded-full flex items-center justify-center">
-                        <span className="text-pink-600 font-bold text-lg">{data.ad?.charAt(0)}</span>
+                      <div className="w-12 h-12 bg-rose-100 rounded-full flex items-center justify-center">
+                        <span className="text-rose-600 font-bold text-lg">{data.ad?.charAt(0)}</span>
                       </div>
                       <div>
-                        <h3 className="font-semibold text-gray-800">{data.ad}</h3>
-                        <p className="text-sm text-gray-500">{data.kayitlar.length} kayıt</p>
+                        <h3 className="font-semibold text-stone-800">{data.ad}</h3>
+                        <p className="text-sm text-stone-500">{data.kayitlar.length} kayıt</p>
                       </div>
                     </div>
 
                     {/* Orta: Giriş-Çıkış */}
                     <div className="flex items-center gap-8">
                       <div className="text-center">
-                        <p className="text-xs text-gray-500 mb-1">Giriş</p>
+                        <p className="text-xs text-stone-500 mb-1">Giriş</p>
                         {data.giris ? (
                           <p className="text-lg font-bold text-green-600">{formatSaat(data.giris.tarih)}</p>
                         ) : (
-                          <p className="text-lg text-gray-300">-</p>
+                          <p className="text-lg text-stone-300">-</p>
                         )}
                       </div>
-                      <div className="text-2xl text-gray-300">→</div>
+                      <div className="text-2xl text-stone-300">→</div>
                       <div className="text-center">
-                        <p className="text-xs text-gray-500 mb-1">Çıkış</p>
+                        <p className="text-xs text-stone-500 mb-1">Çıkış</p>
                         {data.cikis ? (
                           <p className="text-lg font-bold text-orange-600">{formatSaat(data.cikis.tarih)}</p>
                         ) : (
-                          <p className="text-lg text-gray-300">-</p>
+                          <p className="text-lg text-stone-300">-</p>
                         )}
                       </div>
                     </div>
 
                     {/* Sağ: Toplam süre ve konum */}
                     <div className="text-right">
-                      <p className="text-sm text-gray-500">Çalışma Süresi</p>
+                      <p className="text-sm text-stone-500">Çalışma Süresi</p>
                       <p className="text-lg font-bold text-purple-600">{hesaplaCalisma(data.giris?.tarih, data.cikis?.tarih)}</p>
                       {data.giris?.konumAdi && (
-                        <p className="text-xs text-gray-400 mt-1">📍 {data.giris.konumAdi}</p>
+                        <p className="text-xs text-stone-400 mt-1">📍 {data.giris.konumAdi}</p>
                       )}
                     </div>
                   </div>
 
                   {/* Detay Kayıtlar */}
                   {data.kayitlar.length > 2 && (
-                    <div className="mt-4 pt-4 border-t border-gray-100">
-                      <p className="text-xs text-gray-500 mb-2">Tüm Kayıtlar:</p>
+                    <div className="mt-4 pt-4 border-t border-stone-100">
+                      <p className="text-xs text-stone-500 mb-2">Tüm Kayıtlar:</p>
                       <div className="flex flex-wrap gap-2">
                         {data.kayitlar.map((k, i) => (
                           <span key={i} className={`px-3 py-1 text-xs rounded-full ${k.tip === 'giris' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
@@ -272,29 +272,29 @@ export default function GirisCikisPage() {
           {/* Tüm Kayıtlar Tablosu */}
           {filteredRecords.length > 0 && (
             <div className="mt-6">
-              <h2 className="text-lg font-bold text-gray-800 mb-4">📋 Detaylı Kayıtlar</h2>
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <h2 className="text-lg font-bold text-stone-800 mb-4">📋 Detaylı Kayıtlar</h2>
+              <div className="bg-white rounded-lg shadow-sm border border-stone-100 overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-stone-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Personel</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">İşlem</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Saat</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Konum</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mesafe</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">İşlemler</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Personel</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">İşlem</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Saat</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Konum</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Mesafe</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">İşlemler</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200">
+                    <tbody className="divide-y divide-stone-200">
                       {filteredRecords.map(record => (
-                        <tr key={record.id} className="hover:bg-gray-50 transition">
+                        <tr key={record.id} className="hover:bg-stone-50 transition">
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 bg-pink-100 rounded-full flex items-center justify-center">
-                                <span className="text-pink-600 font-semibold text-sm">{record.personelAd?.charAt(0)}</span>
+                              <div className="w-8 h-8 bg-rose-100 rounded-full flex items-center justify-center">
+                                <span className="text-rose-600 font-semibold text-sm">{record.personelAd?.charAt(0)}</span>
                               </div>
-                              <span className="text-sm font-medium text-gray-900">{record.personelAd}</span>
+                              <span className="text-sm font-medium text-stone-900">{record.personelAd}</span>
                             </div>
                           </td>
                           <td className="px-6 py-4">
@@ -302,9 +302,9 @@ export default function GirisCikisPage() {
                               {record.tip === 'giris' ? '✓ Giriş' : '→ Çıkış'}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-sm font-medium text-gray-900">{formatSaat(record.tarih)}</td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{record.konumAdi || '-'}</td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{record.mesafe ? `${record.mesafe}m` : '-'}</td>
+                          <td className="px-6 py-4 text-sm font-medium text-stone-900">{formatSaat(record.tarih)}</td>
+                          <td className="px-6 py-4 text-sm text-stone-600">{record.konumAdi || '-'}</td>
+                          <td className="px-6 py-4 text-sm text-stone-600">{record.mesafe ? `${record.mesafe}m` : '-'}</td>
                           <td className="px-6 py-4">
                             <button onClick={() => handleDelete(record.id)} className="text-red-600 hover:text-red-800 text-lg">🗑️</button>
                           </td>

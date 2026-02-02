@@ -136,11 +136,11 @@ export default function IzinHaklariListele() {
     <div className="flex min-h-screen bg-neutral-warm">
       <Sidebar user={user} />
 
-      <main className="flex-1 p-4 lg:p-6 md:ml-64 pb-20 md:pb-0">
+      <main className="flex-1 p-4 lg:p-6 md:ml-56 pb-20 md:pb-0">
         <div className="mb-6 flex items-start justify-between">
           <div>
-            <h1 className="text-xl font-bold text-gray-800">İzin Haklarını Listele</h1>
-            <p className="text-sm text-gray-500">
+            <h1 className="text-xl font-bold text-stone-800">İzin Haklarını Listele</h1>
+            <p className="text-sm text-stone-500">
               Personellere tanımlanan izin hakkı kayıtlarını görüntüleyebilirsiniz.
             </p>
           </div>
@@ -154,7 +154,7 @@ export default function IzinHaklariListele() {
           </button>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-4">
+        <div className="bg-white rounded-lg shadow-sm border border-stone-100 p-4 mb-4">
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex-1 min-w-[200px]">
               <input
@@ -162,7 +162,7 @@ export default function IzinHaklariListele() {
                 placeholder="Ara... (İsim, Açıklama, İşlem Yapan)"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
               />
             </div>
 
@@ -173,7 +173,7 @@ export default function IzinHaklariListele() {
             <div className="ml-auto">
               <button
                 onClick={() => window.print()}
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-stone-100 text-stone-700 rounded-lg text-sm font-medium hover:bg-stone-200 transition-colors flex items-center gap-2"
               >
                 <span>🖨️</span>
                 <span>Yazdır</span>
@@ -182,25 +182,25 @@ export default function IzinHaklariListele() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-lg shadow-sm border border-stone-100 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600">#</th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600">Personel</th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600">İşe Giriş Tarihi</th>
-                  <th className="px-3 py-3 text-center text-xs font-semibold text-gray-600">Eklenen Gün</th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600">Açıklama</th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600">İşlem Tarihi</th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600">İşlem Yapan</th>
-                  <th className="px-3 py-3 text-center text-xs font-semibold text-gray-600">İşlemler</th>
+                <tr className="bg-stone-50 border-b border-stone-100">
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-stone-600">#</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-stone-600">Personel</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-stone-600">İşe Giriş Tarihi</th>
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-stone-600">Eklenen Gün</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-stone-600">Açıklama</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-stone-600">İşlem Tarihi</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-stone-600">İşlem Yapan</th>
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-stone-600">İşlemler</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredKayitlar.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-3 py-8 text-center text-gray-500">
+                    <td colSpan={8} className="px-3 py-8 text-center text-stone-500">
                       {kayitlar.length === 0
                         ? "Henüz izin hakkı kaydı bulunmuyor."
                         : "Aramanızla eşleşen kayıt bulunamadı."}
@@ -210,15 +210,15 @@ export default function IzinHaklariListele() {
                   filteredKayitlar.map((kayit, index) => (
                     <tr
                       key={kayit.id}
-                      className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors"
+                      className="border-b border-stone-50 hover:bg-stone-50/50 transition-colors"
                     >
-                      <td className="px-3 py-3 text-sm text-gray-500">
+                      <td className="px-3 py-3 text-sm text-stone-500">
                         {index + 1}
                       </td>
-                      <td className="px-3 py-3 text-sm font-medium text-gray-800">
+                      <td className="px-3 py-3 text-sm font-medium text-stone-800">
                         {kayit.personelAd} {kayit.personelSoyad}
                       </td>
-                      <td className="px-3 py-3 text-sm text-gray-600">
+                      <td className="px-3 py-3 text-sm text-stone-600">
                         {formatDate(personelMap[kayit.personelId] || "")}
                       </td>
                       <td className="px-3 py-3 text-center">
@@ -226,27 +226,27 @@ export default function IzinHaklariListele() {
                           +{kayit.eklenenGun} gün
                         </span>
                       </td>
-                      <td className="px-3 py-3 text-sm text-gray-600">
+                      <td className="px-3 py-3 text-sm text-stone-600">
                         {kayit.aciklama}
                       </td>
-                      <td className="px-3 py-3 text-sm text-gray-500">
+                      <td className="px-3 py-3 text-sm text-stone-500">
                         {formatDateTime(kayit.islemTarihi)}
                       </td>
-                      <td className="px-3 py-3 text-sm text-gray-600">
+                      <td className="px-3 py-3 text-sm text-stone-600">
                         {kayit.islemYapan}
                       </td>
                       <td className="px-3 py-3">
                         <div className="flex items-center justify-center gap-1">
                           <button
                             onClick={() => router.push("/izinler/hakki-duzenle/" + kayit.id)}
-                            className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors"
+                            className="p-1.5 text-stone-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors"
                             title="Düzenle"
                           >
                             ✏️
                           </button>
                           <button
                             onClick={() => handleDelete(kayit)}
-                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            className="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                             title="Sil"
                           >
                             🗑️
@@ -261,8 +261,8 @@ export default function IzinHaklariListele() {
           </div>
 
           {filteredKayitlar.length > 0 && (
-            <div className="px-4 py-3 border-t border-gray-100 bg-gray-50">
-              <div className="flex items-center justify-between text-sm text-gray-600">
+            <div className="px-4 py-3 border-t border-stone-100 bg-stone-50">
+              <div className="flex items-center justify-between text-sm text-stone-600">
                 <span>Toplam <span className="font-semibold">{filteredKayitlar.length}</span> kayıt</span>
                 <span>
                   Toplam Eklenen: <span className="font-semibold text-green-600">+{toplamEklenenGun} gün</span>

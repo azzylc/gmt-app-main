@@ -211,8 +211,8 @@ export default function QRGirisPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-pink-500 border-t-transparent"></div>
+      <div className="min-h-screen flex items-center justify-center bg-stone-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-rose-500 border-t-transparent"></div>
       </div>
     );
   }
@@ -230,17 +230,17 @@ export default function QRGirisPage() {
           <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-black/70 to-transparent"></div>
           <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-black/70 to-transparent"></div>
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 border-2 border-white rounded-3xl">
-            <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-pink-500 rounded-tl-2xl"></div>
-            <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-pink-500 rounded-tr-2xl"></div>
-            <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-pink-500 rounded-bl-2xl"></div>
-            <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-pink-500 rounded-br-2xl"></div>
+            <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-rose-500 rounded-tl-2xl"></div>
+            <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-rose-500 rounded-tr-2xl"></div>
+            <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-rose-500 rounded-bl-2xl"></div>
+            <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-rose-500 rounded-br-2xl"></div>
           </div>
         </div>
         <div className="absolute top-0 left-0 right-0 p-6 text-center">
           <p className="text-white text-lg font-medium">QR Kodu Cerceveleyln</p>
         </div>
         <div className="absolute bottom-0 left-0 right-0 p-6">
-          <button onClick={() => setScanning(false)} className="w-full py-4 bg-white/20 backdrop-blur text-white rounded-2xl font-medium text-lg">
+          <button onClick={() => setScanning(false)} className="w-full py-4 bg-white/20 backdrop-blur text-white rounded-lg font-medium text-lg">
             X Iptal
           </button>
         </div>
@@ -249,35 +249,35 @@ export default function QRGirisPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-stone-50">
       <Sidebar user={user} />
       
-      <div className="md:ml-64 pb-20 md:pb-0">
+      <div className="md:ml-56 pb-20 md:pb-0">
         <header className="bg-white border-b px-4 md:px-6 py-4 sticky top-0 z-30">
-          <h1 className="text-lg md:text-xl font-bold text-gray-800">📱 QR Giris-Cikis</h1>
-          <p className="text-sm text-gray-500">QR kod okutarak giris veya cikis yapin</p>
+          <h1 className="text-lg md:text-xl font-bold text-stone-800">📱 QR Giris-Cikis</h1>
+          <p className="text-sm text-stone-500">QR kod okutarak giris veya cikis yapin</p>
         </header>
 
         <main className="p-4 md:p-6">
           <div className="max-w-lg mx-auto">
             {/* Personel Bilgisi */}
-            <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100 mb-4 md:mb-6">
+            <div className="bg-white rounded-lg p-4 md:p-6 shadow-sm border border-stone-100 mb-4 md:mb-6">
               <div className="flex items-center gap-4">
                 {personel?.foto ? (
                   <img src={personel.foto} alt="" className="w-14 h-14 md:w-16 md:h-16 rounded-full object-cover" />
                 ) : (
-                  <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-pink-100 flex items-center justify-center text-xl md:text-2xl">
+                  <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-rose-100 flex items-center justify-center text-xl md:text-2xl">
                     {personel?.ad?.charAt(0)}
                   </div>
                 )}
                 <div>
-                  <h2 className="text-base md:text-lg font-bold text-gray-800">{personel?.ad} {personel?.soyad}</h2>
-                  <p className="text-sm text-gray-500">{personel?.email}</p>
+                  <h2 className="text-base md:text-lg font-bold text-stone-800">{personel?.ad} {personel?.soyad}</h2>
+                  <p className="text-sm text-stone-500">{personel?.email}</p>
                 </div>
               </div>
 
               {sonIslem && (
-                <div className={`mt-4 p-3 rounded-xl ${sonIslem.tip === "giris" ? "bg-green-50" : "bg-orange-50"}`}>
+                <div className={`mt-4 p-3 rounded-lg ${sonIslem.tip === "giris" ? "bg-green-50" : "bg-orange-50"}`}>
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium">
@@ -285,7 +285,7 @@ export default function QRGirisPage() {
                           {sonIslem.tip === "giris" ? "Giris" : "Cikis"}
                         </span>
                       </p>
-                      <p className="text-xs text-gray-500 mt-1">{sonIslem.konumAdi}</p>
+                      <p className="text-xs text-stone-500 mt-1">{sonIslem.konumAdi}</p>
                     </div>
                     <p className={`text-lg font-bold ${sonIslem.tip === "giris" ? "text-green-600" : "text-orange-600"}`}>
                       {formatSaat(sonIslem.tarih)}
@@ -296,13 +296,13 @@ export default function QRGirisPage() {
             </div>
 
             {/* QR Scanner */}
-            <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100">
+            <div className="bg-white rounded-lg p-4 md:p-6 shadow-sm border border-stone-100">
               {locationError && (
-                <div className="mb-4 p-4 bg-red-50 rounded-xl text-red-600 text-sm">{locationError}</div>
+                <div className="mb-4 p-4 bg-red-50 rounded-lg text-red-600 text-sm">{locationError}</div>
               )}
 
               {durum !== "bekleniyor" && (
-                <div className={`mb-4 p-4 rounded-xl text-center ${durum === "basarili" ? "bg-green-50" : "bg-red-50"}`}>
+                <div className={`mb-4 p-4 rounded-lg text-center ${durum === "basarili" ? "bg-green-50" : "bg-red-50"}`}>
                   <span className="text-3xl mb-2 block">{durum === "basarili" ? "✅" : "❌"}</span>
                   <p className={`font-semibold ${durum === "basarili" ? "text-green-700" : "text-red-700"}`}>{mesaj}</p>
                 </div>
@@ -310,20 +310,20 @@ export default function QRGirisPage() {
 
               {processing ? (
                 <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-pink-500 border-t-transparent mx-auto mb-4"></div>
-                  <p className="text-gray-600">Isleniyor...</p>
+                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-rose-500 border-t-transparent mx-auto mb-4"></div>
+                  <p className="text-stone-600">Isleniyor...</p>
                 </div>
               ) : (
                 <div className="text-center">
-                  <div className="w-24 h-24 md:w-28 md:h-28 mx-auto mb-4 md:mb-6 bg-gray-100 rounded-2xl flex items-center justify-center">
+                  <div className="w-24 h-24 md:w-28 md:h-28 mx-auto mb-4 md:mb-6 bg-stone-100 rounded-lg flex items-center justify-center">
                     <span className="text-4xl md:text-5xl">📷</span>
                   </div>
-                  <p className="text-gray-600 mb-4 md:mb-6">
+                  <p className="text-stone-600 mb-4 md:mb-6">
                     {sonIslem?.tip === "giris" ? "Cikis yapmak icin QR kod okutun" : "Giris yapmak icin QR kod okutun"}
                   </p>
                   <button
                     onClick={startScanning}
-                    className={`w-full py-4 text-white rounded-xl font-medium text-lg transition active:scale-95 ${
+                    className={`w-full py-4 text-white rounded-lg font-medium text-lg transition active:scale-95 ${
                       sonIslem?.tip === "giris" 
                         ? "bg-gradient-to-r from-orange-500 to-orange-600" 
                         : "bg-gradient-to-r from-green-500 to-green-600"
@@ -335,7 +335,7 @@ export default function QRGirisPage() {
               )}
             </div>
 
-            <div className="mt-4 md:mt-6 p-4 bg-blue-50 rounded-xl">
+            <div className="mt-4 md:mt-6 p-4 bg-blue-50 rounded-lg">
               <p className="text-sm text-blue-700">Kamerayi QR koda tutun, otomatik okuyacak.</p>
             </div>
           </div>

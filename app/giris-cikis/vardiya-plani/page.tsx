@@ -394,17 +394,17 @@ export default function VardiyaPlaniPage() {
 
   // Hücre rengi
   const getHucreClass = (kayit: VardiyaKayit, tarih: Date): string => {
-    const base = "px-2 py-3 text-xs text-center border-r border-gray-100 transition";
-    const clickable = " cursor-pointer hover:bg-pink-50";
+    const base = "px-2 py-3 text-xs text-center border-r border-stone-100 transition";
+    const clickable = " cursor-pointer hover:bg-rose-50";
     const notClickable = " cursor-not-allowed";
     
     const resmiTatil = isResmiTatil(tarih);
     if (resmiTatil) return base + notClickable + " bg-green-200 text-green-800";
     if (kayit.izin) return base + notClickable + " bg-yellow-200 text-yellow-800";
     if (kayit.haftaTatili) return base + clickable + " bg-orange-300 text-orange-900";
-    if (kayit.giris && kayit.cikis) return base + clickable + " bg-green-50 text-gray-800";
+    if (kayit.giris && kayit.cikis) return base + clickable + " bg-green-50 text-stone-800";
     
-    return base + clickable + " bg-white text-gray-400";
+    return base + clickable + " bg-white text-stone-400";
   };
 
   // Hücre içeriği
@@ -478,8 +478,8 @@ export default function VardiyaPlaniPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500"></div>
+      <div className="min-h-screen flex items-center justify-center bg-stone-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500"></div>
       </div>
     );
   }
@@ -490,15 +490,15 @@ export default function VardiyaPlaniPage() {
   const haftaBitis = formatTarih(haftaGunleri[6]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-stone-50">
       <Sidebar user={user} />
       
-      <div className="md:ml-64 pb-20 md:pb-0">
+      <div className="md:ml-56 pb-20 md:pb-0">
         <header className="bg-white border-b px-4 md:px-6 py-4 sticky top-0 z-30">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h1 className="text-xl font-bold text-gray-800">{seciliHafta}. Hafta - Vardiya Planı</h1>
-              <p className="text-sm text-gray-500 mt-1">Haftalık vardiya planı oluşturun ve yönetin. ({haftaBaslangic} - {haftaBitis})</p>
+              <h1 className="text-xl font-bold text-stone-800">{seciliHafta}. Hafta - Vardiya Planı</h1>
+              <p className="text-sm text-stone-500 mt-1">Haftalık vardiya planı oluşturun ve yönetin. ({haftaBaslangic} - {haftaBitis})</p>
             </div>
             <div className="flex items-center gap-3 text-xs">
               <div className="flex items-center gap-1"><span className="w-3 h-3 bg-orange-300 rounded"></span> Hafta Tatili</div>
@@ -510,14 +510,14 @@ export default function VardiyaPlaniPage() {
         </header>
 
         <main className="p-4 md:p-6">
-        <div className="bg-white rounded-xl shadow-sm border p-4 mb-6">
+        <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
           <div className="flex flex-wrap items-end gap-4">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Hafta</label>
+              <label className="block text-xs text-stone-500 mb-1">Hafta</label>
               <select
                 value={seciliHafta}
                 onChange={(e) => setSeciliHafta(Number(e.target.value))}
-                className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                className="px-4 py-2 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
               >
                 {haftalar.map(h => {
                   const gunler = getHaftaGunleri(h, seciliYil);
@@ -533,11 +533,11 @@ export default function VardiyaPlaniPage() {
             </div>
 
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Yıl</label>
+              <label className="block text-xs text-stone-500 mb-1">Yıl</label>
               <select
                 value={seciliYil}
                 onChange={(e) => setSeciliYil(Number(e.target.value))}
-                className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                className="px-4 py-2 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
               >
                 {[2024, 2025, 2026, 2027].map(yil => (
                   <option key={yil} value={yil}>{yil}</option>
@@ -545,14 +545,14 @@ export default function VardiyaPlaniPage() {
               </select>
             </div>
 
-            <div className="h-8 w-px bg-gray-200 hidden sm:block"></div>
+            <div className="h-8 w-px bg-stone-200 hidden sm:block"></div>
 
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Grup</label>
+              <label className="block text-xs text-stone-500 mb-1">Grup</label>
               <select
                 value={seciliGrup}
                 onChange={(e) => setSeciliGrup(e.target.value)}
-                className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                className="px-4 py-2 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
               >
                 <option value="tumu">Tüm Gruplar</option>
                 {grupEtiketleri.map(grup => (
@@ -562,13 +562,13 @@ export default function VardiyaPlaniPage() {
             </div>
 
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Kurucular</label>
+              <label className="block text-xs text-stone-500 mb-1">Kurucular</label>
               <button
                 onClick={() => setYoneticileriGoster(!yoneticileriGoster)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                   yoneticileriGoster 
-                    ? "bg-pink-500 text-white" 
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    ? "bg-rose-500 text-white" 
+                    : "bg-stone-100 text-stone-600 hover:bg-stone-200"
                 }`}
               >
                 {yoneticileriGoster ? "Göster ✓" : "Gizli"}
@@ -579,41 +579,41 @@ export default function VardiyaPlaniPage() {
 
         {/* Hafta Başlığı */}
         <div className="mb-4">
-          <h2 className="text-lg font-semibold text-gray-800">
+          <h2 className="text-lg font-semibold text-stone-800">
             {seciliHafta}. Hafta ({haftaBaslangic} - {haftaBitis})
           </h2>
         </div>
 
         {/* Tablo */}
         {dataLoading ? (
-          <div className="bg-white rounded-xl shadow-sm border p-12 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto"></div>
-            <p className="text-gray-500 mt-4">Veriler yükleniyor...</p>
+          <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500 mx-auto"></div>
+            <p className="text-stone-500 mt-4">Veriler yükleniyor...</p>
           </div>
         ) : (
-          <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+          <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50">
+                <thead className="bg-stone-50">
                   <tr>
-                    <th className="px-3 py-3 text-left font-medium text-gray-600 border-b border-r sticky left-0 bg-gray-50 z-10 min-w-[100px]">Sicil No</th>
-                    <th className="px-3 py-3 text-left font-medium text-gray-600 border-b border-r sticky left-[100px] bg-gray-50 z-10 min-w-[140px]">Ad Soyad</th>
-                    <th className="px-3 py-3 text-left font-medium text-gray-600 border-b border-r min-w-[120px]">Çalışma Saati</th>
+                    <th className="px-3 py-3 text-left font-medium text-stone-600 border-b border-r sticky left-0 bg-stone-50 z-10 min-w-[100px]">Sicil No</th>
+                    <th className="px-3 py-3 text-left font-medium text-stone-600 border-b border-r sticky left-[100px] bg-stone-50 z-10 min-w-[140px]">Ad Soyad</th>
+                    <th className="px-3 py-3 text-left font-medium text-stone-600 border-b border-r min-w-[120px]">Çalışma Saati</th>
                     {haftaGunleri.map((gun, i) => (
                       <th key={i} className="px-2 py-2 text-center font-medium border-b border-r min-w-[110px]">
-                        <div className="text-xs text-gray-600">{gunIsimleri[i]}</div>
-                        <div className="text-xs text-gray-400">{formatTarih(gun).split(' ').slice(0, 2).join(' ')}</div>
+                        <div className="text-xs text-stone-600">{gunIsimleri[i]}</div>
+                        <div className="text-xs text-stone-400">{formatTarih(gun).split(' ').slice(0, 2).join(' ')}</div>
                       </th>
                     ))}
-                    <th className="px-3 py-3 text-center font-medium text-gray-600 border-b min-w-[80px]">Toplam</th>
+                    <th className="px-3 py-3 text-center font-medium text-stone-600 border-b min-w-[80px]">Toplam</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-stone-100">
                   {vardiyaData.map(personel => (
-                    <tr key={personel.personelId} className="hover:bg-gray-50">
-                      <td className="px-3 py-3 text-gray-600 sticky left-0 bg-white z-10 border-r">{personel.sicilNo}</td>
-                      <td className="px-3 py-3 font-medium text-gray-800 sticky left-[100px] bg-white z-10 border-r whitespace-nowrap">{personel.personelAd}</td>
-                      <td className="px-3 py-3 text-xs text-gray-500 border-r">{personel.calismaSaati}</td>
+                    <tr key={personel.personelId} className="hover:bg-stone-50">
+                      <td className="px-3 py-3 text-stone-600 sticky left-0 bg-white z-10 border-r">{personel.sicilNo}</td>
+                      <td className="px-3 py-3 font-medium text-stone-800 sticky left-[100px] bg-white z-10 border-r whitespace-nowrap">{personel.personelAd}</td>
+                      <td className="px-3 py-3 text-xs text-stone-500 border-r">{personel.calismaSaati}</td>
                       {haftaGunleri.map((gun, i) => {
                         const tarihKey = formatTarihKey(gun);
                         const kayit = personel.gunler[tarihKey] || {};
@@ -627,7 +627,7 @@ export default function VardiyaPlaniPage() {
                           </td>
                         );
                       })}
-                      <td className="px-3 py-3 text-center font-semibold text-gray-800">{hesaplaToplam(personel.gunler)}</td>
+                      <td className="px-3 py-3 text-center font-semibold text-stone-800">{hesaplaToplam(personel.gunler)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -640,7 +640,7 @@ export default function VardiyaPlaniPage() {
         <div className="flex flex-col md:flex-row gap-3 justify-center mt-6">
           <button
             onClick={() => window.print()}
-            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-medium transition flex items-center justify-center gap-2"
+            className="bg-stone-100 hover:bg-stone-200 text-stone-700 px-6 py-3 rounded-lg font-medium transition flex items-center justify-center gap-2"
           >
             🖨️ Yazdır / PDF
           </button>
@@ -656,12 +656,12 @@ export default function VardiyaPlaniPage() {
       {/* Düzenleme Modal */}
       {editModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">Vardiya Düzenle</h3>
+          <div className="bg-white rounded-lg max-w-sm w-full p-6">
+            <h3 className="text-lg font-bold text-stone-800 mb-4">Vardiya Düzenle</h3>
             
-            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600"><strong>Personel:</strong> {editModal.personelAd}</p>
-              <p className="text-sm text-gray-600"><strong>Gün:</strong> {editModal.gunAdi} - {editModal.tarih}</p>
+            <div className="mb-4 p-3 bg-stone-50 rounded-lg">
+              <p className="text-sm text-stone-600"><strong>Personel:</strong> {editModal.personelAd}</p>
+              <p className="text-sm text-stone-600"><strong>Gün:</strong> {editModal.gunAdi} - {editModal.tarih}</p>
             </div>
 
             {/* Tip Seçimi */}
@@ -671,8 +671,8 @@ export default function VardiyaPlaniPage() {
                   onClick={() => setIslemTipi("giriscikis")}
                   className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
                     islemTipi === "giriscikis" 
-                      ? "bg-pink-500 text-white" 
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      ? "bg-rose-500 text-white" 
+                      : "bg-stone-100 text-stone-700 hover:bg-stone-200"
                   }`}
                 >
                   🟢🔴 Giriş & Çıkış
@@ -682,7 +682,7 @@ export default function VardiyaPlaniPage() {
                   className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
                     islemTipi === "haftaTatili" 
                       ? "bg-orange-500 text-white" 
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      : "bg-stone-100 text-stone-700 hover:bg-stone-200"
                   }`}
                 >
                   🟠 Hafta Tatili
@@ -695,11 +695,11 @@ export default function VardiyaPlaniPage() {
               <div className="mb-6 space-y-4">
                 {/* Konum Seçimi */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">📍 Konum</label>
+                  <label className="block text-sm font-medium text-stone-700 mb-2">📍 Konum</label>
                   <select
                     value={seciliKonum}
                     onChange={(e) => setSeciliKonum(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
+                    className="w-full px-4 py-3 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 text-sm"
                   >
                     <option value="">Konum Seçiniz</option>
                     {konumlar.map(k => (
@@ -753,7 +753,7 @@ export default function VardiyaPlaniPage() {
                     )}
                   </div>
                 </div>
-                <p className="text-xs text-gray-500 text-center">💡 Saatleri değiştirince yanda öneri çıkar, basarsan uygular</p>
+                <p className="text-xs text-stone-500 text-center">💡 Saatleri değiştirince yanda öneri çıkar, basarsan uygular</p>
               </div>
             )}
 
@@ -772,14 +772,14 @@ export default function VardiyaPlaniPage() {
               </button>
               <button
                 onClick={() => setEditModal(null)}
-                className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition"
+                className="flex-1 px-4 py-2 border border-stone-200 rounded-lg text-stone-600 hover:bg-stone-50 transition"
               >
                 İptal
               </button>
               <button
                 onClick={handleKaydet}
                 disabled={saving}
-                className="flex-1 px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition disabled:opacity-50"
+                className="flex-1 px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition disabled:opacity-50"
               >
                 {saving ? "Kaydediliyor..." : "Kaydet"}
               </button>
