@@ -15,7 +15,8 @@ import {
   doc,
   serverTimestamp,
   Timestamp,
-  orderBy
+  orderBy,
+  getDocs
 } from "firebase/firestore";
 
 interface Gorev {
@@ -40,16 +41,29 @@ interface Gelin {
   tarih: string;
   saat: string;
   makyaj: string;
+  turban: string;
   yorumIstesinMi?: string;
+}
+
+interface Personel {
+  id: string;
+  ad: string;
+  soyad: string;
+  email: string;
+  rol?: string;
 }
 
 export default function GorevlerPage() {
   const [user, setUser] = useState<any>(null);
+  const [userRole, setUserRole] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [gorevler, setGorevler] = useState<Gorev[]>([]);
+  const [tumGorevler, setTumGorevler] = useState<Gorev[]>([]); // Kurucu için
   const [gelinler, setGelinler] = useState<Gelin[]>([]);
+  const [personeller, setPersoneller] = useState<Personel[]>([]);
   const [filtreliGorevler, setFiltreliGorevler] = useState<Gorev[]>([]);
   const [filtre, setFiltre] = useState<"hepsi" | "bekliyor" | "devam-ediyor" | "tamamlandi">("hepsi");
+  const [aktifSekme, setAktifSekme] = useState<"gorevlerim" | "otomatik" | "tumgorevler">("gorevlerim");
   const [selectedGorev, setSelectedGorev] = useState<Gorev | null>(null);
   const router = useRouter();
 
@@ -84,6 +98,7 @@ export default function GorevlerPage() {
         tarih: doc.data().tarih || "",
         saat: doc.data().saat || "",
         makyaj: doc.data().makyaj || "",
+        turban: doc.data().turban || "",
         yorumIstesinMi: doc.data().yorumIstesinMi || "",
       } as Gelin));
 
@@ -99,13 +114,38 @@ export default function GorevlerPage() {
     };
   }, [user]);
 
+  // Personelleri dinle
+  useEffect(() => {
+    if (!user) return;
+
+    const q = query(collection(db, "personnel"), orderBy("ad", "asc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ad: doc.data().ad || "",
+        soyad: doc.data().soyad || "",
+        email: doc.data().email || "",
+        rol: doc.data().rol || ""
+      } as Personel));
+      setPersoneller(data);
+      
+      // Kullanıcının rolünü bul
+      const currentUser = data.find(p => p.email === user.email);
+      if (currentUser?.rol) {
+        setUserRole(currentUser.rol);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
   // Görevleri dinle
   useEffect(() => {
     if (!user) return;
 
     const q = query(
       collection(db, "gorevler"),
-      where("atanan", "==", user.uid),
+      where("atanan", "==", user.email),
       orderBy("olusturulmaTarihi", "desc")
     );
 
@@ -120,9 +160,29 @@ export default function GorevlerPage() {
     return () => unsubscribe();
   }, [user]);
 
+  // Kurucu için TÜM görevleri dinle
+  useEffect(() => {
+    if (!user || userRole !== "kurucu") return;
+
+    const q = query(
+      collection(db, "gorevler"),
+      orderBy("olusturulmaTarihi", "desc")
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Gorev));
+      setTumGorevler(data);
+    });
+
+    return () => unsubscribe();
+  }, [user, userRole]);
+
   // Otomatik Görev Oluşturma Kontrolü
   useEffect(() => {
-    if (!user || gelinler.length === 0 || gorevler.length === 0) return;
+    if (!user || gelinler.length === 0 || personeller.length === 0) return;
 
     const simdi = new Date();
 
@@ -141,45 +201,113 @@ export default function GorevlerPage() {
 
         // Şimdi hatırlatma zamanını geçti mi?
         if (simdi >= hatirlatmaZamani) {
-          // Bu gelin için zaten görev oluşturulmuş mu kontrol et
-          const mevcutGorev = gorevler.find(g => 
-            g.gelinId === gelin.id && 
-            g.baslik.includes("yorum istensin mi")
+          // Makyajcıyı bul
+          const makyajci = personeller.find(p => 
+            p.ad.toLocaleLowerCase('tr-TR') === gelin.makyaj?.toLocaleLowerCase('tr-TR') ||
+            `${p.ad} ${p.soyad}`.toLocaleLowerCase('tr-TR') === gelin.makyaj?.toLocaleLowerCase('tr-TR')
           );
 
-          if (!mevcutGorev) {
-            // Yeni görev oluştur
-            const makyajPersonelId = gelin.makyaj; // TODO: Personel ID'ye çevir
-            
-            await addDoc(collection(db, "gorevler"), {
-              baslik: `${gelin.isim} - Yorum istensin mi alanını doldur`,
-              aciklama: `${gelin.isim} için "Yorum istensin mi" alanı boş bırakılmış. Lütfen takvimden bu alanı doldurun.`,
-              atayan: "Sistem",
-              atayanAd: "Sistem (Otomatik)",
-              atanan: makyajPersonelId, // Makyajı yapan kişiye atanacak
-              atananAd: gelin.makyaj,
-              durum: "bekliyor",
-              oncelik: "yuksek",
-              olusturulmaTarihi: serverTimestamp(),
-              gelinId: gelin.id,
-              otomatikMi: true
-            });
+          // Türbancıyı bul
+          const turbanci = personeller.find(p => 
+            p.ad.toLocaleLowerCase('tr-TR') === gelin.turban?.toLocaleLowerCase('tr-TR') ||
+            `${p.ad} ${p.soyad}`.toLocaleLowerCase('tr-TR') === gelin.turban?.toLocaleLowerCase('tr-TR')
+          );
 
-            console.log(`Otomatik görev oluşturuldu: ${gelin.isim}`);
+          // Makyajcı ve türbancı aynı mı?
+          const ayniKisi = makyajci?.email === turbanci?.email;
+
+          // Görev oluşturulacak kişiler
+          const kisiler: { email: string; ad: string; rol: string }[] = [];
+
+          if (makyajci?.email) {
+            kisiler.push({ email: makyajci.email, ad: `${makyajci.ad} ${makyajci.soyad}`, rol: "Makyaj" });
+          }
+
+          if (turbanci?.email && !ayniKisi) {
+            kisiler.push({ email: turbanci.email, ad: `${turbanci.ad} ${turbanci.soyad}`, rol: "Türban" });
+          }
+
+          // Her kişi için görev oluştur
+          for (const kisi of kisiler) {
+            // Bu gelin + bu kişi için zaten görev var mı?
+            const gorevlerRef = collection(db, "gorevler");
+            const mevcutGorevQuery = query(
+              gorevlerRef,
+              where("gelinId", "==", gelin.id),
+              where("atanan", "==", kisi.email),
+              where("otomatikMi", "==", true)
+            );
+            
+            const mevcutSnapshot = await getDocs(mevcutGorevQuery);
+            
+            if (mevcutSnapshot.empty) {
+              await addDoc(collection(db, "gorevler"), {
+                baslik: `${gelin.isim} - Yorum istensin mi alanını doldur`,
+                aciklama: `${gelin.isim} için "Yorum istensin mi" alanı boş. Takvimden doldurun. (${kisi.rol})`,
+                atayan: "Sistem",
+                atayanAd: "Sistem (Otomatik)",
+                atanan: kisi.email,
+                atananAd: kisi.ad,
+                durum: "bekliyor",
+                oncelik: "yuksek",
+                olusturulmaTarihi: serverTimestamp(),
+                gelinId: gelin.id,
+                otomatikMi: true
+              });
+
+              console.log(`✅ Otomatik görev oluşturuldu: ${gelin.isim} → ${kisi.ad} (${kisi.rol})`);
+            }
+          }
+        }
+      }
+    });
+  }, [user, gelinler, personeller]);
+
+  // Yorum istensin mi doldurulunca otomatik görevleri SİL
+  useEffect(() => {
+    if (!user || gelinler.length === 0 || gorevler.length === 0) return;
+
+    gelinler.forEach(async (gelin) => {
+      // Yorum istensin mi DOLUYSA
+      if (gelin.yorumIstesinMi && gelin.yorumIstesinMi.trim() !== "") {
+        // Bu gelin için otomatik görevleri bul ve sil
+        const otomatikGorevler = gorevler.filter(g => 
+          g.gelinId === gelin.id && 
+          g.otomatikMi === true
+        );
+
+        for (const gorev of otomatikGorevler) {
+          try {
+            await deleteDoc(doc(db, "gorevler", gorev.id));
+            console.log(`🗑️ Otomatik görev silindi: ${gelin.isim} (Alan dolduruldu)`);
+          } catch (error) {
+            console.error("Otomatik görev silinemedi:", error);
           }
         }
       }
     });
   }, [user, gelinler, gorevler]);
 
-  // Filtre uygula
+  // Filtre uygula (sekme + durum filtresi)
   useEffect(() => {
-    if (filtre === "hepsi") {
-      setFiltreliGorevler(gorevler);
+    let sonuc: Gorev[] = [];
+    
+    // Önce sekmeye göre filtrele
+    if (aktifSekme === "tumgorevler") {
+      sonuc = [...tumGorevler];
+    } else if (aktifSekme === "otomatik") {
+      sonuc = gorevler.filter(g => g.otomatikMi === true);
     } else {
-      setFiltreliGorevler(gorevler.filter(g => g.durum === filtre));
+      sonuc = gorevler.filter(g => !g.otomatikMi);
     }
-  }, [gorevler, filtre]);
+    
+    // Sonra durum filtresini uygula
+    if (filtre !== "hepsi") {
+      sonuc = sonuc.filter(g => g.durum === filtre);
+    }
+    
+    setFiltreliGorevler(sonuc);
+  }, [gorevler, tumGorevler, filtre, aktifSekme]);
 
   // Görev durumu değiştir
   const handleDurumDegistir = async (gorevId: string, yeniDurum: Gorev["durum"]) => {
@@ -247,54 +375,140 @@ export default function GorevlerPage() {
       <Sidebar user={user} />
       <div className="flex-1 md:ml-56">
         <header className="bg-white shadow-sm sticky top-0 z-10 border-b border-stone-200">
-          <div className="px-4 md:px-6 py-4">
-            <h1 className="text-xl md:text-2xl font-bold text-stone-800">✅ Görevlerim</h1>
-            <p className="text-sm text-stone-500 mt-1">Firestore Real-time</p>
+          <div className="px-4 md:px-6 py-3">
+            <h1 className="text-lg md:text-xl font-bold text-stone-800">✅ Görevler</h1>
+          </div>
+          
+          {/* Ana Sekmeler */}
+          <div className="px-4 md:px-6 flex gap-1 border-t border-stone-100 overflow-x-auto">
+            <button
+              onClick={() => { setAktifSekme("gorevlerim"); setFiltre("hepsi"); }}
+              className={`px-4 py-2.5 font-medium text-sm transition border-b-2 whitespace-nowrap ${
+                aktifSekme === "gorevlerim"
+                  ? "border-amber-500 text-amber-600 bg-amber-50/50"
+                  : "border-transparent text-stone-500 hover:text-stone-700"
+              }`}
+            >
+              📋 Görevlerim
+              <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-xs ${
+                aktifSekme === "gorevlerim" ? "bg-amber-100 text-amber-700" : "bg-stone-100 text-stone-500"
+              }`}>
+                {gorevler.filter(g => !g.otomatikMi).length}
+              </span>
+            </button>
+            <button
+              onClick={() => { setAktifSekme("otomatik"); setFiltre("hepsi"); }}
+              className={`px-4 py-2.5 font-medium text-sm transition border-b-2 whitespace-nowrap ${
+                aktifSekme === "otomatik"
+                  ? "border-purple-500 text-purple-600 bg-purple-50/50"
+                  : "border-transparent text-stone-500 hover:text-stone-700"
+              }`}
+            >
+              🤖 Otomatik Görevler
+              <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-xs ${
+                aktifSekme === "otomatik" ? "bg-purple-100 text-purple-700" : "bg-stone-100 text-stone-500"
+              }`}>
+                {gorevler.filter(g => g.otomatikMi === true).length}
+              </span>
+            </button>
+            
+            {/* Kurucu için Tüm Görevler sekmesi */}
+            {userRole === "kurucu" && (
+              <button
+                onClick={() => { setAktifSekme("tumgorevler"); setFiltre("hepsi"); }}
+                className={`px-4 py-2.5 font-medium text-sm transition border-b-2 whitespace-nowrap ${
+                  aktifSekme === "tumgorevler"
+                    ? "border-emerald-500 text-emerald-600 bg-emerald-50/50"
+                    : "border-transparent text-stone-500 hover:text-stone-700"
+                }`}
+              >
+                👑 Tüm Görevler
+                <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-xs ${
+                  aktifSekme === "tumgorevler" ? "bg-emerald-100 text-emerald-700" : "bg-stone-100 text-stone-500"
+                }`}>
+                  {tumGorevler.length}
+                </span>
+              </button>
+            )}
           </div>
         </header>
 
         <main className="p-4 md:p-6">
+          {/* Otomatik sekmede açıklama */}
+          {aktifSekme === "otomatik" && (
+            <div className="mb-4 bg-purple-50 border border-purple-200 rounded-lg p-3">
+              <p className="text-sm text-purple-800">
+                <span className="font-medium">🤖 Sistem tarafından otomatik oluşturulan görevler.</span>
+                <br />
+                <span className="text-xs text-purple-600">Gelin bitişinden 1 saat sonra "Yorum istensin mi" boş olan gelinler için makyajcı ve türbancıya otomatik görev atanır.</span>
+              </p>
+            </div>
+          )}
+          
+          {/* Tüm Görevler sekmesinde açıklama */}
+          {aktifSekme === "tumgorevler" && (
+            <div className="mb-4 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+              <p className="text-sm text-emerald-800">
+                <span className="font-medium">👑 Tüm personelin görevlerini görüntülüyorsunuz.</span>
+                <br />
+                <span className="text-xs text-emerald-600">Kurucu olarak sistemdeki tüm görevleri takip edebilirsiniz.</span>
+              </p>
+            </div>
+          )}
+
           {/* Filtre Butonları */}
-          <div className="mb-6 flex flex-wrap gap-2">
+          <div className="mb-4 flex flex-wrap gap-2">
             <button
               onClick={() => setFiltre("hepsi")}
-              className={`px-4 py-2 rounded-lg font-medium transition ${
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
                 filtre === "hepsi"
-                  ? "bg-rose-500 text-white"
+                  ? aktifSekme === "otomatik" ? "bg-purple-500 text-white" 
+                    : aktifSekme === "tumgorevler" ? "bg-emerald-500 text-white"
+                    : "bg-amber-500 text-white"
                   : "bg-white text-stone-600 hover:bg-stone-50 border border-stone-200"
               }`}
             >
-              Hepsi ({gorevler.length})
+              Hepsi ({
+                aktifSekme === "tumgorevler" ? tumGorevler.length 
+                : aktifSekme === "otomatik" ? gorevler.filter(g => g.otomatikMi).length 
+                : gorevler.filter(g => !g.otomatikMi).length
+              })
             </button>
             <button
               onClick={() => setFiltre("bekliyor")}
-              className={`px-4 py-2 rounded-lg font-medium transition ${
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
                 filtre === "bekliyor"
-                  ? "bg-rose-500 text-white"
+                  ? aktifSekme === "otomatik" ? "bg-purple-500 text-white" 
+                    : aktifSekme === "tumgorevler" ? "bg-emerald-500 text-white"
+                    : "bg-amber-500 text-white"
                   : "bg-white text-stone-600 hover:bg-stone-50 border border-stone-200"
               }`}
             >
-              ⏳ Bekliyor ({gorevler.filter(g => g.durum === "bekliyor").length})
+              ⏳ Bekliyor
             </button>
             <button
               onClick={() => setFiltre("devam-ediyor")}
-              className={`px-4 py-2 rounded-lg font-medium transition ${
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
                 filtre === "devam-ediyor"
-                  ? "bg-rose-500 text-white"
+                  ? aktifSekme === "otomatik" ? "bg-purple-500 text-white" 
+                    : aktifSekme === "tumgorevler" ? "bg-emerald-500 text-white"
+                    : "bg-amber-500 text-white"
                   : "bg-white text-stone-600 hover:bg-stone-50 border border-stone-200"
               }`}
             >
-              🔄 Devam Ediyor ({gorevler.filter(g => g.durum === "devam-ediyor").length})
+              🔄 Devam Ediyor
             </button>
             <button
               onClick={() => setFiltre("tamamlandi")}
-              className={`px-4 py-2 rounded-lg font-medium transition ${
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
                 filtre === "tamamlandi"
-                  ? "bg-rose-500 text-white"
+                  ? aktifSekme === "otomatik" ? "bg-purple-500 text-white" 
+                    : aktifSekme === "tumgorevler" ? "bg-emerald-500 text-white"
+                    : "bg-amber-500 text-white"
                   : "bg-white text-stone-600 hover:bg-stone-50 border border-stone-200"
               }`}
             >
-              ✅ Tamamlandı ({gorevler.filter(g => g.durum === "tamamlandi").length})
+              ✅ Tamamlandı
             </button>
           </div>
 
@@ -328,6 +542,13 @@ export default function GorevlerPage() {
 
                       {/* Meta Bilgiler */}
                       <div className="flex flex-wrap items-center gap-3 text-xs text-stone-500">
+                        {/* Tüm Görevler sekmesinde atanan kişiyi göster */}
+                        {aktifSekme === "tumgorevler" && (
+                          <div className="flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full">
+                            <span>🎯</span>
+                            <span className="font-medium text-emerald-700">Atanan: {gorev.atananAd}</span>
+                          </div>
+                        )}
                         <div className="flex items-center gap-1">
                           <span>👤</span>
                           <span>

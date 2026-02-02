@@ -178,6 +178,9 @@ export default function GelinModal({ gelin, onClose }: { gelin: Gelin; onClose: 
                     <p className={`text-sm font-medium ${gelin.bilgilendirmeGonderildi ? 'text-stone-800' : 'text-stone-500'}`}>
                       Bilgilendirme metni gönderildi mi
                     </p>
+                    {gelin.bilgilendirmeGonderildi && (
+                      <p className="text-[10px] text-amber-600 mt-0.5">✔️ Her gelinin hazırlayan yorum istensin mi kısmını doldurmalı</p>
+                    )}
                   </div>
                 </div>
                 
@@ -189,6 +192,9 @@ export default function GelinModal({ gelin, onClose }: { gelin: Gelin; onClose: 
                     <p className={`text-sm font-medium ${gelin.ucretYazildi ? 'text-stone-800' : 'text-stone-500'}`}>
                       Anlaşılan ve kalan ücret yazıldı mı
                     </p>
+                    {gelin.ucretYazildi && (
+                      <p className="text-[10px] text-amber-600 mt-0.5">✔️ Her gelinin hazırlayan yorum istensin mi kısmını doldurmalı</p>
+                    )}
                   </div>
                 </div>
                 
@@ -200,6 +206,9 @@ export default function GelinModal({ gelin, onClose }: { gelin: Gelin; onClose: 
                     <p className={`text-sm font-medium ${gelin.malzemeListesiGonderildi ? 'text-stone-800' : 'text-stone-500'}`}>
                       Malzeme listesi gönderildi mi
                     </p>
+                    {gelin.malzemeListesiGonderildi && (
+                      <p className="text-[10px] text-amber-600 mt-0.5">✔️ Her gelinin hazırlayan yorum istensin mi kısmını doldurmalı</p>
+                    )}
                   </div>
                 </div>
                 
@@ -211,6 +220,9 @@ export default function GelinModal({ gelin, onClose }: { gelin: Gelin; onClose: 
                     <p className={`text-sm font-medium ${gelin.paylasimIzni ? 'text-stone-800' : 'text-stone-500'}`}>
                       Paylaşım izni var mı
                     </p>
+                    {gelin.paylasimIzni && (
+                      <p className="text-[10px] text-amber-600 mt-0.5">✔️ Her gelinin hazırlayan yorum istensin mi kısmını doldurmalı</p>
+                    )}
                   </div>
                 </div>
 
@@ -233,7 +245,7 @@ export default function GelinModal({ gelin, onClose }: { gelin: Gelin; onClose: 
                       )}
                       {!gelin.yorumIstesinMi && (
                         <p className="text-xs text-red-600 mt-1 font-medium">
-                          ⚠️ Boş! Gelin bitişinden 1 saat sonra sistem otomatik hatırlatma gönderecek
+                          ⚠️ Boş! Gelin bitişinden 1 saat sonra makyajcı ve türbancıya otomatik görev atanacak
                         </p>
                       )}
                     </div>
