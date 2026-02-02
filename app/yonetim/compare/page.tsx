@@ -98,11 +98,12 @@ export default function ComparePage() {
       // 2. EXCEL'DEN GELİNLERİ ÇEK
       console.log('2️⃣ Excel\'den gelinler çekiliyor...');
       
-      const response = await fetch(`${APPS_SCRIPT_URL}?action=excel`);
+      const response = await fetch(`${APPS_SCRIPT_URL}?action=gelinler`);
       const excelData = await response.json();
       
-      // 2025+ filtrele
-      const excelGelinler = (excelData.data || []).filter((g: any) => g.tarih >= '2025-01-01');
+      // 2025+ filtrele - data direkt array olarak geliyor
+      const excelGelinler = (Array.isArray(excelData) ? excelData : excelData.data || [])
+        .filter((g: any) => g.tarih >= '2025-01-01');
       
       console.log(`   ✅ ${excelGelinler.length} gelin (Excel 2025+)`);
       
@@ -186,22 +187,25 @@ export default function ComparePage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-stone-50">
+    <div className="min-h-screen bg-gray-50">
       <Sidebar user={user} />
-      <main className="flex-1 p-4 md:p-8 overflow-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-stone-800">🔄 Firestore vs Excel Karşılaştırma</h1>
-            <p className="text-stone-600 text-sm mt-1">2025 ve sonrası gelinleri karşılaştır</p>
+      <div className="md:ml-56 pb-20 md:pb-0">
+        <header className="bg-white border-b px-6 py-4 sticky top-0 z-30">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-bold text-gray-800">🔄 Firestore vs Excel Karşılaştırma</h1>
+              <p className="text-sm text-gray-500">2025 ve sonrası gelinleri karşılaştır</p>
+            </div>
+            <button
+              onClick={() => router.push("/yonetim")}
+              className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+            >
+              ← Geri
+            </button>
           </div>
-          <button
-            onClick={() => router.push("/yonetim")}
-            className="px-4 py-2 text-stone-600 hover:bg-stone-100 rounded-lg"
-          >
-            ← Geri
-          </button>
-        </div>
+        </header>
+
+        <main className="p-6">
 
         {/* Karşılaştır Butonu */}
         <div className="bg-white rounded-lg shadow-sm border border-stone-100 p-6 mb-6">
@@ -302,7 +306,8 @@ export default function ComparePage() {
             )}
           </div>
         )}
-      </main>
+        </main>
+      </div>
     </div>
   );
 }
