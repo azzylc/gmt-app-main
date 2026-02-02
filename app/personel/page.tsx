@@ -29,7 +29,7 @@ interface Personel {
   email: string;
   telefon: string;
   foto: string;
-  firma?: string; // Çalıştığı firma ID'si
+  firmalar?: string[]; // Çalıştığı firma ID'leri (çoklu)
   yonettigiFirmalar?: string[]; // Yönetici ise hangi firmaları yönetiyor
   calismaSaati: string;
   iseBaslama: string;
@@ -127,7 +127,7 @@ function PersonelPageContent() {
     email: "",
     telefon: "",
     foto: "",
-    firma: "", // Çalıştığı firma
+    firmalar: [], // Çalıştığı firmalar (çoklu)
     yonettigiFirmalar: [], // Yönetici için
     calismaSaati: "serbest",
     iseBaslama: "",
@@ -240,8 +240,8 @@ function PersonelPageContent() {
       }
     }
 
-    if (!formData.firma) {
-      alert("Lütfen bir firma seçin!");
+    if (!formData.firmalar || formData.firmalar.length === 0) {
+      alert("Lütfen en az bir firma seçin!");
       return;
     }
 
@@ -402,7 +402,14 @@ function PersonelPageContent() {
 
   const openEditModal = (personel: Personel) => {
     setEditingPersonel(personel);
-    setFormData(personel);
+    
+    // Eski personellerde firma (tekil) varsa firmalar'a çevir
+    const updatedPersonel = { ...personel };
+    if (!updatedPersonel.firmalar && (personel as any).firma) {
+      updatedPersonel.firmalar = [(personel as any).firma];
+    }
+    
+    setFormData(updatedPersonel);
     setFotoPreview(personel.foto);
     
     // Yöneticinin yönettiği firmaları set et
@@ -422,7 +429,7 @@ function PersonelPageContent() {
       email: "",
       telefon: "",
       foto: "",
-      firma: "", // Çalıştığı firma
+      firmalar: [], // Çalıştığı firmalar (çoklu)
       yonettigiFirmalar: [], // Yönetici için
       calismaSaati: "serbest",
       iseBaslama: "",
@@ -638,7 +645,7 @@ function PersonelPageContent() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Foto</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ad Soyad</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kısaltma</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Firma</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Firma(lar)</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sicil No</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Telefon</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Grup</th>
@@ -672,18 +679,20 @@ function PersonelPageContent() {
                           )}
                         </td>
                         <td className="px-6 py-4">
-                          {personel.firma ? (
-                            (() => {
-                              const firma = firmalar.find(f => f.id === personel.firma);
-                              if (firma) {
-                                return (
-                                  <span className={`px-2 py-1 text-xs font-medium rounded bg-${firma.renk}-100 text-${firma.renk}-700`}>
-                                    {firma.kisaltma}
-                                  </span>
-                                );
-                              }
-                              return <span className="text-xs text-gray-400">-</span>;
-                            })()
+                          {personel.firmalar && personel.firmalar.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {personel.firmalar.map(firmaId => {
+                                const firma = firmalar.find(f => f.id === firmaId);
+                                if (firma) {
+                                  return (
+                                    <span key={firmaId} className={`px-2 py-1 text-xs font-medium rounded bg-${firma.renk}-100 text-${firma.renk}-700`}>
+                                      {firma.kisaltma}
+                                    </span>
+                                  );
+                                }
+                                return null;
+                              })}
+                            </div>
                           ) : (
                             <span className="text-xs text-gray-400">-</span>
                           )}
@@ -886,19 +895,47 @@ function PersonelPageContent() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Firma *</label>
-                      <select 
-                        value={formData.firma || ""} 
-                        onChange={(e) => setFormData({ ...formData, firma: e.target.value })} 
-                        className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 bg-white"
-                      >
-                        <option value="">Firma Seçin</option>
-                        {firmalar.filter(f => f.aktif).map(firma => (
-                          <option key={firma.id} value={firma.id}>{firma.firmaAdi} ({firma.kisaltma})</option>
-                        ))}
-                      </select>
+                    <div className="md:col-span-3">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Firma(lar) *</label>
+                      <p className="text-xs text-gray-500 mb-3">Personelin çalıştığı firma(ları) seçin</p>
+                      {firmalar.filter(f => f.aktif).length === 0 ? (
+                        <p className="text-sm text-gray-500">
+                          Henüz firma eklenmemiş. 
+                          <a href="/ayarlar" className="text-pink-600 underline ml-1">Ayarlar → Firmalar</a>
+                        </p>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          {firmalar.filter(f => f.aktif).map(firma => {
+                            const isSelected = formData.firmalar?.includes(firma.id) || false;
+                            return (
+                              <button
+                                key={firma.id}
+                                type="button"
+                                onClick={() => {
+                                  const current = formData.firmalar || [];
+                                  if (isSelected) {
+                                    setFormData({ ...formData, firmalar: current.filter(id => id !== firma.id) });
+                                  } else {
+                                    setFormData({ ...formData, firmalar: [...current, firma.id] });
+                                  }
+                                }}
+                                className={`px-4 py-2 rounded-xl border-2 transition font-medium text-sm flex items-center gap-2 ${
+                                  isSelected 
+                                    ? `bg-${firma.renk}-100 border-${firma.renk}-500 text-${firma.renk}-700` 
+                                    : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'
+                                }`}
+                              >
+                                {isSelected && <span>✓</span>}
+                                {firma.firmaAdi} ({firma.kisaltma})
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Çalışma Saati *</label>
                       <select value={formData.calismaSaati} onChange={(e) => setFormData({ ...formData, calismaSaati: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 bg-white">

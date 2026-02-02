@@ -13,7 +13,7 @@ interface Personel {
   email: string;
   sicilNo: string;
   kullaniciTuru: string;
-  firma?: string;
+  firmalar?: string[]; // Çoklu firma
   yonettigiFirmalar?: string[];
   aktif: boolean;
   grupEtiketleri: string[];
@@ -249,7 +249,8 @@ export default function YoneticiDashboardPage() {
     const personelList = allPersoneller.filter(p => {
       if (!p.aktif || p.id === currentPersonel.id) return false;
       if (isKurucu) return true; // Kurucu herkesi görür
-      return p.firma && yonettigiFirmalar.includes(p.firma); // Yönetici sadece kendi firmalarını
+      // Yönetici: personelin firmalarından herhangi biri yöneticinin sorumlu olduğu firmalarda mı?
+      return p.firmalar?.some(f => yonettigiFirmalar.includes(f)) || false;
     });
 
     // Her personel için metrikleri hesapla
@@ -298,8 +299,9 @@ export default function YoneticiDashboardPage() {
   const bekleyenIzinTalepleri = izinTalepleri.filter(talep => {
     const personel = allPersoneller.find(p => p.id === talep.personelId);
     if (!personel || !currentPersonel) return false;
+    if (currentPersonel.kullaniciTuru === "Kurucu") return true; // Kurucu tüm talepleri görür
     const yonettigiFirmalar = currentPersonel.yonettigiFirmalar || [];
-    return personel.firma && yonettigiFirmalar.includes(personel.firma);
+    return personel.firmalar?.some(f => yonettigiFirmalar.includes(f)) || false;
   });
 
   // İzin talebini onayla
@@ -659,7 +661,7 @@ export default function YoneticiDashboardPage() {
                 <div className="space-y-3">
                   {bekleyenIzinTalepleri.map((talep) => {
                     const personel = allPersoneller.find(p => p.id === talep.personelId);
-                    const firma = firmalar.find(f => f.id === personel?.firma);
+                    const personelFirmalar = personel?.firmalar?.map(fId => firmalar.find(f => f.id === fId)).filter(Boolean) || [];
                     
                     return (
                       <div
@@ -668,15 +670,15 @@ export default function YoneticiDashboardPage() {
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
                               <h3 className="font-bold text-gray-800">
                                 {talep.personelAd} {talep.personelSoyad}
                               </h3>
-                              {firma && (
-                                <span className={`px-2 py-0.5 text-xs rounded bg-${firma.renk}-100 text-${firma.renk}-700`}>
+                              {personelFirmalar.map(firma => firma && (
+                                <span key={firma.id} className={`px-2 py-0.5 text-xs rounded bg-${firma.renk}-100 text-${firma.renk}-700`}>
                                   {firma.kisaltma}
                                 </span>
-                              )}
+                              ))}
                               <span className="px-2 py-1 bg-amber-100 text-amber-700 text-xs rounded-full">
                                 ⏳ Beklemede
                               </span>
