@@ -364,16 +364,20 @@ export default function TakvimPage() {
             </div>
             <div className="stat-card">
               <p className="stat-label">En Yoğun Günler</p>
-              <div className="text-xs text-stone-600 mt-1 space-y-0.5">
+              <div className="mt-2 space-y-1.5">
                 {enYogunGunler.length > 0 ? (
                   enYogunGunler.map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-center">
-                      <span className="font-medium">{item.gun} {aylar[month].slice(0, 3)}</span>
-                      <span className="text-rose-600 font-semibold">{item.sayi} gelin</span>
+                    <div key={idx} className="flex justify-between items-center text-sm">
+                      <span className="text-stone-700 font-medium">
+                        {item.gun} {aylar[month].slice(0, 3)}
+                      </span>
+                      <span className="text-rose-600 font-bold">
+                        {item.sayi}
+                      </span>
                     </div>
                   ))
                 ) : (
-                  <p className="text-stone-400 italic">Veri yok</p>
+                  <p className="text-stone-400 text-xs italic text-center py-2">Veri yok</p>
                 )}
               </div>
             </div>
