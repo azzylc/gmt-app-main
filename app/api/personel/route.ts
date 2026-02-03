@@ -175,6 +175,20 @@ export async function PUT(req: NextRequest) {
       }
     }
 
+    // ✅ EMAIL DEĞİŞİKLİĞİ VARSA AUTH'U GÜNCELLE
+    if (updateData.email) {
+      try {
+        await adminAuth.updateUser(id, { email: updateData.email });
+      } catch (authError: any) {
+        console.error('Auth email güncelleme hatası:', authError);
+        const response = NextResponse.json(
+          { error: 'Email güncellenemedi: ' + authError.message },
+          { status: 400 }
+        );
+        return withCors(req, response);
+      }
+    }
+
     // ✅ İŞTEN AYRILMA TARİHİ KONTROLÜ
     // istenAyrilma doluysa → aktif: false
     // istenAyrilma boşsa → aktif: true
