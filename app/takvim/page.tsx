@@ -366,16 +366,23 @@ export default function TakvimPage() {
               <p className="stat-label">En Yoğun Günler</p>
               <div className="mt-2 space-y-1.5">
                 {enYogunGunler.length > 0 ? (
-                  enYogunGunler.map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-center text-sm">
-                      <span className="text-stone-700 font-medium">
-                        {item.gun} {aylar[month].slice(0, 3)}
-                      </span>
-                      <span className="text-rose-600 font-bold">
-                        {item.sayi}
-                      </span>
-                    </div>
-                  ))
+                  enYogunGunler.map((item, idx) => {
+                    const gunTarihi = `${year}-${String(month + 1).padStart(2, '0')}-${String(item.gun).padStart(2, '0')}`;
+                    return (
+                      <div 
+                        key={idx} 
+                        onClick={() => setSelectedDay(gunTarihi)}
+                        className="flex justify-between items-center text-sm cursor-pointer hover:bg-rose-50 px-2 py-1 rounded transition-colors"
+                      >
+                        <span className="text-stone-700 font-medium">
+                          {item.gun} {aylar[month].slice(0, 3)}
+                        </span>
+                        <span className="text-rose-600 font-bold">
+                          {item.sayi}
+                        </span>
+                      </div>
+                    );
+                  })
                 ) : (
                   <p className="text-stone-400 text-xs italic text-center py-2">Veri yok</p>
                 )}
