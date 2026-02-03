@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb, adminAuth } from '@/app/lib/firestore-admin';
+import { adminDb, adminAuth } from '@/app/lib/firebase-admin';
 import { sendPasswordResetEmail } from '@/app/lib/email';
 import { corsPreflight, withCors } from '@/app/lib/cors';
-import { verifyAdminAuth } from '@/app/lib/auth';
+import { verifyUserAuth, verifyAdminAuth } from '@/app/lib/auth';
 
 // Rastgele şifre üret
 function generatePassword(length = 8): string {
@@ -20,8 +20,8 @@ export async function OPTIONS(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  // Verify admin authentication
-  const authError = verifyAdminAuth(req);
+  // 🔥 YENİ: Kullanıcı authentication - Kurucu veya Yönetici gerekli
+  const { error: authError, user } = await verifyUserAuth(req, ['Kurucu', 'Yönetici']);
   if (authError) return withCors(req, authError);
 
   try {
@@ -45,6 +45,8 @@ export async function POST(req: NextRequest) {
       foto
     } = body;
 
+    console.log(`[POST /api/personel] Yeni personel ekleniyor: ${ad} ${soyad} (${email}) - İsteği yapan: ${user?.email}`);
+
     // Validasyon - şifre artık zorunlu değil
     if (!email || !ad || !soyad || !sicilNo || !telefon) {
       const response = NextResponse.json(
@@ -66,6 +68,7 @@ export async function POST(req: NextRequest) {
         displayName: `${ad} ${soyad}`,
         disabled: !aktif
       });
+      console.log(`✅ Firebase Auth kullanıcı oluşturuldu: ${userRecord.uid}`);
     } catch (authError: any) {
       if (authError.code === 'auth/email-already-exists') {
         const response = NextResponse.json(
@@ -105,11 +108,13 @@ export async function POST(req: NextRequest) {
         konumDisi: false,
       },
       createdAt: new Date().toISOString(),
+      createdBy: user?.email || '',
       authUid: userRecord.uid
     };
 
     // Auth UID'yi doc ID olarak kullan
     await adminDb.collection('personnel').doc(userRecord.uid).set(personelData);
+    console.log(`✅ Firestore'a personel kaydedildi: ${userRecord.uid}`);
 
     // ✅ ŞİFREYİ MAİL İLE GÖNDER
     try {
@@ -150,13 +155,15 @@ export async function POST(req: NextRequest) {
 
 // Personel güncelleme
 export async function PUT(req: NextRequest) {
-  // Verify admin authentication
-  const authError = verifyAdminAuth(req);
+  // 🔥 YENİ: Kullanıcı authentication - Kurucu veya Yönetici gerekli
+  const { error: authError, user } = await verifyUserAuth(req, ['Kurucu', 'Yönetici']);
   if (authError) return withCors(req, authError);
 
   try {
     const body = await req.json();
     const { id, password, ...updateData } = body;
+
+    console.log(`[PUT /api/personel] Personel güncelleniyor: ${id} - İsteği yapan: ${user?.email}`);
 
     if (!id) {
       const response = NextResponse.json(
@@ -170,6 +177,7 @@ export async function PUT(req: NextRequest) {
     if (password && password.length >= 6) {
       try {
         await adminAuth.updateUser(id, { password });
+        console.log(`✅ Şifre güncellendi: ${id}`);
       } catch (authError: any) {
         console.error('Auth güncelleme hatası:', authError);
       }
@@ -179,6 +187,7 @@ export async function PUT(req: NextRequest) {
     if (updateData.email) {
       try {
         await adminAuth.updateUser(id, { email: updateData.email });
+        console.log(`✅ Email güncellendi: ${id} → ${updateData.email}`);
       } catch (authError: any) {
         console.error('Auth email güncelleme hatası:', authError);
         const response = NextResponse.json(
@@ -200,6 +209,7 @@ export async function PUT(req: NextRequest) {
     if (updateData.aktif !== undefined) {
       try {
         await adminAuth.updateUser(id, { disabled: !updateData.aktif });
+        console.log(`✅ Aktiflik durumu güncellendi: ${id} → ${updateData.aktif ? 'Aktif' : 'Pasif'}`);
       } catch (authError: any) {
         console.error('Auth aktiflik güncelleme hatası:', authError);
       }
@@ -208,8 +218,11 @@ export async function PUT(req: NextRequest) {
     // Firestore'u güncelle
     await adminDb.collection('personnel').doc(id).update({
       ...updateData,
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      updatedBy: user?.email || ''
     });
+
+    console.log(`✅ Personel güncellendi: ${id}`);
 
     const response = NextResponse.json({
       success: true,
@@ -229,14 +242,16 @@ export async function PUT(req: NextRequest) {
 
 // Personel silme (soft delete - pasif yapma)
 export async function DELETE(req: NextRequest) {
-  // Verify admin authentication
-  const authError = verifyAdminAuth(req);
-  if (authError) return withCors(req, authError);
+  // 🔥 DELETE için admin auth kullan (güvenlik)
+  const adminAuthError = verifyAdminAuth(req);
+  if (adminAuthError) return withCors(req, adminAuthError);
 
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
     const hardDelete = searchParams.get('hardDelete') === 'true';
+
+    console.log(`[DELETE /api/personel] Personel silme: ${id} (hard: ${hardDelete})`);
 
     if (!id) {
       const response = NextResponse.json(
@@ -251,6 +266,8 @@ export async function DELETE(req: NextRequest) {
       await adminAuth.deleteUser(id);
       await adminDb.collection('personnel').doc(id).delete();
       
+      console.log(`✅ Personel kalıcı olarak silindi: ${id}`);
+      
       const response = NextResponse.json({
         success: true,
         message: 'Personel kalıcı olarak silindi'
@@ -264,6 +281,8 @@ export async function DELETE(req: NextRequest) {
         istenAyrilma: new Date().toISOString().split('T')[0],
         updatedAt: new Date().toISOString()
       });
+
+      console.log(`✅ Personel pasif yapıldı: ${id}`);
 
       const response = NextResponse.json({
         success: true,

@@ -257,12 +257,18 @@ function PersonelPageContent() {
       };
 
       if (editingPersonel) {
+        // 🔥 Firebase ID token al
+        const idToken = await auth.currentUser?.getIdToken();
+        
         // GÜNCELLEME - API kullan
         const { id, ...dataToUpdate } = dataToSave;
         
         const response = await fetch('/api/personel', {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          },
           body: JSON.stringify({
             id: editingPersonel.id,
             ...dataToUpdate
@@ -275,12 +281,18 @@ function PersonelPageContent() {
           throw new Error(result.error || 'Güncelleme başarısız');
         }
       } else {
+        // 🔥 Firebase ID token al
+        const idToken = await auth.currentUser?.getIdToken();
+        
         // YENİ PERSONEL - API kullan (Firebase Auth + Firestore)
         const { id, ...dataToAdd } = dataToSave;
         
         const response = await fetch('/api/personel', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          },
           body: JSON.stringify({
             ...dataToAdd
             // Şifre API tarafında otomatik oluşturulacak
