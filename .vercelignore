@@ -1,0 +1,8 @@
+node_modules
+.next
+.git
+ios
+android
+*.log
+.DS_Store
+out
