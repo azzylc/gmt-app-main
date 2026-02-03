@@ -228,7 +228,7 @@ export default function VardiyaPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="text-sm font-medium text-stone-700 mb-2 block">📅 Tarih:</label>
-                <input type="date" value={filterTarih} onChange={e => setFilterTarih(e.target.value)} className="w-full px-4 py-2 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
+                <input type="date" min="2020-01-01" max="2099-12-31" value={filterTarih} onChange={e => setFilterTarih(e.target.value)} className="w-full px-4 py-2 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
               </div>
               <div>
                 <label className="text-sm font-medium text-stone-700 mb-2 block">👤 Personel:</label>
@@ -316,7 +316,7 @@ export default function VardiyaPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-stone-700 mb-2">Tarih *</label>
-                  <input type="date" value={formData.tarih} onChange={e => setFormData({...formData, tarih: e.target.value})} className="w-full px-4 py-3 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
+                  <input type="date" min="2020-01-01" max="2099-12-31" value={formData.tarih} onChange={e => setFormData({...formData, tarih: e.target.value})} className="w-full px-4 py-3 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
                 </div>
               </div>
               <div>
@@ -371,7 +371,7 @@ export default function VardiyaPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-stone-700 mb-2">Tarih *</label>
-                  <input type="date" value={formData.tarih} onChange={e => setFormData({...formData, tarih: e.target.value})} className="w-full px-4 py-3 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
+                  <input type="date" min="2020-01-01" max="2099-12-31" value={formData.tarih} onChange={e => setFormData({...formData, tarih: e.target.value})} className="w-full px-4 py-3 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
                 </div>
               </div>
               <div>

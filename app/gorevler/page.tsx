@@ -642,7 +642,7 @@ export default function GorevlerPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <input
-                        type="date"
+                        type="date" min="2020-01-01" max="2099-12-31"
                         value={gorevAyarlari.yorumIstesinMi.baslangicTarihi}
                         onChange={(e) => setGorevAyarlari({
                           ...gorevAyarlari,
@@ -669,7 +669,7 @@ export default function GorevlerPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <input
-                        type="date"
+                        type="date" min="2020-01-01" max="2099-12-31"
                         value={gorevAyarlari.paylasimIzni.baslangicTarihi}
                         onChange={(e) => setGorevAyarlari({
                           ...gorevAyarlari,
@@ -696,7 +696,7 @@ export default function GorevlerPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <input
-                        type="date"
+                        type="date" min="2020-01-01" max="2099-12-31"
                         value={gorevAyarlari.yorumIstendiMi.baslangicTarihi}
                         onChange={(e) => setGorevAyarlari({
                           ...gorevAyarlari,

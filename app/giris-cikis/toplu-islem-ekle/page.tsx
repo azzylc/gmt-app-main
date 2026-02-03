@@ -380,7 +380,7 @@ export default function TopluIslemEklePage() {
               <div className="flex-1">
                 <label className="block text-xs text-stone-500 mb-1">Tarih / Saat:</label>
                 <input
-                  type="datetime-local"
+                  type="datetime-local" min="2020-01-01T00:00" max="2099-12-31T23:59"
                   value={tarih}
                   onChange={(e) => setTarih(e.target.value)}
                   className="w-full px-3 py-2 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"

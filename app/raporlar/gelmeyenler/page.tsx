@@ -264,7 +264,7 @@ export default function GelmeyenlerPage() {
               <div>
                 <label className="block text-xs text-stone-500 mb-1">Başlangıç tarihi</label>
                 <input
-                  type="date"
+                  type="date" min="2020-01-01" max="2099-12-31"
                   value={baslangicTarih}
                   onChange={(e) => setBaslangicTarih(e.target.value)}
                   className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
@@ -273,7 +273,7 @@ export default function GelmeyenlerPage() {
               <div>
                 <label className="block text-xs text-stone-500 mb-1">Bitiş tarihi</label>
                 <input
-                  type="date"
+                  type="date" min="2020-01-01" max="2099-12-31"
                   value={bitisTarih}
                   onChange={(e) => setBitisTarih(e.target.value)}
                   className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"

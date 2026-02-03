@@ -947,15 +947,15 @@ function PersonelPageContent() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-stone-700 mb-1">İşe Başlama</label>
-                      <input type="date" value={formData.iseBaslama} onChange={(e) => setFormData({ ...formData, iseBaslama: e.target.value })} className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
+                      <input type="date" min="2020-01-01" max="2099-12-31" value={formData.iseBaslama} onChange={(e) => setFormData({ ...formData, iseBaslama: e.target.value })} className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-stone-700 mb-1">İşten Ayrılma</label>
-                      <input type="date" value={formData.istenAyrilma} onChange={(e) => setFormData({ ...formData, istenAyrilma: e.target.value })} className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
+                      <input type="date" min="2020-01-01" max="2099-12-31" value={formData.istenAyrilma} onChange={(e) => setFormData({ ...formData, istenAyrilma: e.target.value })} className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-stone-700 mb-1">🎂 Doğum Günü</label>
-                      <input type="date" value={formData.dogumGunu || ""} onChange={(e) => setFormData({ ...formData, dogumGunu: e.target.value })} className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
+                      <input type="date" min="1950-01-01" max="2099-12-31" value={formData.dogumGunu || ""} onChange={(e) => setFormData({ ...formData, dogumGunu: e.target.value })} className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
                     </div>
                   </div>
 

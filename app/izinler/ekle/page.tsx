@@ -293,7 +293,7 @@ export default function IzinEkle() {
                 <span className="block text-xs text-stone-400 font-normal">İzin başlangıç günü dahildir</span>
               </label>
               <input
-                type="date"
+                type="date" min="2020-01-01" max="2099-12-31"
                 value={baslangic}
                 onChange={(e) => setBaslangic(e.target.value)}
                 className="w-full max-w-md px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
@@ -307,7 +307,7 @@ export default function IzinEkle() {
                 <span className="block text-xs text-stone-400 font-normal">İzin bitiş günü dahildir</span>
               </label>
               <input
-                type="date"
+                type="date" min="2020-01-01" max="2099-12-31"
                 value={bitis}
                 onChange={(e) => setBitis(e.target.value)}
                 className="w-full max-w-md px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"

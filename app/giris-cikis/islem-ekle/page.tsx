@@ -246,7 +246,7 @@ export default function ManuelIslemEklePage() {
                 <div>
                   <label className="block text-sm font-medium text-stone-700 mb-2">Tarih</label>
                   <input
-                    type="datetime-local"
+                    type="datetime-local" min="2020-01-01T00:00" max="2099-12-31T23:59"
                     value={tarih}
                     onChange={(e) => setTarih(e.target.value)}
                     className="w-full px-4 py-3 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
