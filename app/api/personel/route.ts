@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, adminAuth } from '@/app/lib/firestore-admin';
 import { sendPasswordResetEmail } from '@/app/lib/email';
+import { corsPreflight, withCors } from '@/app/lib/cors';
+import { verifyAdminAuth } from '@/app/lib/auth';
 
 // Rastgele şifre üret
 function generatePassword(length = 8): string {
@@ -12,7 +14,16 @@ function generatePassword(length = 8): string {
   return result;
 }
 
+// OPTIONS - Preflight handler (iOS Capacitor için)
+export async function OPTIONS(req: NextRequest) {
+  return corsPreflight(req);
+}
+
 export async function POST(req: NextRequest) {
+  // Verify admin authentication
+  const authError = verifyAdminAuth(req);
+  if (authError) return withCors(req, authError);
+
   try {
     const body = await req.json();
     const { 
@@ -36,10 +47,11 @@ export async function POST(req: NextRequest) {
 
     // Validasyon - şifre artık zorunlu değil
     if (!email || !ad || !soyad || !sicilNo || !telefon) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         { error: 'Zorunlu alanlar eksik: email, ad, soyad, sicilNo, telefon' },
         { status: 400 }
       );
+      return withCors(req, response);
     }
 
     // Şifre yoksa otomatik oluştur
@@ -56,10 +68,11 @@ export async function POST(req: NextRequest) {
       });
     } catch (authError: any) {
       if (authError.code === 'auth/email-already-exists') {
-        return NextResponse.json(
+        const response = NextResponse.json(
           { error: 'Bu email adresi zaten kayıtlı' },
           { status: 400 }
         );
+        return withCors(req, response);
       }
       throw authError;
     }
@@ -116,34 +129,41 @@ export async function POST(req: NextRequest) {
       // Mail hatası personel oluşturmayı engellemez
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       message: 'Personel başarıyla oluşturuldu',
       uid: userRecord.uid,
       email: email,
       password: finalPassword  // ✅ Şifreyi de döndür (güvenlik için production'da kaldırılabilir)
     });
+    return withCors(req, response);
 
   } catch (error: any) {
     console.error('Personel oluşturma hatası:', error);
-    return NextResponse.json(
+    const response = NextResponse.json(
       { error: 'Personel oluşturulamadı', details: error.message },
       { status: 500 }
     );
+    return withCors(req, response);
   }
 }
 
 // Personel güncelleme
 export async function PUT(req: NextRequest) {
+  // Verify admin authentication
+  const authError = verifyAdminAuth(req);
+  if (authError) return withCors(req, authError);
+
   try {
     const body = await req.json();
     const { id, password, ...updateData } = body;
 
     if (!id) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         { error: 'Personel ID gerekli' },
         { status: 400 }
       );
+      return withCors(req, response);
     }
 
     // Şifre değişikliği varsa Auth'u güncelle
@@ -177,32 +197,39 @@ export async function PUT(req: NextRequest) {
       updatedAt: new Date().toISOString()
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       message: 'Personel başarıyla güncellendi'
     });
+    return withCors(req, response);
 
   } catch (error: any) {
     console.error('Personel güncelleme hatası:', error);
-    return NextResponse.json(
+    const response = NextResponse.json(
       { error: 'Personel güncellenemedi', details: error.message },
       { status: 500 }
     );
+    return withCors(req, response);
   }
 }
 
 // Personel silme (soft delete - pasif yapma)
 export async function DELETE(req: NextRequest) {
+  // Verify admin authentication
+  const authError = verifyAdminAuth(req);
+  if (authError) return withCors(req, authError);
+
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
     const hardDelete = searchParams.get('hardDelete') === 'true';
 
     if (!id) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         { error: 'Personel ID gerekli' },
         { status: 400 }
       );
+      return withCors(req, response);
     }
 
     if (hardDelete) {
@@ -210,10 +237,11 @@ export async function DELETE(req: NextRequest) {
       await adminAuth.deleteUser(id);
       await adminDb.collection('personnel').doc(id).delete();
       
-      return NextResponse.json({
+      const response = NextResponse.json({
         success: true,
         message: 'Personel kalıcı olarak silindi'
       });
+      return withCors(req, response);
     } else {
       // Soft delete - pasif yap
       await adminAuth.updateUser(id, { disabled: true });
@@ -223,17 +251,19 @@ export async function DELETE(req: NextRequest) {
         updatedAt: new Date().toISOString()
       });
 
-      return NextResponse.json({
+      const response = NextResponse.json({
         success: true,
         message: 'Personel pasif yapıldı'
       });
+      return withCors(req, response);
     }
 
   } catch (error: any) {
     console.error('Personel silme hatası:', error);
-    return NextResponse.json(
+    const response = NextResponse.json(
       { error: 'Personel silinemedi', details: error.message },
       { status: 500 }
     );
+    return withCors(req, response);
   }
 }
