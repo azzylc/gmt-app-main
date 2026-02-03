@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { auth, db } from "./lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, query, onSnapshot, addDoc, doc, updateDoc, increment, orderBy, limit, where, Timestamp } from "firebase/firestore";
+import { collection, query, onSnapshot, addDoc, doc, updateDoc, increment, orderBy, limit, where, Timestamp, getDocs } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import Sidebar from "./components/Sidebar";
 import GelinModal from "./components/GelinModal";
@@ -35,7 +35,7 @@ interface Gelin {
   ucretYazildi?: boolean;
   malzemeListesiGonderildi?: boolean;
   paylasimIzni?: boolean;
-  yorumIstesinMi?: string;  // Kişi ismi veya boş
+  yorumIstesinMi?: string;
   yorumIstendiMi?: boolean;
   gelinNotu?: string;
   dekontGorseli?: string;
@@ -98,7 +98,7 @@ interface PersonelGunlukDurum {
   aktifMi: boolean;
 }
 
-const API_URL = "/api/gelinler"; // Server-side proxy ile güvenli
+const API_URL = "/api/gelinler";
 const CACHE_KEY = "gmt_gelinler_cache";
 const CACHE_TIME_KEY = "gmt_gelinler_cache_time";
 const CACHE_DURATION = 30 * 60 * 1000;
@@ -114,36 +114,29 @@ export default function HomePage() {
   const [haftaModalOpen, setHaftaModalOpen] = useState(false);
   const router = useRouter();
 
-  // Personel hook'u (Firebase'den real-time)
   const { personeller, loading: personellerLoading } = usePersoneller();
 
-  // Gelin listesi modal state'leri
   const [gelinListeModal, setGelinListeModal] = useState<{open: boolean; title: string; gelinler: Gelin[]}>({
     open: false,
     title: "",
     gelinler: []
   });
 
-  // Attendance state'leri
   const [bugunAttendance, setBugunAttendance] = useState<AttendanceRecord[]>([]);
   const [personelDurumlar, setPersonelDurumlar] = useState<PersonelGunlukDurum[]>([]);
 
-  // İzin hakkı state'leri
   const [eksikIzinler, setEksikIzinler] = useState<EksikIzin[]>([]);
   const [izinEkleniyor, setIzinEkleniyor] = useState<string | null>(null);
 
-  // Duyurular state
   const [duyurular, setDuyurular] = useState<Duyuru[]>([]);
   const [selectedDuyuru, setSelectedDuyuru] = useState<Duyuru | null>(null);
 
-  // Gelin Arama state
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const mobileSearchRef = useRef<HTMLInputElement>(null);
 
-  // Arama sonuçları
   const searchResults = useMemo(() => {
     if (!searchQuery.trim() || searchQuery.length < 2) return [];
     const query = searchQuery.toLowerCase().trim();
@@ -154,10 +147,9 @@ export default function HomePage() {
         g.makyaj?.toLowerCase().includes(query) ||
         g.turban?.toLowerCase().includes(query)
       )
-      .slice(0, 8); // Max 8 sonuç
+      .slice(0, 8);
   }, [searchQuery, gelinler]);
 
-  // Dropdown dışına tıklanınca kapat
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
@@ -168,14 +160,12 @@ export default function HomePage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Mobil arama açıldığında focus
   useEffect(() => {
     if (showMobileSearch && mobileSearchRef.current) {
       mobileSearchRef.current.focus();
     }
   }, [showMobileSearch]);
 
-  // Modal açıkken body scroll'u kilitle
   useEffect(() => {
     const isAnyModalOpen = selectedGelin !== null || haftaModalOpen || gelinListeModal.open || selectedDuyuru !== null || showMobileSearch;
     if (isAnyModalOpen) {
@@ -188,22 +178,10 @@ export default function HomePage() {
     };
   }, [selectedGelin, haftaModalOpen, gelinListeModal.open, selectedDuyuru, showMobileSearch]);
 
-  // Aylık hedef state
   const [aylikHedef, setAylikHedef] = useState<number>(0);
-
-  // Bugün/Yarın toggle
   const [gelinGunSecim, setGelinGunSecim] = useState<'bugun' | 'yarin'>('bugun');
-
-  // Layout Seçimi (1, 2, veya 3)
-  // Layout artık sabit: Üç sütun
-
-  // Firebase'den çekilen izinler
   const [izinlerFirebase, setIzinlerFirebase] = useState<IzinKaydi[]>([]);
-  
-  // Vardiya planından hafta tatilleri
   const [haftaTatilleri, setHaftaTatilleri] = useState<IzinKaydi[]>([]);
-
-  // Sakin günler filtre state
   const [sakinGunFiltre, setSakinGunFiltre] = useState<number>(0);
 
   const loadFromCache = () => {
@@ -236,10 +214,34 @@ export default function HomePage() {
     } catch (e) { return true; }
   };
 
+  // 🔥 AUTH + ROL KONTROLÜ
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUser(user);
+        
+        // Firestore'dan kullanıcı rolünü çek
+        try {
+          const personelQuery = query(
+            collection(db, "personnel"),
+            where("email", "==", user.email)
+          );
+          const personelSnap = await getDocs(personelQuery);
+          
+          if (!personelSnap.empty) {
+            const personelData = personelSnap.docs[0].data();
+            const rol = personelData.kullaniciTuru || "Personel";
+            
+            // localStorage'a kaydet
+            localStorage.setItem('userRole', rol);
+            localStorage.setItem('userId', personelSnap.docs[0].id);
+            console.log("✅ Rol kaydedildi:", rol);
+          } else {
+            console.warn("⚠️ Kullanıcı personnel koleksiyonunda bulunamadı!");
+          }
+        } catch (error) {
+          console.error("❌ Rol çekme hatası:", error);
+        }
       } else {
         router.push("/login");
       }
@@ -248,11 +250,9 @@ export default function HomePage() {
     return () => unsubscribe();
   }, [router]);
 
-  // Firestore Real-time Listener - Gelinler (14 gün önce → 30 gün sonra)
   useEffect(() => {
     if (!user) return;
 
-    // 🎯 Akıllı Tarih Penceresi: Geçen hafta + Bu hafta + Önümüzdeki 1 ay
     const onDortGunOnce = new Date();
     onDortGunOnce.setDate(onDortGunOnce.getDate() - 14);
     const onDortGunOnceStr = onDortGunOnce.toISOString().split('T')[0];
@@ -292,11 +292,6 @@ export default function HomePage() {
     };
   }, [user]);
 
-
-
-
-
-  // Firebase'den bugünün attendance kayıtlarını çek
   useEffect(() => {
     if (!user) return;
     
@@ -332,7 +327,6 @@ export default function HomePage() {
     return () => unsubscribe();
   }, [user]);
 
-  // Attendance'dan personel durumlarını hesapla
   useEffect(() => {
     const durumMap = new Map<string, PersonelGunlukDurum>();
 
@@ -364,7 +358,6 @@ export default function HomePage() {
     setPersonelDurumlar(Array.from(durumMap.values()));
   }, [bugunAttendance]);
 
-  // Firebase'den personelleri çek
   useEffect(() => {
     if (!user) return;
     const q = query(collection(db, "personnel"));
@@ -388,7 +381,6 @@ export default function HomePage() {
     return () => unsubscribe();
   }, [user]);
 
-  // Firebase'den izinleri çek
   useEffect(() => {
     if (!user) return;
     const q = query(collection(db, "izinler"));
@@ -407,14 +399,13 @@ export default function HomePage() {
           ONAYLANDI_MI: (data.durum === "onaylandi" || data.durum === "Onaylandı"),
           tumVeri: data
         });
-        // Sadece onaylanmış izinleri al
         if (data.durum === "onaylandi" || data.durum === "Onaylandı") {
           list.push({
             id: docSnap.id,
             personelId: data.personelId || "",
             personelAd: data.personelAd || "",
-            baslangicTarihi: data.baslangic || "", // Firebase'de "baslangic"
-            bitisTarihi: data.bitis || "", // Firebase'de "bitis"
+            baslangicTarihi: data.baslangic || "",
+            bitisTarihi: data.bitis || "",
             izinTuru: data.izinTuru || "",
             durum: data.durum || "",
             aciklama: data.aciklama || "",
@@ -429,7 +420,6 @@ export default function HomePage() {
     return () => unsubscribe();
   }, [user]);
 
-  // Vardiya planından hafta tatillerini çek
   useEffect(() => {
     if (!user) return;
     const q = query(collection(db, "vardiyaPlan"));
@@ -437,7 +427,6 @@ export default function HomePage() {
       const list: IzinKaydi[] = [];
       snapshot.forEach((docSnap) => {
         const data = docSnap.data();
-        // Sadece hafta tatili olanları al
         if (data.haftaTatili === true) {
           console.log("🏖️ Hafta tatili bulundu:", {
             personelAd: data.personelAd,
@@ -447,8 +436,8 @@ export default function HomePage() {
             id: docSnap.id,
             personelId: data.personelId || "",
             personelAd: data.personelAd || "",
-            baslangicTarihi: data.tarih || "", // Tek günlük
-            bitisTarihi: data.tarih || "", // Tek günlük
+            baslangicTarihi: data.tarih || "",
+            bitisTarihi: data.tarih || "",
             izinTuru: "Haftalık İzin",
             durum: "Onaylandı",
             aciklama: "Vardiya planından hafta tatili",
@@ -461,7 +450,6 @@ export default function HomePage() {
     return () => unsubscribe();
   }, [user]);
 
-  // Çalışma yılı hesapla
   const hesaplaCalismaYili = (iseBaslama: string) => {
     if (!iseBaslama) return 0;
     const baslangic = new Date(iseBaslama);
@@ -474,7 +462,6 @@ export default function HomePage() {
     return yil;
   };
 
-  // Kümülatif izin hakkı hesapla
   const hesaplaIzinHakki = (calismaYili: number) => {
     let toplam = 0;
     for (let yil = 1; yil <= calismaYili; yil++) {
@@ -485,12 +472,10 @@ export default function HomePage() {
     return toplam;
   };
 
-  // Eksik izinleri hesapla
   useEffect(() => {
     const eksikler: EksikIzin[] = [];
     personeller.forEach((personel) => {
       if (!personel.iseBaslama) return;
-      // Kurucu ve Yönetici için izin takibi yapma
       if (personel.kullaniciTuru === "Kurucu" || personel.kullaniciTuru === "Yönetici") return;
       const calismaYili = hesaplaCalismaYili(personel.iseBaslama);
       if (calismaYili < 1) return;
@@ -505,7 +490,6 @@ export default function HomePage() {
     setEksikIzinler(eksikler);
   }, [personeller]);
 
-  // Firebase'den son 10 duyuruyu çek
   useEffect(() => {
     if (!user) return;
     const q = query(
@@ -523,7 +507,6 @@ export default function HomePage() {
     return () => unsubscribe();
   }, [user]);
 
-  // Firebase'den bu ayın hedefini çek
   useEffect(() => {
     if (!user) return;
     const buAy = new Date().toISOString().slice(0, 7);
@@ -535,7 +518,6 @@ export default function HomePage() {
     return () => unsubscribe();
   }, [user]);
 
-  // Eksik izin ekle
   const handleIzinEkle = async (eksik: EksikIzin) => {
     setIzinEkleniyor(eksik.personel.id);
     try {
@@ -560,7 +542,6 @@ export default function HomePage() {
     }
   };
 
-  // Tümüne ekle
   const handleTumIzinleriEkle = async () => {
     if (!window.confirm(`${eksikIzinler.length} personele toplam ${eksikIzinler.reduce((t, e) => t + e.eksik, 0)} gün izin hakkı eklenecek. Onaylıyor musunuz?`)) {
       return;
@@ -570,7 +551,6 @@ export default function HomePage() {
     }
   };
 
-  // Tarih hesaplamaları
   const bugun = new Date().toISOString().split('T')[0];
   const bugunDate = new Date();
   
@@ -584,10 +564,8 @@ export default function HomePage() {
   const haftaSonuStr = haftaSonu.toISOString().split('T')[0];
   const buAyStr = bugun.slice(0, 7);
 
-  // Veriler
   const bugunGelinler = gelinler.filter(g => g.tarih === bugun);
   
-  // Yarının tarihi
   const yarinDate = new Date(bugunDate);
   yarinDate.setDate(yarinDate.getDate() + 1);
   const yarin = yarinDate.toISOString().split('T')[0];
@@ -596,11 +574,9 @@ export default function HomePage() {
   const buHaftaGelinler = gelinler.filter(g => g.tarih >= haftaBasiStr && g.tarih <= haftaSonuStr);
   const buAyGelinler = gelinler.filter(g => g.tarih.startsWith(buAyStr));
 
-  // Tüm izinleri birleştir (hem izinler hem vardiya planından hafta tatilleri)
   const tumIzinler = [...izinlerFirebase, ...haftaTatilleri];
   console.log("📊 Toplam tüm izinler (izinler + hafta tatili):", tumIzinler.length);
 
-  // Bugün izinli olanlar (Firebase'den)
   const bugunIzinliler = tumIzinler.filter(izin => {
     const sonuc = izin.baslangicTarihi <= bugun && izin.bitisTarihi >= bugun;
     if (sonuc) {
@@ -621,7 +597,6 @@ export default function HomePage() {
   
   console.log("Bugün izinli toplam:", bugunIzinliler.length, bugunIzinliler);
   
-  // Hafta izinliler (Firebase'den)
   const haftaIzinliler = tumIzinler.filter(izin =>
     izin.baslangicTarihi <= haftaSonuStr && izin.bitisTarihi >= haftaBasiStr
   ).map(izin => ({
@@ -629,11 +604,9 @@ export default function HomePage() {
     personel: getPersonelByIsim(izin.personelAd?.split(' ')[0] || '', personeller)
   }));
 
-  // Attendance bazlı hesaplamalar
   const bugunGelenler = personelDurumlar.filter(p => p.girisSaati !== null);
   const suAnCalisanlar = personelDurumlar.filter(p => p.aktifMi);
 
-  // Sakin günler (filtreye göre)
   const sakinGunler: {tarih: string; gelinSayisi: number}[] = [];
   let dayOffset = 0;
   while (sakinGunler.length < 10 && dayOffset < 60) {
@@ -647,11 +620,9 @@ export default function HomePage() {
     dayOffset++;
   }
 
-  // Yaklaşan doğum günleri ve tatiller
   const yaklasanDogumGunleri = getYaklasanDogumGunleri(personeller);
   const yaklasanTatiller = getYaklasanTatiller();
 
-  // DİKKAT EDİLECEKLER
   const islenmemisUcretler = gelinler.filter(g => g.tarih >= bugun && g.ucret === -1);
   
   const toplamDikkat = islenmemisUcretler.length + eksikIzinler.length;
@@ -663,7 +634,6 @@ export default function HomePage() {
   const formatTarihUzun = (tarih: string) => new Date(tarih).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
   const formatGun = (tarih: string) => gunIsimleri[new Date(tarih).getDay()];
 
-  // Hafta takvimi renderı
   const renderHaftaTakvimi = (isModal: boolean = false) => {
     const gunAdlari = isModal 
       ? ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar']
@@ -676,7 +646,6 @@ export default function HomePage() {
           tarih.setDate(haftaBasi.getDate() + index);
           const tarihStr = tarih.toISOString().split('T')[0];
           const gunGelinler = gelinler.filter(g => g.tarih === tarihStr);
-          // Firebase'den izinlileri filtrele
           const gunIzinliler = izinlerFirebase.filter(izin =>
             izin.baslangicTarihi <= tarihStr && izin.bitisTarihi >= tarihStr
           ).map(izin => ({
@@ -749,7 +718,6 @@ export default function HomePage() {
               <p className="text-[11px] md:text-xs text-stone-500">{formatTarihUzun(bugun)} • {formatGun(bugun)}</p>
             </div>
             
-            {/* Gelin Arama */}
             <div ref={searchRef} className="hidden md:block flex-1 max-w-sm relative">
               <div className="relative">
                 <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400 text-sm">🔍</span>
@@ -774,7 +742,6 @@ export default function HomePage() {
                 )}
               </div>
               
-              {/* Arama Sonuçları Dropdown */}
               {showSearchDropdown && searchQuery.length >= 2 && (
                 <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-lg shadow-lg border border-stone-100 overflow-hidden z-50 max-h-[350px] overflow-y-auto">
                   {searchResults.length === 0 ? (
@@ -823,7 +790,6 @@ export default function HomePage() {
               )}
             </div>
 
-            {/* Mobil Arama Butonu */}
             <button 
               onClick={() => setShowMobileSearch(true)}
               className="md:hidden w-8 h-8 bg-stone-100 rounded-lg flex items-center justify-center text-stone-500 hover:bg-stone-200 transition text-sm"
@@ -845,12 +811,8 @@ export default function HomePage() {
         </header>
 
         <main className="p-3 md:p-3">
-
-
-          {/* ÜÇ SÜTUN DASHBOARD */}
             <div className="max-w-[1400px] mx-auto">
               
-              {/* Duyurular Banner */}
               {duyurular.length > 0 && (
                 <div className="mb-3 md:mb-4 bg-gradient-to-r from-amber-50/80 to-orange-50/80 border border-amber-100 rounded-lg p-3">
                   <div className="flex items-center justify-between mb-2">
@@ -886,7 +848,6 @@ export default function HomePage() {
                 </div>
               )}
 
-              {/* DİKKAT EDİLECEKLER PANEL - FULL DETAY */}
               {toplamDikkat > 0 && (
                 <div className="mb-3 md:mb-4">
                   <Panel icon="⚠️" title="Dikkat Edilecekler" badge={toplamDikkat}>
@@ -986,7 +947,6 @@ export default function HomePage() {
                 </div>
               )}
 
-              {/* Üst Metrikler - Bugün/Yarın Toggle ile */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                 <div 
                   className="bg-white p-3 rounded-lg shadow-sm border border-stone-100 cursor-pointer hover:shadow-md transition"
@@ -1005,7 +965,6 @@ export default function HomePage() {
                     </div>
                     <span className="text-lg">💄</span>
                   </div>
-                  {/* Toggle */}
                   <div className="flex gap-1 mt-2">
                     <button
                       onClick={(e) => { e.stopPropagation(); setGelinGunSecim('bugun'); }}
@@ -1076,11 +1035,8 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* 3 Sütun Layout */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-                {/* Sol Sütun */}
                 <div className="space-y-4">
-                  {/* Şu An Çalışanlar - DETAYLI */}
                   <Panel icon="🟢" title={`Şu An ${suAnCalisanlar.length} Kişi Çalışıyor`}>
                     {suAnCalisanlar.length === 0 ? (
                       <div className="text-center py-6 text-stone-500">
@@ -1107,7 +1063,6 @@ export default function HomePage() {
                     )}
                   </Panel>
 
-                  {/* Bugün Gelenler + İzinliler */}
                   <Panel icon="📋" title={`Bugün ${bugunGelenler.length} Kişi Geldi`}>
                     {bugunGelenler.length === 0 ? (
                       <div className="text-center py-6 text-stone-500">
@@ -1135,7 +1090,6 @@ export default function HomePage() {
                       </div>
                     )}
                     
-                    {/* İzinli Olanlar */}
                     {bugunIzinliler.length > 0 && (
                       <div className="mt-3 pt-3 border-t border-stone-200">
                         <p className="text-xs text-stone-500 mb-2">İzinli ({bugunIzinliler.length})</p>
@@ -1151,7 +1105,6 @@ export default function HomePage() {
                     )}
                   </Panel>
 
-                  {/* Doğum Günleri */}
                   {yaklasanDogumGunleri.length > 0 && (
                     <Panel icon="🎂" title="Yaklaşan Doğum Günleri">
                       <div className="space-y-2 max-h-[250px] overflow-y-auto">
@@ -1174,7 +1127,6 @@ export default function HomePage() {
                   )}
                 </div>
 
-                {/* Orta Sütun: Bugünün/Yarının İşleri */}
                 <div>
                   <div className="bg-white rounded-lg shadow-sm border border-stone-100 overflow-hidden">
                     <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between">
@@ -1206,9 +1158,7 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                {/* Sağ Sütun */}
                 <div className="space-y-4">
-                  {/* Haftalık Program - BÜYÜTME */}
                   <div 
                     className="bg-white rounded-lg shadow-sm border border-stone-100 overflow-hidden cursor-pointer hover:shadow-md transition"
                     onClick={() => setHaftaModalOpen(true)}
@@ -1234,7 +1184,6 @@ export default function HomePage() {
                     </div>
                   </div>
 
-                  {/* Sakin Günler - FİLTRELİ */}
                   <div className="bg-white rounded-lg shadow-sm border border-stone-100 overflow-hidden">
                     <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between">
                       <h2 className="font-semibold text-stone-800 flex items-center gap-2 text-sm">
@@ -1275,7 +1224,6 @@ export default function HomePage() {
                     </div>
                   </div>
 
-                  {/* Resmi Tatiller */}
                   <Panel icon="🏛️" title="Resmi Tatiller">
                     <div className="space-y-2 max-h-[300px] overflow-y-auto">
                       {yaklasanTatiller.slice(0, 10).map((t) => (
@@ -1292,7 +1240,6 @@ export default function HomePage() {
         </main>
       </div>
 
-      {/* Mobil Arama Modal */}
       {showMobileSearch && (
         <div className="fixed inset-0 bg-black/50 z-50 md:hidden" onClick={() => setShowMobileSearch(false)}>
           <div className="bg-white w-full" onClick={e => e.stopPropagation()}>
@@ -1319,7 +1266,6 @@ export default function HomePage() {
               </div>
             </div>
             
-            {/* Mobil Arama Sonuçları */}
             {searchQuery.length >= 2 && (
               <div className="max-h-[70vh] overflow-y-auto border-t border-stone-100">
                 {searchResults.length === 0 ? (
@@ -1370,7 +1316,6 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Duyuru Detay Modal */}
       {selectedDuyuru && (
         <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 md:p-3" onClick={() => setSelectedDuyuru(null)}>
           <div className="bg-white rounded-t-3xl md:rounded-lg shadow-xl max-w-lg w-full max-h-[80vh] overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -1413,7 +1358,6 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Hafta Programı Modal */}
       {haftaModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3" onClick={() => setHaftaModalOpen(false)}>
           <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -1440,7 +1384,6 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Gelin Listesi Modal */}
       {gelinListeModal.open && (
         <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 md:p-3" onClick={() => setGelinListeModal({ ...gelinListeModal, open: false })}>
           <div className="bg-white rounded-t-3xl md:rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -1504,7 +1447,6 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Gelin Detay Modal */}
       {selectedGelin && (
         <GelinModal gelin={selectedGelin} onClose={() => setSelectedGelin(null)} />
       )}
@@ -1512,7 +1454,6 @@ export default function HomePage() {
   );
 }
 
-// Yardımcı Componentler
 function Panel({ icon, title, badge, action, link, children, onRefresh }: { 
   icon: string; title: string; badge?: number; action?: string; link?: string; children: React.ReactNode; onRefresh?: () => void;
 }) {
