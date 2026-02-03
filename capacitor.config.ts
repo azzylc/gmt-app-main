@@ -1,9 +1,12 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.mgtapp.gys',
+  appId: 'com.gmt.app',
   appName: 'MGT App',
-  webDir: 'out'  // Next.js static export directory
+  webDir: '.next/server/app',
+  server: {
+    androidScheme: 'https'
+  }
 };
 
 export default config;

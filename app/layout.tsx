@@ -1,12 +1,6 @@
-import type { Metadata } from "next";
+"use client";
+import { useEffect, useState } from "react";
 import "./globals.css";
-import { Analytics } from "@vercel/analytics/react";
-import { SpeedInsights } from "@vercel/speed-insights/next";
-
-export const metadata: Metadata = {
-  title: "GYS Studio - Gizem Yolcu",
-  description: "Gelin Yonetim Sistemi",
-};
 
 export default function RootLayout({
   children,
@@ -15,10 +9,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="tr">
+      <head>
+        <title>GYS Studio - Gizem Yolcu</title>
+        <meta name="description" content="Gelin Yonetim Sistemi" />
+      </head>
       <body>
         {children}
-        <Analytics />
-        <SpeedInsights />
       </body>
     </html>
   );
