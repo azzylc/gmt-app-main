@@ -196,11 +196,15 @@ export default function GorevlerPage() {
     }
   };
 
-  // Personelleri dinle
+  // Personelleri dinle (SADECE AKTİF)
   useEffect(() => {
     if (!user) return;
 
-    const q = query(collection(db, "personnel"), orderBy("ad", "asc"));
+    const q = query(
+      collection(db, "personnel"), 
+      where("aktif", "==", true),
+      orderBy("ad", "asc")
+    );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({
         id: doc.id,

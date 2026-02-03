@@ -138,6 +138,13 @@ export async function PUT(req: NextRequest) {
       }
     }
 
+    // ✅ İŞTEN AYRILMA TARİHİ KONTROLÜ
+    // istenAyrilma doluysa → aktif: false
+    // istenAyrilma boşsa → aktif: true
+    if (updateData.istenAyrilma !== undefined) {
+      updateData.aktif = !updateData.istenAyrilma || updateData.istenAyrilma === '';
+    }
+
     // Aktiflik durumu değiştiyse Auth'u güncelle
     if (updateData.aktif !== undefined) {
       try {

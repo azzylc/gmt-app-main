@@ -14,31 +14,48 @@ interface Personel {
   kisaltma?: string;
   dogumTarihi?: string;
   iseBaslama?: string;
+  istenAyrilma?: string; // İşten ayrılma tarihi
   grupEtiketleri: string[];
   aktif: boolean;
   kullaniciTuru?: string;
   yillikIzinHakki?: number;
 }
 
+type PersonelFiltre = 'aktif' | 'pasif' | 'hepsi';
+
 /**
- * Firebase'den tüm personelleri çeker
+ * Firebase'den personelleri çeker
+ * @param filtre - 'aktif' (varsayılan), 'pasif' veya 'hepsi'
  */
-export function usePersoneller() {
+export function usePersoneller(filtre: PersonelFiltre = 'aktif') {
   const [personeller, setPersoneller] = useState<Personel[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const q = query(
-      collection(db, 'personnel'),
-      where('aktif', '==', true)
-    );
+    let q;
+    
+    // Filtreye göre query oluştur
+    if (filtre === 'aktif') {
+      q = query(
+        collection(db, 'personnel'),
+        where('aktif', '==', true)
+      );
+    } else if (filtre === 'pasif') {
+      q = query(
+        collection(db, 'personnel'),
+        where('aktif', '==', false)
+      );
+    } else {
+      // 'hepsi' - filtre yok
+      q = query(collection(db, 'personnel'));
+    }
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({
         id: doc.id,
         ad: doc.data().ad || '',
         soyad: doc.data().soyad || '',
-        isim: `${doc.data().ad || ''} ${doc.data().soyad || ''}`.trim(), // Eski sistemle uyumluluk
+        isim: `${doc.data().ad || ''} ${doc.data().soyad || ''}`.trim(),
         email: doc.data().email || '',
         telefon: doc.data().telefon || '',
         instagram: doc.data().instagram || '',
@@ -46,6 +63,7 @@ export function usePersoneller() {
         kisaltma: doc.data().kisaltma || '',
         dogumTarihi: doc.data().dogumTarihi || '',
         iseBaslama: doc.data().iseBaslama || '',
+        istenAyrilma: doc.data().istenAyrilma || '',
         grupEtiketleri: doc.data().grupEtiketleri || [],
         aktif: doc.data().aktif !== false,
         kullaniciTuru: doc.data().kullaniciTuru || 'Personel',
@@ -57,7 +75,7 @@ export function usePersoneller() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [filtre]); // filtre değişince yeniden subscribe
 
   return { personeller, loading };
 }
