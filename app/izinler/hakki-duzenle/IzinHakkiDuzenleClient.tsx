@@ -1,15 +1,15 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
-import { auth, db } from "../../../lib/firebase";
+import { useRouter, useSearchParams } from "next/navigation";
+import { auth, db } from "../../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
-import Sidebar from "../../../components/Sidebar";
+import Sidebar from "../../components/Sidebar";
 
-export default function IzinHakkiDuzenle() {
+export default function IzinHakkiDuzenleClient() {
   const router = useRouter();
-  const params = useParams();
-  const kayitId = params.id as string;
+  const searchParams = useSearchParams();
+  const kayitId = searchParams.get('id');
 
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -42,7 +42,13 @@ export default function IzinHakkiDuzenle() {
 
   // Kayıt verilerini çek
   useEffect(() => {
-    if (!user || !kayitId) return;
+    if (!user || !kayitId) {
+      if (user && !kayitId) {
+        alert("Kayıt ID'si bulunamadı.");
+        router.push("/izinler/haklar");
+      }
+      return;
+    }
 
     const fetchKayit = async () => {
       try {
@@ -71,6 +77,11 @@ export default function IzinHakkiDuzenle() {
   }, [user, kayitId, router]);
 
   const handleSave = async () => {
+    if (!kayitId) {
+      alert("Kayıt ID'si bulunamadı.");
+      return;
+    }
+
     if (!hakGunu || parseInt(hakGunu) <= 0) {
       alert("Lütfen geçerli bir gün sayısı girin.");
       return;

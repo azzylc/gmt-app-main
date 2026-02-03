@@ -1,8 +1,6 @@
-// app/api/personel/route.ts
-// Personel oluşturma API - Firebase Auth + Firestore
-
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, adminAuth } from '@/app/lib/firestore-admin';
+import { sendPasswordResetEmail } from '@/app/lib/email';
 
 // Rastgele şifre üret
 function generatePassword(length = 8): string {
@@ -100,11 +98,30 @@ export async function POST(req: NextRequest) {
     // Auth UID'yi doc ID olarak kullan
     await adminDb.collection('personnel').doc(userRecord.uid).set(personelData);
 
+    // ✅ ŞİFREYİ MAİL İLE GÖNDER
+    try {
+      const mailSent = await sendPasswordResetEmail(
+        email,
+        `${ad} ${soyad}`,
+        finalPassword
+      );
+      
+      if (mailSent) {
+        console.log(`✅ Şifre maili gönderildi: ${email}`);
+      } else {
+        console.error(`❌ Mail gönderilemedi: ${email}`);
+      }
+    } catch (emailError) {
+      console.error('Mail gönderme hatası:', emailError);
+      // Mail hatası personel oluşturmayı engellemez
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Personel başarıyla oluşturuldu',
       uid: userRecord.uid,
-      email: email
+      email: email,
+      password: finalPassword  // ✅ Şifreyi de döndür (güvenlik için production'da kaldırılabilir)
     });
 
   } catch (error: any) {
