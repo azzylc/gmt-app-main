@@ -39,7 +39,7 @@ export default function HaftalikCalismaSureleriPage() {
   const [loading, setLoading] = useState(true);
   const [personeller, setPersoneller] = useState<Personel[]>([]);
   const [haftalikData, setHaftalikData] = useState<PersonelHaftalik[]>([]);
-  const [haftalar, setHaftalar] = useState<{ value: string; label: string }[]>([]);
+  const [haftalar, setHaftalar] = useState<{ value: string; label: string; year?: number; isYearHeader?: boolean }[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
   const router = useRouter();
 
@@ -59,29 +59,44 @@ export default function HaftalikCalismaSureleriPage() {
     return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
   };
 
-  // Haftaları oluştur
+  // Haftaları oluştur (patrondaki gibi)
   useEffect(() => {
-    const weeks: { value: string; label: string }[] = [];
+    const weeks: { value: string; label: string; year?: number; isYearHeader?: boolean }[] = [];
     const today = new Date();
     
-    for (let i = 0; i < 12; i++) {
+    // Son 52 hafta (1 yıl)
+    for (let i = 51; i >= 0; i--) {  // TERS SIRALAMA: geçmişten bugüne
       const weekStart = new Date(today);
       weekStart.setDate(today.getDate() - today.getDay() + 1 - (i * 7));
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekStart.getDate() + 6);
       
       const weekNum = getWeekNumber(weekStart);
+      const year = weekStart.getFullYear();
       const startStr = weekStart.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
       const endStr = weekEnd.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
       
+      // Yıl değiştiyse başlık ekle
+      if (weeks.length === 0 || weeks[weeks.length - 1].year !== year) {
+        weeks.push({
+          value: `year-${year}`,
+          label: `${year} yılı`,
+          year: year,
+          isYearHeader: true
+        });
+      }
+      
       weeks.push({
         value: weekStart.toISOString().split('T')[0],
-        label: `${String(weekNum).padStart(2, '0')}. Hafta (${startStr} - ${endStr})`
+        label: `${String(weekNum).padStart(2, '0')}. Hafta (${startStr} - ${endStr})`,
+        year: year
       });
     }
     
     setHaftalar(weeks);
-    if (weeks.length > 0) setSeciliHafta(weeks[0].value);
+    // Bu haftayı seç (en son eklenen, yıl başlığı olmayanlar arasında)
+    const thisWeek = weeks.filter(w => !w.isYearHeader).pop();
+    if (thisWeek) setSeciliHafta(thisWeek.value);
   }, []);
 
   useEffect(() => {
@@ -359,14 +374,22 @@ export default function HaftalikCalismaSureleriPage() {
               <div className="col-span-2">
                 <label className="block text-xs text-stone-500 mb-1">Hafta seçiniz</label>
                 <select
-                  value={seciliHafta}
-                  onChange={(e) => setSeciliHafta(e.target.value)}
-                  className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
-                >
-                  {haftalar.map(h => (
-                    <option key={h.value} value={h.value}>{h.label}</option>
-                  ))}
-                </select>
+  value={seciliHafta}
+  onChange={(e) => setSeciliHafta(e.target.value)}
+  className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
+>
+  {haftalar.map(h => 
+    h.isYearHeader ? (
+      <option key={h.value} value={h.value} disabled className="text-stone-400 font-semibold">
+        {h.label}
+      </option>
+    ) : (
+      <option key={h.value} value={h.value}>
+        {h.label}
+      </option>
+    )
+  )}
+</select>
               </div>
               <div>
                 <label className="block text-xs text-stone-500 mb-1">Günlük çalışma süresi</label>
