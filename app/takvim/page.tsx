@@ -226,7 +226,19 @@ export default function TakvimPage() {
   };
 
   const ayGelinler = gelinler.filter(g => g.tarih.startsWith(`${year}-${String(month + 1).padStart(2, '0')}`));
-  const ayKalan = ayGelinler.reduce((sum, g) => sum + (g.kalan > 0 ? g.kalan : 0), 0);
+  
+  // En yoğun 4 günü hesapla
+  const gunBazindaGelinler = ayGelinler.reduce((acc, gelin) => {
+    const gun = gelin.tarih.split('-')[2]; // "2026-05-15" -> "15"
+    if (!acc[gun]) acc[gun] = 0;
+    acc[gun]++;
+    return acc;
+  }, {} as Record<string, number>);
+  
+  const enYogunGunler = Object.entries(gunBazindaGelinler)
+    .map(([gun, sayi]) => ({ gun: parseInt(gun), sayi }))
+    .sort((a, b) => b.sayi - a.sayi)
+    .slice(0, 4); // En yoğun 4 gün
 
   if (loading) {
     return (
@@ -351,8 +363,19 @@ export default function TakvimPage() {
               <p className="stat-value stat-value-primary">{ayGelinler.length}</p>
             </div>
             <div className="stat-card">
-              <p className="stat-label">Kalan Bakiye</p>
-              <p className="stat-value stat-value-accent">{ayKalan.toLocaleString('tr-TR')} ₺</p>
+              <p className="stat-label">En Yoğun Günler</p>
+              <div className="text-xs text-stone-600 mt-1 space-y-0.5">
+                {enYogunGunler.length > 0 ? (
+                  enYogunGunler.map((item, idx) => (
+                    <div key={idx} className="flex justify-between items-center">
+                      <span className="font-medium">{item.gun} {aylar[month].slice(0, 3)}</span>
+                      <span className="text-rose-600 font-semibold">{item.sayi} gelin</span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-stone-400 italic">Veri yok</p>
+                )}
+              </div>
             </div>
             <div className="stat-card">
               <p className="stat-label">Günlük Ortalama</p>
