@@ -14,7 +14,7 @@ const nextConfig = {
 };
 
 export default withSentryConfig(nextConfig, {
-  org: "gmt-app-main",
+  org: "mgt-app",
   project: "javascript-nextjs",
   silent: !process.env.CI,
   widenClientFileUpload: true,

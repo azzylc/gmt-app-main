@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.gmt.app',
+  appId: 'com.mgtapp.ios',
   appName: 'MGT App',
   webDir: 'out',
   server: {

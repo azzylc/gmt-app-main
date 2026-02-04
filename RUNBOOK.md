@@ -1,4 +1,4 @@
-# 🚨 GMT App - Operasyon Runbook v1.1
+# 🚨 MGT App - Operasyon Runbook v1.1
 
 **Son Güncelleme:** 1 Şubat 2026  
 **Versiyon:** 1.1
@@ -15,7 +15,7 @@
 #    - Büyük fark (10+): Hemen full-sync tetikle
 
 # 3. Manuel full-sync:
-curl -X GET "https://gmt-app-main.vercel.app/api/full-sync" \
+curl -X GET "https://gys.mgtapp.com/api/full-sync" \
   -H "Authorization: Bearer <CRON_SECRET>"
 
 # 4. Hala fark varsa kontrol et:
@@ -48,7 +48,7 @@ curl -X GET "https://gmt-app-main.vercel.app/api/full-sync" \
 #    https://vercel.com/azzylcs-projects/gmt-app-main/logs
 
 # 4. Manuel retry:
-curl -X GET "https://gmt-app-main.vercel.app/api/full-sync" \
+curl -X GET "https://gys.mgtapp.com/api/full-sync" \
   -H "Authorization: Bearer <CRON_SECRET>"
 
 # 5. Job stats kontrol (Firestore):
@@ -68,7 +68,7 @@ curl -X GET "https://gmt-app-main.vercel.app/api/full-sync" \
 #    Bak: expiration tarihine
 
 # 4. Manuel yenileme:
-curl -X GET "https://gmt-app-main.vercel.app/api/renew-watch" \
+curl -X GET "https://gys.mgtapp.com/api/renew-watch" \
   -H "Authorization: Bearer <CRON_SECRET>"
 
 # 5. Doğrulama:
@@ -99,20 +99,20 @@ curl -X GET "https://gmt-app-main.vercel.app/api/renew-watch" \
 ## 5. Hızlı Sağlık Kontrolü
 ```bash
 # === AUTH KONTROLÜ (401 beklenir) ===
-curl https://gmt-app-main.vercel.app/api/full-sync
-curl https://gmt-app-main.vercel.app/api/drift-detection
-curl https://gmt-app-main.vercel.app/api/renew-watch
+curl https://gys.mgtapp.com/api/full-sync
+curl https://gys.mgtapp.com/api/drift-detection
+curl https://gys.mgtapp.com/api/renew-watch
 # → Hepsi {"error":"Unauthorized"} dönmeli
 
 # === WEBHOOK VALİDATİON (validation_failed beklenir) ===
-curl -X POST "https://gmt-app-main.vercel.app/api/calendar-webhook" \
+curl -X POST "https://gys.mgtapp.com/api/calendar-webhook" \
   -H "x-goog-channel-id: fake" \
   -H "x-goog-resource-id: fake" \
   -H "x-goog-channel-token: fake"
 # → {"status":"validation_failed"} dönmeli
 
 # === FULL-SYNC TEST (success beklenir) ===
-curl -X GET "https://gmt-app-main.vercel.app/api/full-sync" \
+curl -X GET "https://gys.mgtapp.com/api/full-sync" \
   -H "Authorization: Bearer <CRON_SECRET>"
 # → {"success":true,...} dönmeli
 

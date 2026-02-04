@@ -1,4 +1,4 @@
-# GMT App - Gelin Takip Sistemi
+# MGT App - Gelin Takip Sistemi
 
 Version: 3.0.0
 
