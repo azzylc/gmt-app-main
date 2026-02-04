@@ -1,8 +1,10 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { Capacitor } from '@capacitor/core';
 import { signInWithEmailPasswordREST } from "../lib/firebase-rest-auth";
-import { isAuthenticatedSync } from "../lib/authStore";
+import { nativeSignIn } from "../lib/nativeAuth";
+import { auth } from "../lib/firebase";
+import { setToken } from "../lib/authStore";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -13,18 +15,9 @@ export default function LoginPage() {
   const [success, setSuccess] = useState("");
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
-  const router = useRouter();
 
-  // 🔥 Zaten giriş yapılmışsa ana sayfaya git (SENKRON!)
-  useEffect(() => {
-    console.log('🔥 [LOGIN] Checking auth...');
-    if (isAuthenticatedSync()) {
-      console.log('✅ [LOGIN] Already authenticated, redirecting');
-      router.replace("/");
-    } else {
-      console.log('⚠️ [LOGIN] Not authenticated');
-    }
-  }, [router]);
+  // Platform detection
+  const isNative = Capacitor.isNativePlatform();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,28 +26,43 @@ export default function LoginPage() {
     setSuccess("");
     
     try {
-      console.log('🔥 [LOGIN] Attempting login...');
+      console.log(`🔥 [LOGIN] Attempting login (platform: ${Capacitor.getPlatform()})...`);
       
-      await signInWithEmailPasswordREST(email, password);
+      if (isNative) {
+        // iOS/Android: Native plugin
+        console.log('📱 [LOGIN] Using native auth');
+        await nativeSignIn(email, password);
+        console.log('✅ [LOGIN] Native login successful');
+      } else {
+        // Web: REST API
+        console.log('🌐 [LOGIN] Using REST API auth');
+        await signInWithEmailPasswordREST(email, password);
+        console.log('✅ [LOGIN] REST login successful');
+      }
       
-      console.log('✅ [LOGIN] Login successful, redirecting');
+      // ✅ TOKEN KAYDETME GARANTİSİ
+      const u = auth.currentUser;
+      if (!u) throw new Error("Auth currentUser null (unexpected after login)");
       
-      // ✅ 100ms bekle (native storage sync için)
-      await new Promise(resolve => setTimeout(resolve, 100));
+      const idToken = await u.getIdToken(true);
+      await setToken(idToken);
+      console.log('💾 [LOGIN] Token manually saved (len):', idToken.length);
       
-      router.replace("/");
+      // Redirect (replace daha temiz)
+      window.location.replace("/");
+      
     } catch (err: any) {
       console.error('❌ [LOGIN] Login failed:', err);
       
       let errorMessage = "Giriş başarısız.";
-      if (err.message?.includes('INVALID_LOGIN_CREDENTIALS')) {
+      if (err.message?.includes('INVALID_LOGIN_CREDENTIALS') || err.message?.includes('INVALID_PASSWORD')) {
         errorMessage = "E-posta veya şifre hatalı.";
       } else if (err.message?.includes('USER_DISABLED')) {
         errorMessage = "Bu hesap devre dışı bırakılmış.";
       } else if (err.message?.includes('TOO_MANY_ATTEMPTS')) {
         errorMessage = "Çok fazla deneme yapıldı. Lütfen daha sonra tekrar deneyin.";
-      } else if (err.message?.includes('TOKEN_WRITE_FAILED')) {
-        errorMessage = "Token kaydedilemedi. Lütfen tekrar deneyin.";
+      } else if (err.message?.includes('auth/')) {
+        errorMessage = err.message;
       }
       
       setError(errorMessage);

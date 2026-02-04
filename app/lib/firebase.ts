@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from "firebase/app";
-import { getAuth, Auth } from "firebase/auth";
+import { getAuth } from "firebase/auth";
 import { 
   initializeFirestore, 
   persistentLocalCache, 
@@ -19,27 +19,14 @@ const firebaseConfig = {
 // Singleton App Instance
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
-// ✅ Firestore - Gelişmiş Cache Ayarları
+// ✅ Firestore - Gelişmiş Cache Ayarları (Gemini önerisi)
 export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager()
   })
 });
 
-// ✅ Auth - Client/Server Safe Initialization
-let authInstance: Auth;
+// ✅ Auth - Basit initialization (Native plugin hallediyor!)
+export const auth = getAuth(app);
 
-if (typeof window !== 'undefined') {
-  // 🔥 CLIENT-SIDE: iOS Capacitor için özel initialization
-  const { initializeAuth, indexedDBLocalPersistence, browserPopupRedirectResolver } = require('firebase/auth');
-  authInstance = initializeAuth(app, {
-    persistence: indexedDBLocalPersistence,
-    popupRedirectResolver: browserPopupRedirectResolver
-  });
-} else {
-  // 🏗️ SERVER-SIDE (build time): Normal getAuth
-  authInstance = getAuth(app);
-}
-
-export const auth = authInstance;
 export { app };

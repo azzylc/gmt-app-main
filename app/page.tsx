@@ -3,9 +3,8 @@ import React, { useEffect, useState, useRef, useMemo } from "react";
 import { auth, db } from "./lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { getUserInfo } from "./lib/firebase-rest-auth";
-import { getCachedToken, isAuthenticatedSync } from "./lib/authStore";
+import { getToken } from "./lib/authStore";
 import { collection, query, onSnapshot, addDoc, doc, updateDoc, increment, orderBy, limit, where, Timestamp, getDocs } from "firebase/firestore";
-import { useRouter } from "next/navigation";
 import Sidebar from "./components/Sidebar";
 import GelinModal from "./components/GelinModal";
 import { usePersoneller, getPersonelByIsim } from "./hooks/usePersoneller";
@@ -115,7 +114,6 @@ export default function HomePage() {
   const [selectedGelin, setSelectedGelin] = useState<Gelin | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [haftaModalOpen, setHaftaModalOpen] = useState(false);
-  const router = useRouter();
 
   const { personeller, loading: personellerLoading } = usePersoneller();
 
@@ -217,46 +215,39 @@ export default function HomePage() {
     } catch (e) { return true; }
   };
 
-// 🔥 AUTH KONTROL - authStore PATTERN (SENKRON!)
+
+// ✅ AUTH KONTROL - ASYNC PATTERN (AuthGuard hallediyor redirect'i)
 useEffect(() => {
-  const checkAuth = async () => {
-    console.log('🔥 [HOME] Checking auth...');
-    
-    // 🔥 SENKRON kontrol - Bridge beklemeden instant!
-    if (!isAuthenticatedSync()) {
-      console.warn('⚠️ [HOME] Not authenticated, redirecting to login');
-      router.replace("/login");
-      return; // setLoading kasıtlı yapmıyoruz - login'e gidecek
-    }
-    
-    console.log('✅ [HOME] Authenticated, loading user data');
-    
+  const loadUser = async () => {
     try {
-      // Token memory'den al (instant!)
-      const token = getCachedToken();
-      
-      if (token) {
-        const userInfo = await getUserInfo(token);
-        setUser({ email: userInfo.email, uid: userInfo.localId });
-        
-        const personelQuery = query(
-          collection(db, "personnel"),
-          where("email", "==", userInfo.email)
-        );
-        const personelSnap = await getDocs(personelQuery);
-        
-        if (!personelSnap.empty) {
-          const personelData = personelSnap.docs[0].data();
-          const rol = personelData.kullaniciTuru || "Personel";
-          localStorage.setItem('userRole', rol);
-          localStorage.setItem('userId', personelSnap.docs[0].id);
-          console.log('✅ [HOME] User loaded, role:', rol);
-        } else {
-          console.warn('⚠️ [HOME] User not found in personnel collection');
-        }
+      const token = await getToken();
+      if (!token) {
+        // AuthGuard zaten /login'e gönderecek
+        setLoading(false);
+        return;
       }
       
-      // ✅ Auth tamamlandı, loading'i kapat
+      console.log('✅ [HOME] Token available, loading user data');
+      
+      const userInfo = await getUserInfo(token);
+      setUser({ email: userInfo.email, uid: userInfo.localId });
+      
+      const personelQuery = query(
+        collection(db, "personnel"),
+        where("email", "==", userInfo.email)
+      );
+      const personelSnap = await getDocs(personelQuery);
+      
+      if (!personelSnap.empty) {
+        const personelData = personelSnap.docs[0].data();
+        const rol = personelData.kullaniciTuru || "Personel";
+        localStorage.setItem('userRole', rol);
+        localStorage.setItem('userId', personelSnap.docs[0].id);
+        console.log('✅ [HOME] User loaded, role:', rol);
+      } else {
+        console.warn('⚠️ [HOME] User not found in personnel collection');
+      }
+      
       setLoading(false);
     } catch (error) {
       console.error('❌ [HOME] Error loading user:', error);
@@ -264,8 +255,10 @@ useEffect(() => {
     }
   };
 
-  checkAuth();
-}, []); // ✅ Boş array - sadece ilk mount'ta çalış!
+  loadUser();
+}, []);
+
+  // ✅ Boş array - sadece ilk mount'ta çalış!
 
   useEffect(() => {
     if (!user) return;
@@ -895,7 +888,7 @@ useEffect(() => {
                             ))}
                             {islenmemisUcretler.length > 3 && (
                               <button 
-                                onClick={() => router.push('/takvim')}
+                                onClick={() => window.location.href = '/takvim'}
                                 className="text-amber-600 text-[10px] font-medium hover:text-amber-700 w-full text-center pt-1"
                               >
                                 +{islenmemisUcretler.length - 3} daha gör →
@@ -1472,7 +1465,6 @@ useEffect(() => {
 function Panel({ icon, title, badge, action, link, children, onRefresh }: { 
   icon: string; title: string; badge?: number; action?: string; link?: string; children: React.ReactNode; onRefresh?: () => void;
 }) {
-  const router = useRouter();
   return (
     <div className="bg-white rounded-lg shadow-sm border border-stone-100 overflow-hidden">
       <div className="px-3 md:px-4 py-3 border-b border-stone-100 flex items-center justify-between">
@@ -1488,7 +1480,7 @@ function Panel({ icon, title, badge, action, link, children, onRefresh }: {
             <button onClick={onRefresh} className="text-stone-400 hover:text-stone-600 text-xs">🔄</button>
           )}
           {link && (
-            <button onClick={() => router.push(link)} className="text-rose-600 hover:text-rose-700 text-xs">
+            <button onClick={() => window.location.href = link} className="text-rose-600 hover:text-rose-700 text-xs">
               Tümü →
             </button>
           )}
