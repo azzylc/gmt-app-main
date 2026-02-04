@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from "firebase/app";
-import { getAuth, setPersistence, indexedDBLocalPersistence, browserLocalPersistence, inMemoryPersistence } from "firebase/auth";
+import { getAuth } from "firebase/auth";
 import { 
   initializeFirestore, 
   persistentLocalCache, 
@@ -19,34 +19,14 @@ const firebaseConfig = {
 // Singleton App Instance
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
-// ✅ Firestore - Gelişmiş Cache Ayarları
+// ✅ Firestore
 export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager()
   })
 });
 
-// ✅ Auth
+// ✅ Auth - Basit (persistence AuthProvider'da kontrollü yapılacak)
 export const auth = getAuth(app);
-
-// ✅ Persistence garantisi (Çeto'nun patch'i)
-let persistenceReady: Promise<void> | null = null;
-
-export function ensureAuthPersistence() {
-  if (typeof window === 'undefined') return Promise.resolve();
-
-  if (!persistenceReady) {
-    persistenceReady = setPersistence(auth, browserLocalPersistence)
-      .then(() => {
-        console.log('✅ [AUTH] Persistence: browserLocalPersistence');
-      })
-      .catch((e) => {
-        console.warn('⚠️ [AUTH] Persistence failed, fallback to inMemory', e);
-        return setPersistence(auth, inMemoryPersistence).then(() => {});
-      });
-  }
-
-  return persistenceReady;
-}
 
 export { app };

@@ -1,7 +1,6 @@
 "use client";
 import "./globals.css";
-import { AuthProvider } from './AuthProvider';
-import AuthGuard from './components/AuthGuard';
+import { AuthProvider, AuthGuard } from './lib/AuthSystem';
 
 export default function RootLayout({
   children,
@@ -12,7 +11,7 @@ export default function RootLayout({
     <html lang="tr">
       <head>
         <title>GYS Studio - Gizem Yolcu</title>
-        <meta name="description" content="Gelin Yonetim Sistemi" />
+        <meta name="description" content="Gelin Yönetim Sistemi" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
       </head>
       <body>

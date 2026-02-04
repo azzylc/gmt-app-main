@@ -1,12 +1,12 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useRouter } from 'next/navigation';
 import { Capacitor } from '@capacitor/core';
 import { signInWithEmailPasswordREST } from "../lib/firebase-rest-auth";
 import { nativeSignIn } from "../lib/nativeAuth";
-import { auth } from "../lib/firebase";
-import { setToken } from "../lib/authStore";
 
 export default function LoginPage() {
+  const router = useRouter(); // Gemini + Çeto: router kullan
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -16,7 +16,6 @@ export default function LoginPage() {
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
 
-  // Platform detection
   const isNative = Capacitor.isNativePlatform();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -26,30 +25,22 @@ export default function LoginPage() {
     setSuccess("");
     
     try {
-      console.log(`🔥 [LOGIN] Attempting login (platform: ${Capacitor.getPlatform()})...`);
+      console.log(`🔥 [LOGIN] Attempting login...`);
       
       if (isNative) {
-        // iOS/Android: Native plugin
         console.log('📱 [LOGIN] Using native auth');
         await nativeSignIn(email, password);
-        console.log('✅ [LOGIN] Native login successful');
       } else {
-        // Web: REST API
         console.log('🌐 [LOGIN] Using REST API auth');
         await signInWithEmailPasswordREST(email, password);
-        console.log('✅ [LOGIN] REST login successful');
       }
       
-      // ✅ TOKEN KAYDETME GARANTİSİ
-      const u = auth.currentUser;
-      if (!u) throw new Error("Auth currentUser null (unexpected after login)");
+      console.log('✅ [LOGIN] Login successful');
       
-      const idToken = await u.getIdToken(true);
-      await setToken(idToken);
-      console.log('💾 [LOGIN] Token manually saved (len):', idToken.length);
-      
-      // Redirect (replace daha temiz)
-      window.location.replace("/");
+      // Gemini + Çeto: router.replace kullan (NO window.location!)
+      // Firebase observer user state'i güncelleyecek
+      // AuthGuard otomatik redirect yapacak
+      router.replace("/");
       
     } catch (err: any) {
       console.error('❌ [LOGIN] Login failed:', err);
