@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, Auth } from "firebase/auth";
 import { 
   initializeFirestore, 
   persistentLocalCache, 
@@ -20,12 +20,26 @@ const firebaseConfig = {
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
 // ✅ Firestore - Gelişmiş Cache Ayarları
-// - persistentLocalCache: Veriler IndexedDB'de saklanır (refresh'te yeniden çekmez)
-// - persistentMultipleTabManager: Çoklu sekme desteği (her sekme aynı cache'i kullanır)
 export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager()
   })
 });
 
-export const auth = getAuth(app);
+// ✅ Auth - Client/Server Safe Initialization
+let authInstance: Auth;
+
+if (typeof window !== 'undefined') {
+  // 🔥 CLIENT-SIDE: iOS Capacitor için özel initialization
+  const { initializeAuth, indexedDBLocalPersistence, browserPopupRedirectResolver } = require('firebase/auth');
+  authInstance = initializeAuth(app, {
+    persistence: indexedDBLocalPersistence,
+    popupRedirectResolver: browserPopupRedirectResolver
+  });
+} else {
+  // 🏗️ SERVER-SIDE (build time): Normal getAuth
+  authInstance = getAuth(app);
+}
+
+export const auth = authInstance;
+export { app };

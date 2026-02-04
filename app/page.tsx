@@ -2,6 +2,8 @@
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { auth, db } from "./lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { getUserInfo } from "./lib/firebase-rest-auth";
+import { getCachedToken, isAuthenticatedSync } from "./lib/authStore";
 import { collection, query, onSnapshot, addDoc, doc, updateDoc, increment, orderBy, limit, where, Timestamp, getDocs } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import Sidebar from "./components/Sidebar";
@@ -13,6 +15,7 @@ import GelinListPanel from "./components/dashboard/GelinListPanel";
 import PersonelDurumPanel from "./components/dashboard/PersonelDurumPanel";
 import DikkatPanel from "./components/dashboard/DikkatPanel";
 import SakinGunlerPanel from "./components/dashboard/SakinGunlerPanel";
+
 
 interface Gelin {
   id: string;
@@ -214,41 +217,55 @@ export default function HomePage() {
     } catch (e) { return true; }
   };
 
-  // 🔥 AUTH + ROL KONTROLÜ
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        setUser(user);
+// 🔥 AUTH KONTROL - authStore PATTERN (SENKRON!)
+useEffect(() => {
+  const checkAuth = async () => {
+    console.log('🔥 [HOME] Checking auth...');
+    
+    // 🔥 SENKRON kontrol - Bridge beklemeden instant!
+    if (!isAuthenticatedSync()) {
+      console.warn('⚠️ [HOME] Not authenticated, redirecting to login');
+      router.replace("/login");
+      return; // setLoading kasıtlı yapmıyoruz - login'e gidecek
+    }
+    
+    console.log('✅ [HOME] Authenticated, loading user data');
+    
+    try {
+      // Token memory'den al (instant!)
+      const token = getCachedToken();
+      
+      if (token) {
+        const userInfo = await getUserInfo(token);
+        setUser({ email: userInfo.email, uid: userInfo.localId });
         
-        // Firestore'dan kullanıcı rolünü çek
-        try {
-          const personelQuery = query(
-            collection(db, "personnel"),
-            where("email", "==", user.email)
-          );
-          const personelSnap = await getDocs(personelQuery);
-          
-          if (!personelSnap.empty) {
-            const personelData = personelSnap.docs[0].data();
-            const rol = personelData.kullaniciTuru || "Personel";
-            
-            // localStorage'a kaydet
-            localStorage.setItem('userRole', rol);
-            localStorage.setItem('userId', personelSnap.docs[0].id);
-            console.log("✅ Rol kaydedildi:", rol);
-          } else {
-            console.warn("⚠️ Kullanıcı personnel koleksiyonunda bulunamadı!");
-          }
-        } catch (error) {
-          console.error("❌ Rol çekme hatası:", error);
+        const personelQuery = query(
+          collection(db, "personnel"),
+          where("email", "==", userInfo.email)
+        );
+        const personelSnap = await getDocs(personelQuery);
+        
+        if (!personelSnap.empty) {
+          const personelData = personelSnap.docs[0].data();
+          const rol = personelData.kullaniciTuru || "Personel";
+          localStorage.setItem('userRole', rol);
+          localStorage.setItem('userId', personelSnap.docs[0].id);
+          console.log('✅ [HOME] User loaded, role:', rol);
+        } else {
+          console.warn('⚠️ [HOME] User not found in personnel collection');
         }
-      } else {
-        router.push("/login");
       }
+      
+      // ✅ Auth tamamlandı, loading'i kapat
       setLoading(false);
-    });
-    return () => unsubscribe();
-  }, [router]);
+    } catch (error) {
+      console.error('❌ [HOME] Error loading user:', error);
+      setLoading(false);
+    }
+  };
+
+  checkAuth();
+}, []); // ✅ Boş array - sadece ilk mount'ta çalış!
 
   useEffect(() => {
     if (!user) return;
@@ -709,7 +726,6 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-white">
       <Sidebar user={user} />
-
       <div className="md:ml-56 pb-20 md:pb-0">
         <header className="bg-white border-b border-stone-100 px-4 md:px-5 py-2.5 md:py-3 sticky top-0 z-40">
           <div className="flex items-center justify-between gap-3">
@@ -1034,7 +1050,6 @@ export default function HomePage() {
                   </div>
                 </div>
               </div>
-
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                 <div className="space-y-4">
                   <Panel icon="🟢" title={`Şu An ${suAnCalisanlar.length} Kişi Çalışıyor`}>
