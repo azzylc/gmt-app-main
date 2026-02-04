@@ -1,7 +1,6 @@
 "use client";
 import "./globals.css";
 import { AuthProvider } from './AuthProvider';
-import { DebugOverlay } from './components/DebugOverlay';
 
 export default function RootLayout({
   children,
@@ -19,7 +18,6 @@ export default function RootLayout({
         <AuthProvider>
           {children}
         </AuthProvider>
-        <DebugOverlay />
       </body>
     </html>
   );
